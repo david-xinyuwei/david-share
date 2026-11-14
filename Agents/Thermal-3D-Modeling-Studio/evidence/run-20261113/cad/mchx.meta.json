@@ -1,0 +1,146 @@
+{
+ "ok": true,
+ "volume_mm3": 142043.46290411925,
+ "area_mm2": 622878.3000687725,
+ "density_g_cm3": 2.7,
+ "mass_kg": 0.383517349841122,
+ "bbox_mm": [
+  371.0,
+  49.5,
+  216.8
+ ],
+ "solids": 306,
+ "faces": 3504,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "铝扁管 × 24",
+   "volume_mm3": 92023.00815810463,
+   "mass_kg": 0.2484621220268825,
+   "density_g_cm3": 2.7,
+   "faces": 1008,
+   "solids": 24,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_2",
+   "name": "平直翅片（等效）",
+   "volume_mm3": 11834.880000000167,
+   "mass_kg": 0.03195417600000045,
+   "density_g_cm3": 2.7,
+   "faces": 1656,
+   "solids": 276,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_3",
+   "name": "进口侧集流管",
+   "volume_mm3": 15172.265177426802,
+   "mass_kg": 0.04096511597905237,
+   "density_g_cm3": 2.7,
+   "faces": 337,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_4",
+   "name": "出口侧集流管",
+   "volume_mm3": 15646.365809844856,
+   "mass_kg": 0.042245187686581115,
+   "density_g_cm3": 2.7,
+   "faces": 411,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_5",
+   "name": "进口接头",
+   "volume_mm3": 1219.6118611764186,
+   "mass_kg": 0.0032929520251763307,
+   "density_g_cm3": 2.7,
+   "faces": 8,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_6",
+   "name": "出口接头",
+   "volume_mm3": 1219.6118611764186,
+   "mass_kg": 0.0032929520251763307,
+   "density_g_cm3": 2.7,
+   "faces": 8,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_7",
+   "name": "安装支架（左）",
+   "volume_mm3": 2462.7676748256476,
+   "mass_kg": 0.01945586463112262,
+   "density_g_cm3": 7.9,
+   "faces": 38,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_8",
+   "name": "安装支架（右）",
+   "volume_mm3": 2462.7676748256467,
+   "mass_kg": 0.019455864631122612,
+   "density_g_cm3": 7.9,
+   "faces": 38,
+   "solids": 1,
+   "material": "powderCoat"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 1.2,
+  "edges": 484,
+  "candidates": 484,
+  "elapsed_s": 61.6,
+  "skipped": [
+   "铝扁管 × 24（24 个实体的阵列）",
+   "平直翅片（等效）（276 个实体的阵列）"
+  ]
+ },
+ "extra_metrics": [
+  {
+   "label": "扁管外表面积",
+   "value": "2491.2",
+   "unit": "cm²",
+   "note": "24 根 × 周长 × 300.0 mm"
+  },
+  {
+   "label": "翅片面积（真实）",
+   "value": "12328",
+   "unit": "cm²",
+   "note": "5750 片 × 2 面（间距 1.2 mm）"
+  },
+  {
+   "label": "总换热面积",
+   "value": "14819.2",
+   "unit": "cm²",
+   "note": "扁管 + 翅片"
+  },
+  {
+   "label": "翅片等效关系",
+   "value": "12 ≙ 250 片/间隙",
+   "unit": "",
+   "note": "真实翅片间距 1.2 mm → 每个管间隙约 240 片，等效 12 片（厚 0.4 mm），面积按比例换算"
+  }
+ ],
+ "t_model_s": 73.3,
+ "t_export_s": 12.1,
+ "elapsed_s": 86.3,
+ "step_bytes": 16200281,
+ "stl_bytes": 5788084,
+ "glb_bytes": 4120288,
+ "scenario_id": "mchx",
+ "summary": "微通道换热器的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：铝扁管 × 24 / 平直翅片（等效） / 进口侧集流管 / 出口侧集流管 / 进口接头 / 出口接头 等 8 个部件；3504 个面，质量 0.384 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/mchx.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:35:27+00:00",
+ "cadquery": "2.8.0"
+}

@@ -1,0 +1,365 @@
+{
+ "ok": true,
+ "volume_mm3": 512059202.85695076,
+ "area_mm2": 45062186.49639338,
+ "density_g_cm3": 1.717270679377624,
+ "mass_kg": 879.3442551717204,
+ "bbox_mm": [
+  3316.0,
+  1480.0,
+  870.0
+ ],
+ "solids": 202,
+ "faces": 1901,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "电池包托盘（铸铝）",
+   "volume_mm3": 31519744.40268214,
+   "mass_kg": 85.10330988724178,
+   "density_g_cm3": 2.7,
+   "faces": 91,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_2",
+   "name": "电池包上盖",
+   "volume_mm3": 55412530.96491487,
+   "mass_kg": 11.636631502632122,
+   "density_g_cm3": 0.21,
+   "faces": 10,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_3",
+   "name": "电池液冷板",
+   "volume_mm3": 19837253.096491486,
+   "mass_kg": 18.746204176184452,
+   "density_g_cm3": 0.945,
+   "faces": 10,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_4",
+   "name": "电池模组 ×12",
+   "volume_mm3": 253367481.7473751,
+   "mass_kg": 557.4084598442253,
+   "density_g_cm3": 2.2,
+   "faces": 120,
+   "solids": 12,
+   "material": "anodized"
+  },
+  {
+   "id": "part_5",
+   "name": "电驱电机",
+   "volume_mm3": 28705517.474013336,
+   "mass_kg": 77.50489717983601,
+   "density_g_cm3": 2.7,
+   "faces": 9,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_6",
+   "name": "减速器",
+   "volume_mm3": 17048230.016469244,
+   "mass_kg": 27.618132626680175,
+   "density_g_cm3": 1.62,
+   "faces": 10,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_7",
+   "name": "电驱逆变器",
+   "volume_mm3": 10229097.335529234,
+   "mass_kg": 11.047425122371573,
+   "density_g_cm3": 1.08,
+   "faces": 10,
+   "solids": 1,
+   "material": "anodized"
+  },
+  {
+   "id": "part_8",
+   "name": "电驱油冷器",
+   "volume_mm3": 753836.8134870462,
+   "mass_kg": 5.955310826547665,
+   "density_g_cm3": 7.9,
+   "faces": 10,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_9",
+   "name": "集成模块歧管",
+   "volume_mm3": 19433436.941133875,
+   "mass_kg": 5.4413623435174845,
+   "density_g_cm3": 0.27999999999999997,
+   "faces": 30,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_10",
+   "name": "九通电子水阀",
+   "volume_mm3": 3549020.608003722,
+   "mass_kg": 4.96862885120521,
+   "density_g_cm3": 1.4,
+   "faces": 22,
+   "solids": 1,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_11",
+   "name": "电子水泵 1",
+   "volume_mm3": 1370660.0679266884,
+   "mass_kg": 3.7007821834020587,
+   "density_g_cm3": 2.7,
+   "faces": 9,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_12",
+   "name": "电子水泵 2",
+   "volume_mm3": 1370660.0679266884,
+   "mass_kg": 3.7007821834020587,
+   "density_g_cm3": 2.7,
+   "faces": 9,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_13",
+   "name": "Chiller 板式换热器",
+   "volume_mm3": 3067835.7056295583,
+   "mass_kg": 3.635385311171027,
+   "density_g_cm3": 1.185,
+   "faces": 200,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_14",
+   "name": "微通道冷凝器",
+   "volume_mm3": 11083037.080728304,
+   "mass_kg": 3.5909040141559703,
+   "density_g_cm3": 0.324,
+   "faces": 480,
+   "solids": 81,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_15",
+   "name": "低温散热器芯体",
+   "volume_mm3": 19085399.999999966,
+   "mass_kg": 6.183669599999989,
+   "density_g_cm3": 0.324,
+   "faces": 474,
+   "solids": 79,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_16",
+   "name": "低温散热器水室 ×2",
+   "volume_mm3": 2584784.407022936,
+   "mass_kg": 3.61869816983211,
+   "density_g_cm3": 1.4,
+   "faces": 24,
+   "solids": 2,
+   "material": "polymer"
+  },
+  {
+   "id": "part_17",
+   "name": "风扇护风罩",
+   "volume_mm3": 7090584.784870845,
+   "mass_kg": 9.926818698819183,
+   "density_g_cm3": 1.4,
+   "faces": 24,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_18",
+   "name": "冷却风扇 ×2（7 叶）",
+   "volume_mm3": 3081745.456458401,
+   "mass_kg": 4.314443639041761,
+   "density_g_cm3": 1.4,
+   "faces": 104,
+   "solids": 2,
+   "material": "polymer"
+  },
+  {
+   "id": "part_19",
+   "name": "电动压缩机",
+   "volume_mm3": 7854595.838580187,
+   "mass_kg": 21.20740876416651,
+   "density_g_cm3": 2.7,
+   "faces": 41,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_20",
+   "name": "电子膨胀阀 ×2 阀体与接管",
+   "volume_mm3": 100829.23996328053,
+   "mass_kg": 0.8570485396878845,
+   "density_g_cm3": 8.5,
+   "faces": 14,
+   "solids": 2,
+   "material": "brass"
+  },
+  {
+   "id": "part_21",
+   "name": "电子膨胀阀 ×2 线圈",
+   "volume_mm3": 282743.3388230816,
+   "mass_kg": 0.3958406743523142,
+   "density_g_cm3": 1.4,
+   "faces": 6,
+   "solids": 2,
+   "material": "polymer"
+  },
+  {
+   "id": "part_22",
+   "name": "HVAC 壳体（顶部出风口）",
+   "volume_mm3": 2432393.885643935,
+   "mass_kg": 3.4053514399015086,
+   "density_g_cm3": 1.4,
+   "faces": 24,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_23",
+   "name": "蒸发器芯体",
+   "volume_mm3": 6860978.406140637,
+   "mass_kg": 2.2229570035895665,
+   "density_g_cm3": 0.324,
+   "faces": 10,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_24",
+   "name": "暖风芯体",
+   "volume_mm3": 3021527.7868423383,
+   "mass_kg": 0.9789750029369176,
+   "density_g_cm3": 0.324,
+   "faces": 10,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_25",
+   "name": "PTC 加热器",
+   "volume_mm3": 1552102.6524130262,
+   "mass_kg": 4.190677161515171,
+   "density_g_cm3": 2.7,
+   "faces": 54,
+   "solids": 1,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_26",
+   "name": "电池冷却液管路（EPDM）",
+   "volume_mm3": 565090.8793874189,
+   "mass_kg": 0.6781090552649026,
+   "density_g_cm3": 1.2,
+   "faces": 28,
+   "solids": 1,
+   "material": "rubber"
+  },
+  {
+   "id": "part_27",
+   "name": "电驱冷却液管路（EPDM）",
+   "volume_mm3": 565829.2497162673,
+   "mass_kg": 0.6789950996595208,
+   "density_g_cm3": 1.2,
+   "faces": 32,
+   "solids": 1,
+   "material": "rubber"
+  },
+  {
+   "id": "part_28",
+   "name": "冷媒主干管路（铝）",
+   "volume_mm3": 159886.87239436546,
+   "mass_kg": 0.43169455546478674,
+   "density_g_cm3": 2.7,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_29",
+   "name": "冷媒 chiller 支路（铝）",
+   "volume_mm3": 72325.8394768271,
+   "mass_kg": 0.19527976658743318,
+   "density_g_cm3": 2.7,
+   "faces": 4,
+   "solids": 1,
+   "material": "aluminum"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0,
+  "edges": 0,
+  "candidates": 0,
+  "elapsed_s": 0.0,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "电池回路管长",
+   "value": "5.62",
+   "unit": "m",
+   "note": "按示例回路控制点样条，Ø18 EPDM"
+  },
+  {
+   "label": "电驱回路管长",
+   "value": "5.02",
+   "unit": "m",
+   "note": "Ø20 EPDM"
+  },
+  {
+   "label": "冷媒管路总长",
+   "value": "6.72",
+   "unit": "m",
+   "note": "主干 + chiller 支路，Ø12 铝管"
+  },
+  {
+   "label": "冷却液管内容积",
+   "value": "1.87",
+   "unit": "L",
+   "note": "两条冷却液回路的软管部分，不含部件内腔"
+  },
+  {
+   "label": "前端模块迎风面积",
+   "value": "0.78",
+   "unit": "m²",
+   "note": "620 × 1,250 mm"
+  },
+  {
+   "label": "编号部件",
+   "value": "15",
+   "unit": "个",
+   "note": "与示例热点一一对应（电池包至风扇）"
+  }
+ ],
+ "t_model_s": 14.9,
+ "t_export_s": 3.9,
+ "elapsed_s": 19.7,
+ "step_bytes": 6940783,
+ "stl_bytes": 3822084,
+ "glb_bytes": 2569848,
+ "scenario_id": "vehicle_tms",
+ "summary": "整车热管理系统回路的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：电池包托盘（铸铝） / 电池包上盖 / 电池液冷板 / 电池模组 ×12 / 电驱电机 / 减速器 等 29 个部件；1901 个面，质量 879.344 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/vehicle_tms.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:44:14+00:00",
+ "cadquery": "2.8.0"
+}

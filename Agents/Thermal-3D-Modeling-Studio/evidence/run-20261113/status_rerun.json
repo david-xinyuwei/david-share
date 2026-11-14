@@ -1,0 +1,25 @@
+{
+ "started": "2026-11-14T08:31:31.5414136+08:00",
+ "reason": "08-pregen-cad-en failed for coldplate and module (STEP string count differs). Fixed in pregen_cad.py (non-empty literals only), re-exported, rerun here in the same venv.",
+ "steps": [
+  {
+   "name": "08b-pregen-cad-en-force",
+   "exit": 0,
+   "seconds": 266.5,
+   "log": "08b-pregen-cad-en-force.log"
+  },
+  {
+   "name": "09b-unittest",
+   "exit": 0,
+   "seconds": 14.0,
+   "log": "09b-unittest.log"
+  },
+  {
+   "name": "10b-node-test",
+   "exit": 0,
+   "seconds": 1.4,
+   "log": "10b-node-test.log"
+  }
+ ],
+ "finished": "2026-11-14T08:36:13.5269553+08:00"
+}

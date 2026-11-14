@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>test topology</title>
+<!-- Source of images/test-topology-{en,zh}.png. Render with: python tools/build_diagram.py
+     Machine facts: evidence/run-20261113/machine.json and browser/capture.json; Track A facts: studio/cache/*.json. -->
+<style>
+  :root { --azure: #0078D4; --lane: #F3F2F1; --line: #E1DFDD; --ink: #201F1E; --muted: #605E5C; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1000px; overflow: hidden; background: #fff; color: var(--ink);
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif; }
+  .title { position: absolute; left: 0; top: 0; width: 1920px; height: 64px; background: var(--azure); color: #fff;
+    display: flex; align-items: center; padding: 0 40px; }
+  .title h1 { font-size: 30px; font-weight: 600; }
+  .title .model { margin-left: auto; font-size: 21px; }
+  .row { position: absolute; left: 40px; width: 1840px; height: 262px; display: grid; grid-template-columns: 190px 1630px; column-gap: 20px; }
+  .track { display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden; }
+  .num { width: 46px; height: 46px; border-radius: 50%; background: var(--azure); color: #fff; font-size: 26px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; }
+  .track b { font-size: 24px; }
+  .track span { font-size: 17px; color: var(--muted); line-height: 1.3; white-space: pre-line; }
+  .body { display: flex; flex-direction: column; gap: 8px; }
+  .boxes { height: 210px; display: flex; }
+  .box { background: var(--lane); border-radius: 10px; padding: 8px 14px 12px; display: flex; flex-direction: column; gap: 8px;
+    overflow: hidden; border: 2px solid var(--lane); }
+  .box.unknown { border: 2px dashed #8A8886; }
+  .bh { font-size: 19px; font-weight: 600; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .bh img { height: 30px; }
+  .bh span { font-weight: 400; color: var(--muted); font-size: 17px; }
+  .cards { flex: 1; display: flex; }
+  .card { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08); display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
+  .card h3 { font-size: 21px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card h3 img { height: 24px; }
+  .card p { font-size: 17px; color: var(--muted); line-height: 1.3; }
+  .call { width: 48px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .net { width: 96px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-size: 15px; color: var(--azure); text-align: center; }
+  .clock { height: 44px; background: #FFF4CE; border: 1px solid #E6C700; border-radius: 8px; display: flex; align-items: center;
+    gap: 10px; padding: 0 14px; font-size: 17px; white-space: nowrap; overflow: hidden; }
+  .clock svg { flex: none; }
+  .foot { position: absolute; left: 40px; top: 906px; width: 1840px; height: 88px; display: flex; align-items: center; gap: 24px;
+    border-top: 1px solid var(--line); padding-top: 6px; }
+  .foot .note { font-size: 17px; color: var(--muted); line-height: 1.35; width: 1080px; }
+  .foot .right { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .foot .legend { display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--muted); }
+  .foot .legend svg { margin-left: 12px; }
+  .foot .orig { font-size: 15px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="title"><h1 data-k="title"></h1><div class="model" data-k="model"></div></div>
+
+<div class="row" style="top:80px">
+  <div class="track"><div class="num">A</div><b data-k="tA"></b><span data-k="tA_sub"></span></div>
+  <div class="body">
+    <div class="boxes">
+      <div class="box unknown" style="width:900px">
+        <div class="bh"><span class="h" data-k="client"></span><span data-k="client_sub"></span></div>
+        <div class="cards">
+          <div class="card"><h3>pregen.py</h3><p data-k="a1"></p></div>
+          <div class="call"><svg width="44" height="20"><use href="#call"/></svg></div>
+          <div class="card"><h3>run_generation()</h3><p data-k="a2"></p></div>
+        </div>
+      </div>
+      <div class="net"><svg width="80" height="70"><use href="#arrows"/></svg><span data-k="net"></span></div>
+      <div class="box" style="width:634px">
+        <div class="bh"><img src="../images/icons/038470614-icon-service-Foundry-Models.svg" alt="">Microsoft Foundry<span data-k="foundry_sub"></span></div>
+        <div class="cards">
+          <div class="card"><h3><img src="../images/icons/03438-icon-service-Azure-OpenAI.svg" alt="">GPT-6 Astra</h3><p data-k="a3_1"></p><p data-k="a3_2"></p></div>
+        </div>
+      </div>
+    </div>
+    <div class="clock"><svg width="24" height="24"><use href="#clock"/></svg><span data-k="clockA"></span></div>
+  </div>
+</div>
+
+<div class="row" style="top:356px">
+  <div class="track"><div class="num">B</div><b data-k="tB"></b><span data-k="tB_sub"></span></div>
+  <div class="body">
+    <div class="boxes">
+      <div class="box" style="width:1630px">
+        <div class="bh"><span class="h" data-k="laptop"></span><span data-k="laptop_sub"></span></div>
+        <div class="cards">
+          <div class="card"><h3>pregen_cad.py</h3><p data-k="b1"></p></div>
+          <div class="call"><svg width="44" height="20"><use href="#call"/></svg></div>
+          <div class="card"><h3>cad_runner.run_script()</h3><p data-k="b2"></p></div>
+          <div class="call"><svg width="44" height="20"><use href="#call"/></svg></div>
+          <div class="card"><h3>CadQuery 2.8 + OpenCascade 7.9</h3><p data-k="b3"></p></div>
+        </div>
+      </div>
+    </div>
+    <div class="clock"><svg width="24" height="24"><use href="#clock"/></svg><span data-k="clockB"></span></div>
+  </div>
+</div>
+
+<div class="row" style="top:632px">
+  <div class="track"><div class="num">C</div><b data-k="tC"></b><span data-k="tC_sub"></span></div>
+  <div class="body">
+    <div class="boxes">
+      <div class="box" style="width:1630px">
+        <div class="bh"><img src="../images/icons/10783-icon-service-Browser.svg" alt=""><span class="h" data-k="edge"></span><span data-k="edge_sub"></span></div>
+        <div class="cards">
+          <div class="card"><h3>pregen_engineering.py</h3><p data-k="c1"></p></div>
+          <div class="call"><svg width="44" height="20"><use href="#call"/></svg></div>
+          <div class="card"><h3>engineering-render.mjs</h3><p data-k="c2"></p></div>
+          <div class="call"><svg width="44" height="20"><use href="#call"/></svg></div>
+          <div class="card"><h3 data-k="c3h"></h3><p data-k="c3"></p></div>
+        </div>
+      </div>
+    </div>
+    <div class="clock"><svg width="24" height="24"><use href="#clock"/></svg><span data-k="clockC"></span></div>
+  </div>
+</div>
+
+<div class="foot">
+  <div class="note" data-k="note"></div>
+  <div class="right">
+    <div class="legend">
+      <svg width="40" height="12"><line x1="2" y1="6" x2="34" y2="6" stroke="#0078D4" stroke-width="3" marker-end="url(#head)"/></svg><span data-k="req"></span>
+      <svg width="40" height="12"><line x1="2" y1="6" x2="34" y2="6" stroke="#0078D4" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#head)"/></svg><span data-k="resp"></span>
+      <svg width="40" height="20"><rect x="2" y="2" width="34" height="16" rx="4" fill="#F3F2F1" stroke="#8A8886" stroke-width="2" stroke-dasharray="5 3"/></svg><span data-k="unknown"></span>
+      <svg width="30" height="20"><rect x="2" y="2" width="24" height="16" rx="4" fill="#FFF4CE" stroke="#E6C700"/></svg><span data-k="clock"></span>
+    </div>
+    <div class="orig" data-k="orig"></div>
+  </div>
+</div>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0078D4"/></marker>
+    <g id="arrows">
+      <line x1="6" y1="24" x2="72" y2="24" stroke="#0078D4" stroke-width="3.5" marker-end="url(#head)"/>
+      <line x1="74" y1="48" x2="8" y2="48" stroke="#0078D4" stroke-width="3.5" stroke-dasharray="7 5" marker-end="url(#head)"/>
+    </g>
+    <g id="call"><line x1="4" y1="10" x2="38" y2="10" stroke="#0078D4" stroke-width="3.5" marker-end="url(#head)"/></g>
+    <g id="clock"><circle cx="12" cy="12" r="9.5" fill="#fff" stroke="#8A6D00" stroke-width="2"/>
+      <path d="M12 6.5 V12 L16 14.5" fill="none" stroke="#8A6D00" stroke-width="2" stroke-linecap="round"/></g>
+  </defs>
+</svg>
+<script>
+const T = {
+  en: {
+    title: 'Thermal 3D Modeling Studio · Test topology', model: 'Where the numbers in Results were measured',
+    tA: '3D page', tA_sub: 'Track A · 30 runs\n2026-09-09 to 09-12',
+    client: 'Client', client_sub: 'machine not recorded',
+    a1: 'One request per scenario and language',
+    a2: 'The function behind /api/generate; no browser, no nginx',
+    net: 'HTTPS, streamed', foundry_sub: 'resource in East US 2',
+    a3_1: 'Deployment gpt-6-astra · version 2026-09-03 · Global Standard', a3_2: 'Region where the model ran: not recorded',
+    clockA: 'Clock in the client process: request sent → first visible token → response parsed (total time). Includes the network and service queueing.',
+    tB: 'CAD solid', tB_sub: 'Track B · 15 scripts\n2026-11-13',
+    laptop: 'Test laptop', laptop_sub: 'Windows 11 Enterprise on Arm · Snapdragon X X1E80100, 12 cores · 63.5 GB RAM · x64 Python 3.11.9 under emulation',
+    b1: '15 hand-written CadQuery scripts, no model call',
+    b2: 'Allow-list check · separate python -I process, as for a live Generate STEP',
+    b3: 'B-rep solid → STEP, STL, GLB · edge break',
+    clockB: 'Clock in pregen_cad.py: child process started → exits after writing STEP, STL and GLB (OCCT time). Includes Python start-up, the CadQuery import and the edge break.',
+    tC: 'Engineering render', tC_sub: 'Track C · 15 renders\n2026-11-14',
+    edge: 'Same laptop', edge_sub: 'Microsoft Edge, headless · WebGL on the Adreno X1-85 GPU',
+    c1: 'Calls the renderer once per scenario',
+    c2: "Renders the STEP's model.glb · 2048×1152 · 256 frames",
+    c3h: 'Compare with the STEP', c3: 'STEP silhouette from the same camera vs the part found in the picture: IoU, outline offset',
+    clockC: 'Clock in the browser: render call → finished picture (render time). Includes loading model.glb and the 256 frames; the STEP lines are drawn afterwards.',
+    note: 'Not timed in this repository: a live Track B request (GPT-6 writes the CadQuery script, then OCCT runs it). The gpt-image picture in Results comes from one call through the studio page on 2026-11-10.',
+    req: 'call', resp: 'response', unknown: 'not recorded', clock: 'what the clock covers',
+    orig: 'Original explanatory diagram · Icons: Microsoft Azure architecture icons (V25), unmodified'
+  },
+  zh: {
+    title: '热管理 3D 建模工坊 · 测试拓扑', model: '实现效果里的数字在哪里测得',
+    tA: '3D 网页', tA_sub: '轨 A · 30 次\n2026-09-09 至 09-12',
+    client: '客户端', client_sub: '机器没有记录',
+    a1: '每个场景、每种语言各请求一次',
+    a2: '线上 /api/generate 背后的同一个函数；不经浏览器、不经 nginx',
+    net: 'HTTPS，流式', foundry_sub: '资源在 East US 2',
+    a3_1: '部署 gpt-6-astra · 版本 2026-09-03 · Global Standard', a3_2: '模型实际在哪个区域运行：没有记录',
+    clockA: '计时在客户端进程里：发出请求 → 首个可见 token → 回答解析完毕（总耗时）。包含网络和服务排队。',
+    tB: 'CAD 实体', tB_sub: '轨 B · 15 个脚本\n2026-11-13',
+    laptop: '测试笔记本', laptop_sub: 'Windows 11 Enterprise（Arm）· Snapdragon X X1E80100，12 核 · 内存 63.5 GB · x64 Python 3.11.9 仿真运行',
+    b1: '15 个手写 CadQuery 脚本，不调模型',
+    b2: '白名单检查 · 单独的 python -I 进程（在线「生成 STEP」也用它）',
+    b3: 'B-rep 实体 → STEP、STL、GLB · 锐边倒钝',
+    clockB: '计时在 pregen_cad.py 里：子进程启动 → 写完 STEP、STL、GLB 后退出（OCCT 耗时）。包含 Python 启动、导入 CadQuery 和倒钝；不调模型，不走网络。',
+    tC: '工程渲染', tC_sub: '轨 C · 15 张\n2026-11-14',
+    edge: '同一台笔记本', edge_sub: 'Microsoft Edge 无头模式 · WebGL 跑在 Adreno X1-85 GPU 上',
+    c1: '每个场景调用一次渲染模块',
+    c2: '渲染 STEP 的 model.glb · 2048×1152 · 256 帧',
+    c3h: '与 STEP 对比', c3: '同一相机画出的 STEP 外形，对比成图里找到的零件：IoU、轮廓偏差',
+    clockC: '计时在浏览器里：调用渲染 → 成图（渲染耗时）。包含加载 model.glb 和 256 帧；STEP 棱线之后再画，不计入。',
+    note: '本仓库没有计时的：实时轨 B 请求（GPT-6 写 CadQuery 脚本，再由 OCCT 执行）。实现效果里的 gpt-image 效果图，是 2026-11-10 通过工坊页面调用一次生成的。',
+    req: '调用', resp: '返回', unknown: '没有记录', clock: '计时覆盖的范围',
+    orig: '原创解释图 · 图标：Microsoft Azure 架构图标（V25，未修改）'
+  }
+};
+const lang = new URLSearchParams(location.search).get('lang') === 'zh' ? 'zh' : 'en';
+document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+document.querySelectorAll('[data-k]').forEach(el => { el.textContent = T[lang][el.dataset.k]; });
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+{
+ "id": "drawing2d",
+ "iou_pct": 93.8,
+ "outline_median_px": 3.2,
+ "outline_p90_px": 4.0,
+ "spp": 256,
+ "render_s": 2.1,
+ "zoom": 1.093,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/drawing2d/model.glb",
+  "glb_sha256": "69e33a4062884286a367f00f5d79b6941b118f36d2428e6d81e01d0af2455045",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 2124,
+  "lines_ms": 303,
+  "meshes": 59,
+  "unmatched_meshes": 0,
+  "materials": {
+   "阀体（H62 黄铜）": "brass",
+   "线圈座与顶盖（PA66）": "polymer",
+   "侧接管（TP2 紫铜）": "copper",
+   "下接管（TP2 紫铜）": "copper"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.0934623313136476,
+   "view_offset_px": [
+    2.2648965194771757,
+    -77.84723472526737
+   ],
+   "position": [
+    178.25880520866977,
+    146.93400691027642,
+    181.97530366903212
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:43:12+00:00"
+ }
+}

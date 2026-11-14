@@ -1,0 +1,74 @@
+{
+ "id": "nb_chassis_mold",
+ "iou_pct": 97.5,
+ "outline_median_px": 3.6,
+ "outline_p90_px": 6.3,
+ "spp": 256,
+ "render_s": 2.7,
+ "zoom": 1.233,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/nb_chassis_mold/model.glb",
+  "glb_sha256": "3a4c570b33735205bcea06dd6f982f4c17ce38003cb47d8391e3d262d8c5d192",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 2675,
+  "lines_ms": 329,
+  "meshes": 500,
+  "unmatched_meshes": 0,
+  "materials": {
+   "镁合金 A 壳": "aluminumCast",
+   "天线区 PC+GF 镶件": "polymerLight",
+   "动模（型芯）": "steelDark",
+   "定模（型腔）": "steelDark"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.2333734963607157,
+   "view_offset_px": [
+    16.420276364306016,
+    119.82507775297955
+   ],
+   "position": [
+    417.78969931663573,
+    307.458583126508,
+    480.458154214131
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:44:02+00:00"
+ }
+}

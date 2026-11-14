@@ -1,0 +1,81 @@
+{
+ "id": "nb_packing",
+ "iou_pct": 96.3,
+ "outline_median_px": 3.2,
+ "outline_p90_px": 5.0,
+ "spp": 256,
+ "render_s": 30.0,
+ "zoom": 1.276,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/nb_packing/model.glb",
+  "glb_sha256": "d949b53735d92ff47c72cd7f2f466ffc6b2e07e3589126af153f67e6dd8a13ac",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 29957,
+  "lines_ms": 677,
+  "meshes": 7022,
+  "unmatched_meshes": 0,
+  "materials": {
+   "集装箱结构（40 尺高柜，剖视）": "powderCoat",
+   "柜门 ×2（开启 90°）": "powderCoat",
+   "门锁杆 ×4": "steel",
+   "木地板": "wood",
+   "木托盘 ×20": "wood",
+   "瓦楞外箱 ×720（每箱 5 台，含货）": "cardboard",
+   "剖开外箱（单箱剖视）": "cardboard",
+   "彩盒 ×4（封口，含整机）": "polymerLight",
+   "彩盒（打开）": "polymerLight",
+   "纸浆模塑缓冲": "cardboard",
+   "笔记本整机（合盖）": "aluminum"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.27616579293684,
+   "view_offset_px": [
+    97.7510769194191,
+    75.81744771709124
+   ],
+   "position": [
+    18151.868794250884,
+    9134.385531860638,
+    12516.449113388517
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:44:36+00:00"
+ }
+}

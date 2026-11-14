@@ -1,0 +1,183 @@
+{
+ "ok": true,
+ "volume_mm3": 73253.9950675701,
+ "area_mm2": 48612.88607179817,
+ "density_g_cm3": 8.96,
+ "mass_kg": 0.6563557958054281,
+ "bbox_mm": [
+  116.0,
+  50.0000001,
+  92.0
+ ],
+ "solids": 2,
+ "faces": 304,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "主阀体（铜筒 + 封头）",
+   "volume_mm3": 35711.87336419814,
+   "mass_kg": 0.3199783853432154,
+   "density_g_cm3": 8.96,
+   "faces": 22,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_2",
+   "name": "高压进气管 D",
+   "volume_mm3": 1059.5650459872477,
+   "mass_kg": 0.00949370281204574,
+   "density_g_cm3": 8.96,
+   "faces": 10,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_3",
+   "name": "接管 E",
+   "volume_mm3": 1059.5650459872538,
+   "mass_kg": 0.009493702812045795,
+   "density_g_cm3": 8.96,
+   "faces": 10,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_4",
+   "name": "接管 S",
+   "volume_mm3": 1059.5650459872668,
+   "mass_kg": 0.009493702812045911,
+   "density_g_cm3": 8.96,
+   "faces": 10,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_5",
+   "name": "接管 C",
+   "volume_mm3": 1059.5650459872584,
+   "mass_kg": 0.009493702812045837,
+   "density_g_cm3": 8.96,
+   "faces": 10,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_6",
+   "name": "主滑块阀芯",
+   "volume_mm3": 16443.068755431308,
+   "mass_kg": 0.02302029625760383,
+   "density_g_cm3": 1.4,
+   "faces": 17,
+   "solids": 1,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_7",
+   "name": "活塞组件",
+   "volume_mm3": 5890.726122535227,
+   "mass_kg": 0.0465367363680283,
+   "density_g_cm3": 7.9,
+   "faces": 13,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_8",
+   "name": "先导电磁阀",
+   "volume_mm3": 8874.207056940513,
+   "mass_kg": 0.07010623574983006,
+   "density_g_cm3": 7.9,
+   "faces": 42,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_9",
+   "name": "先导阀支座",
+   "volume_mm3": 1236.5909235557317,
+   "mass_kg": 0.009769068296090281,
+   "density_g_cm3": 7.9,
+   "faces": 26,
+   "solids": 1,
+   "material": "steelDark"
+  },
+  {
+   "id": "part_10",
+   "name": "毛细管（左）",
+   "volume_mm3": 357.82058654436696,
+   "mass_kg": 0.0032060724554375283,
+   "density_g_cm3": 8.96,
+   "faces": 31,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_11",
+   "name": "毛细管（右）",
+   "volume_mm3": 357.7125099658762,
+   "mass_kg": 0.0032051040892942515,
+   "density_g_cm3": 8.96,
+   "faces": 27,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_12",
+   "name": "安装支架",
+   "volume_mm3": 1828.4136275983346,
+   "mass_kg": 0.014444467658026844,
+   "density_g_cm3": 7.9,
+   "faces": 86,
+   "solids": 1,
+   "material": "powderCoat"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0.63,
+  "edges": 134,
+  "candidates": 154,
+  "elapsed_s": 31.3,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "主阀体铜用量（壁厚 3.0）",
+   "value": "0.34",
+   "unit": "kg",
+   "note": "筒体 + 两端封头"
+  },
+  {
+   "label": "壁厚优化到 2.2 mm",
+   "value": "0.27",
+   "unit": "kg",
+   "note": "同外径，减铜 25%"
+  },
+  {
+   "label": "改不锈钢 2.0 mm",
+   "value": "0.22",
+   "unit": "kg",
+   "note": "材料成本 20,000 元/吨 vs 铜 75,000 元/吨"
+  },
+  {
+   "label": "接管",
+   "value": "4 × φ12.7",
+   "unit": "mm",
+   "note": "D 上 / E·S·C 下，间距 22"
+  }
+ ],
+ "t_model_s": 42.2,
+ "t_export_s": 3.5,
+ "elapsed_s": 46.7,
+ "step_bytes": 2347413,
+ "stl_bytes": 2932884,
+ "glb_bytes": 1413960,
+ "scenario_id": "fourway",
+ "summary": "四通换向阀 · 减铜优化的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：主阀体（铜筒 + 封头） / 高压进气管 D / 接管 E / 接管 S / 接管 C / 主滑块阀芯 等 12 个部件；304 个面，质量 0.656 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/fourway.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:34:00+00:00",
+ "cadquery": "2.8.0"
+}

@@ -1,0 +1,5 @@
+# The david-share root ignores logs/, *.log and *.min.js. This folder ships the logs of its recorded run and the Lucide
+# icon bundle the studio loads, so both are included again here.
+!evidence/run-*/logs/
+!evidence/run-*/logs/*.log
+!studio/static/icons/lucide.min.js

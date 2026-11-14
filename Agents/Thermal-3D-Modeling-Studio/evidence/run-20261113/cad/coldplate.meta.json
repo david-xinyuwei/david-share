@@ -1,0 +1,97 @@
+{
+ "ok": true,
+ "volume_mm3": 585843.4811530728,
+ "area_mm2": 198998.66534598198,
+ "density_g_cm3": 2.7,
+ "mass_kg": 1.5817773991132966,
+ "bbox_mm": [
+  360.0,
+  180.0,
+  13.500000200000002
+ ],
+ "solids": 1,
+ "faces": 284,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "流道基板",
+   "volume_mm3": 411995.2456992477,
+   "mass_kg": 1.112387163387969,
+   "density_g_cm3": 2.7,
+   "faces": 185,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_2",
+   "name": "上盖板",
+   "volume_mm3": 170658.04967540925,
+   "mass_kg": 0.46077673412360504,
+   "density_g_cm3": 2.7,
+   "faces": 71,
+   "solids": 1,
+   "material": "anodized"
+  },
+  {
+   "id": "part_3",
+   "name": "进口接头",
+   "volume_mm3": 1706.6465068893103,
+   "mass_kg": 0.013482507404425553,
+   "density_g_cm3": 7.9,
+   "faces": 14,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_4",
+   "name": "出口接头",
+   "volume_mm3": 1706.6465068893162,
+   "mass_kg": 0.0134825074044256,
+   "density_g_cm3": 7.9,
+   "faces": 14,
+   "solids": 1,
+   "material": "steel"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 1.2,
+  "edges": 77,
+  "candidates": 238,
+  "elapsed_s": 52.0,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "流道中心线总长",
+   "value": "1966.3",
+   "unit": "mm",
+   "note": "6 直段 + 5 半圆弯 + 入口引道"
+  },
+  {
+   "label": "流道湿润面积",
+   "value": "629.2",
+   "unit": "cm²",
+   "note": "矩形截面周长 × 中心线长"
+  },
+  {
+   "label": "安装孔",
+   "value": "4 × M6 沉孔",
+   "unit": "",
+   "note": "φ6.6 通孔 / φ11.0×6.0 沉孔"
+  }
+ ],
+ "t_model_s": 66.5,
+ "t_export_s": 1.2,
+ "elapsed_s": 68.7,
+ "step_bytes": 1222044,
+ "stl_bytes": 1655384,
+ "glb_bytes": 850400,
+ "scenario_id": "coldplate",
+ "summary": "电池水冷板的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：流道基板 / 上盖板 / 进口接头 / 出口接头，共 4 个部件；284 个面，质量 1.582 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/coldplate.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:32:09+00:00",
+ "cadquery": "2.8.0"
+}

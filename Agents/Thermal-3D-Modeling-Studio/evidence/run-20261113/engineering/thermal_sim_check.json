@@ -1,0 +1,82 @@
+{
+ "id": "thermal_sim",
+ "iou_pct": 15.1,
+ "outline_median_px": 13.0,
+ "outline_p90_px": 314.5,
+ "spp": 256,
+ "render_s": 4.5,
+ "zoom": 1.177,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/thermal_sim/model.glb",
+  "glb_sha256": "0f240e28f678ab79ac2f6e0a8db6fe9c97ef4e70a5c52d9fc56e4ba9af5bcfb2",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 4482,
+  "lines_ms": 494,
+  "meshes": 432,
+  "unmatched_meshes": 0,
+  "materials": {
+   "冷板基板（流道铣削）": "aluminum",
+   "盖板（受热面 1.5 mm）": "aluminum",
+   "进口接头座": "aluminum",
+   "出口接头座": "aluminum",
+   "进口接管 Ø16/Ø12": "aluminum",
+   "出口接管 Ø16/Ø12": "aluminum",
+   "冷却液 · 第 1 程 25.0→25.8 °C": "coolant",
+   "冷却液 · 第 2 程 25.8→26.5 °C": "coolant",
+   "冷却液 · 第 3 程 26.5→27.2 °C": "coolant",
+   "冷却液 · 第 4 程 27.2→27.9 °C": "coolant",
+   "冷却液 · 第 5 程 27.9→28.6 °C": "coolant",
+   "冷却液 · 第 6 程 28.6→29.3 °C": "coolant"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.1774500461136537,
+   "view_offset_px": [
+    89.31145360999963,
+    127.11093725314574
+   ],
+   "position": [
+    274.7037133587836,
+    220.4066736183242,
+    340.05927036260107
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:45:00+00:00"
+ }
+}

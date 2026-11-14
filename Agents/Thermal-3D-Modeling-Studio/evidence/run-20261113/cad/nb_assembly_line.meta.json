@@ -1,0 +1,385 @@
+{
+ "ok": true,
+ "volume_mm3": 29855562837.75044,
+ "area_mm2": 744098879.5116011,
+ "density_g_cm3": 0.33010623507117187,
+ "mass_kg": 9855.507444300589,
+ "bbox_mm": [
+  28850.0,
+  18450.0,
+  2700.0
+ ],
+ "solids": 151,
+ "faces": 1571,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "U 形输送线机架",
+   "volume_mm3": 13200000000.0,
+   "mass_kg": 2640.0,
+   "density_g_cm3": 0.2,
+   "faces": 10,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_2",
+   "name": "输送带面（PVC）",
+   "volume_mm3": 1258950000.0,
+   "mass_kg": 226.611,
+   "density_g_cm3": 0.18,
+   "faces": 14,
+   "solids": 1,
+   "material": "rubber"
+  },
+  {
+   "id": "part_3",
+   "name": "输送线支腿 ×16",
+   "volume_mm3": 1370880000.0,
+   "mass_kg": 822.528,
+   "density_g_cm3": 0.6,
+   "faces": 96,
+   "solids": 16,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_4",
+   "name": "① 底壳上线 工位",
+   "volume_mm3": 219200000.0,
+   "mass_kg": 98.64,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_5",
+   "name": "② 主板与散热装配 工位",
+   "volume_mm3": 219199999.99999997,
+   "mass_kg": 98.63999999999999,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_6",
+   "name": "③ 自动锁螺钉 工位",
+   "volume_mm3": 207111999.99999988,
+   "mass_kg": 93.20039999999996,
+   "density_g_cm3": 0.45,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_7",
+   "name": "④ 电池与扬声器 工位",
+   "volume_mm3": 219199999.9999999,
+   "mass_kg": 98.63999999999996,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_8",
+   "name": "⑤ 屏幕与转轴 工位",
+   "volume_mm3": 219199999.99999994,
+   "mass_kg": 98.63999999999997,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_9",
+   "name": "⑥ 键盘与合盖 工位",
+   "volume_mm3": 219199999.99999997,
+   "mass_kg": 98.63999999999999,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_10",
+   "name": "⑦ 自动锁螺钉 工位",
+   "volume_mm3": 207111999.9999999,
+   "mass_kg": 93.20039999999996,
+   "density_g_cm3": 0.45,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_11",
+   "name": "⑧ 外观 AOI 工位",
+   "volume_mm3": 207111999.99999994,
+   "mass_kg": 93.20039999999997,
+   "density_g_cm3": 0.45,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_12",
+   "name": "⑨ 测试 工位",
+   "volume_mm3": 207112000.00000012,
+   "mass_kg": 93.20040000000006,
+   "density_g_cm3": 0.45,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_13",
+   "name": "⑩ 老化 工位",
+   "volume_mm3": 2408302000.0,
+   "mass_kg": 1083.7359,
+   "density_g_cm3": 0.45,
+   "faces": 85,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_14",
+   "name": "⑪ 软件与终检 工位",
+   "volume_mm3": 219199999.9999999,
+   "mass_kg": 98.63999999999996,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_15",
+   "name": "⑫ 贴标与包装 工位",
+   "volume_mm3": 219199999.99999994,
+   "mass_kg": 98.63999999999997,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_16",
+   "name": "⑬ 装箱码垛 工位",
+   "volume_mm3": 207112000.0000001,
+   "mass_kg": 93.20040000000004,
+   "density_g_cm3": 0.45,
+   "faces": 32,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_17",
+   "name": "⑭ 成品下线 工位",
+   "volume_mm3": 219199999.99999994,
+   "mass_kg": 98.63999999999997,
+   "density_g_cm3": 0.45,
+   "faces": 46,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_18",
+   "name": "六轴机器人 ×3（③⑦⑬）",
+   "volume_mm3": 351220065.90743417,
+   "mass_kg": 421.464079088921,
+   "density_g_cm3": 1.2,
+   "faces": 36,
+   "solids": 3,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_19",
+   "name": "机器人末端执行器 ×3",
+   "volume_mm3": 15210000.0,
+   "mass_kg": 30.42,
+   "density_g_cm3": 2.0,
+   "faces": 18,
+   "solids": 3,
+   "material": "anodizedRed"
+  },
+  {
+   "id": "part_20",
+   "name": "⑧ AOI 视觉检测机",
+   "volume_mm3": 394254000.0,
+   "mass_kg": 394.254,
+   "density_g_cm3": 1.0,
+   "faces": 16,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_21",
+   "name": "⑨ 测试机台 ×6（方案①）",
+   "volume_mm3": 414720000.0,
+   "mass_kg": 186.624,
+   "density_g_cm3": 0.45,
+   "faces": 36,
+   "solids": 6,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_22",
+   "name": "⑨ 预留测试机位 ×3（方案②启用）",
+   "volume_mm3": 207360000.0,
+   "mass_kg": 0.0,
+   "density_g_cm3": 0.0,
+   "faces": 18,
+   "solids": 3,
+   "material": "glass"
+  },
+  {
+   "id": "part_23",
+   "name": "⑩ 老化中整机（示意 30 / 240 台位）",
+   "volume_mm3": 583200000.0,
+   "mass_kg": 40.824000000000005,
+   "density_g_cm3": 0.07,
+   "faces": 180,
+   "solids": 30,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_24",
+   "name": "防疲劳地垫 ×8",
+   "volume_mm3": 115199999.99999993,
+   "mass_kg": 138.23999999999992,
+   "density_g_cm3": 1.2,
+   "faces": 48,
+   "solids": 8,
+   "material": "rubber"
+  },
+  {
+   "id": "part_25",
+   "name": "工位物料盒 ×24",
+   "volume_mm3": 202752000.0,
+   "mass_kg": 24.33024,
+   "density_g_cm3": 0.12,
+   "faces": 144,
+   "solids": 24,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_26",
+   "name": "在制品（合盖整机）×14",
+   "volume_mm3": 13442659.999999993,
+   "mass_kg": 18.14759099999999,
+   "density_g_cm3": 1.35,
+   "faces": 84,
+   "solids": 14,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_27",
+   "name": "线边仓货架",
+   "volume_mm3": 2105088000.0000124,
+   "mass_kg": 842.035200000005,
+   "density_g_cm3": 0.4,
+   "faces": 138,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_28",
+   "name": "线边仓料箱 ×8",
+   "volume_mm3": 2430999999.9999995,
+   "mass_kg": 364.6499999999999,
+   "density_g_cm3": 0.15,
+   "faces": 48,
+   "solids": 8,
+   "material": "cardboard"
+  },
+  {
+   "id": "part_29",
+   "name": "配送 AGV ×3",
+   "volume_mm3": 1377000000.0,
+   "mass_kg": 1170.45,
+   "density_g_cm3": 0.85,
+   "faces": 18,
+   "solids": 3,
+   "material": "anodizedOrange"
+  },
+  {
+   "id": "part_30",
+   "name": "AGV 载料箱 ×3",
+   "volume_mm3": 580125000.0,
+   "mass_kg": 150.8325,
+   "density_g_cm3": 0.26,
+   "faces": 18,
+   "solids": 3,
+   "material": "cardboard"
+  },
+  {
+   "id": "part_31",
+   "name": "AGV 车轮 ×12",
+   "volume_mm3": 37699111.84307751,
+   "mass_kg": 45.238934211693014,
+   "density_g_cm3": 1.2,
+   "faces": 36,
+   "solids": 12,
+   "material": "rubber"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0,
+  "edges": 0,
+  "candidates": 0,
+  "elapsed_s": 0.0,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "线体总长",
+   "value": "60",
+   "unit": "m",
+   "note": "U 形：26 + 8 + 26 m"
+  },
+  {
+   "label": "工位数",
+   "value": "14",
+   "unit": "个",
+   "note": "沿带外侧 2,050 mm 布置"
+  },
+  {
+   "label": "六轴机器人",
+   "value": "3",
+   "unit": "台",
+   "note": "③ ⑦ 自动锁螺钉、⑬ 装箱码垛"
+  },
+  {
+   "label": "测试机台（方案①）",
+   "value": "6 + 预留 3",
+   "unit": "台",
+   "note": "方案② 增至 9 台"
+  },
+  {
+   "label": "老化台位（方案①）",
+   "value": "240",
+   "unit": "台位",
+   "note": "实体为 5 层架，架上 30 台为示意"
+  },
+  {
+   "label": "设备布置包络",
+   "value": "28.9 × 18.4",
+   "unit": "m",
+   "note": "含工位操作区与线边仓"
+  }
+ ],
+ "t_model_s": 7.7,
+ "t_export_s": 3.0,
+ "elapsed_s": 12.0,
+ "step_bytes": 5229696,
+ "stl_bytes": 371884,
+ "glb_bytes": 909284,
+ "scenario_id": "nb_assembly_line",
+ "summary": "笔记本总装产线数字孪生的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：U 形输送线机架 / 输送带面（PVC） / 输送线支腿 ×16 / ① 底壳上线 工位 / ② 主板与散热装配 工位 / ③ 自动锁螺钉 工位 等 31 个部件；1571 个面，质量 9855.507 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/nb_assembly_line.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:37:30+00:00",
+ "cadquery": "2.8.0"
+}

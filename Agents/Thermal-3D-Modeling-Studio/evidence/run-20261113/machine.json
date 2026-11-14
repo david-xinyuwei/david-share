@@ -1,0 +1,10 @@
+{
+ "os": "Windows 11 Enterprise 10.0.26300, Arm64",
+ "cpu": "Snapdragon(R) X 12-core X1E80100 @ 3.40 GHz",
+ "cpu_cores": 12,
+ "ram_gb": 63.5,
+ "python": "3.11.9 AMD64",
+ "node": "v24.18.0",
+ "venv_mb": 1324,
+ "note": "x64 Python running under emulation on Windows on Arm; venv_mb is MiB and includes requirements-dev.txt; timings were not compared with a native x64 machine"
+}

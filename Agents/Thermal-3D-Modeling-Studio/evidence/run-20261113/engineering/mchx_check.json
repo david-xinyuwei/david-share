@@ -1,0 +1,78 @@
+{
+ "id": "mchx",
+ "iou_pct": 95.1,
+ "outline_median_px": 3.0,
+ "outline_p90_px": 17.0,
+ "spp": 256,
+ "render_s": 14.0,
+ "zoom": 1.067,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/mchx/model.glb",
+  "glb_sha256": "3b578756374dae60e77e9039ad0b840ec56d683ccb18ac8736c4657e2063d5cb",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 14046,
+  "lines_ms": 838,
+  "meshes": 3504,
+  "unmatched_meshes": 0,
+  "materials": {
+   "铝扁管 × 24": "aluminum",
+   "平直翅片（等效）": "aluminumCast",
+   "进口侧集流管": "aluminum",
+   "出口侧集流管": "aluminum",
+   "进口接头": "aluminum",
+   "出口接头": "aluminum",
+   "安装支架（左）": "powderCoat",
+   "安装支架（右）": "powderCoat"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.0673466510061804,
+   "view_offset_px": [
+    56.21783867076009,
+    44.26859286385418
+   ],
+   "position": [
+    377.67263438595387,
+    274.1742967578868,
+    422.07352954384686
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:43:40+00:00"
+ }
+}

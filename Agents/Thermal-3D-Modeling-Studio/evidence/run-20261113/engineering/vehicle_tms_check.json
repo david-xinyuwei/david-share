@@ -1,0 +1,99 @@
+{
+ "id": "vehicle_tms",
+ "iou_pct": 90.2,
+ "outline_median_px": 3.6,
+ "outline_p90_px": 22.8,
+ "spp": 256,
+ "render_s": 8.9,
+ "zoom": 1.403,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/vehicle_tms/model.glb",
+  "glb_sha256": "a5c25d4bb942b8c559bd728175655da98a74a1f7297fa2c7b217c8564658a68d",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 8911,
+  "lines_ms": 464,
+  "meshes": 1901,
+  "unmatched_meshes": 0,
+  "materials": {
+   "电池包托盘（铸铝）": "aluminumCast",
+   "电池包上盖": "polymer",
+   "电池液冷板": "aluminum",
+   "电池模组 ×12": "anodized",
+   "电驱电机": "aluminumCast",
+   "减速器": "aluminumCast",
+   "电驱逆变器": "anodized",
+   "电驱油冷器": "steel",
+   "集成模块歧管": "polymer",
+   "九通电子水阀": "polymerLight",
+   "电子水泵 1": "aluminumCast",
+   "电子水泵 2": "aluminumCast",
+   "Chiller 板式换热器": "steel",
+   "微通道冷凝器": "aluminum",
+   "低温散热器芯体": "aluminum",
+   "低温散热器水室 ×2": "polymer",
+   "风扇护风罩": "polymer",
+   "冷却风扇 ×2（7 叶）": "polymer",
+   "电动压缩机": "aluminumCast",
+   "电子膨胀阀 ×2 阀体与接管": "brass",
+   "电子膨胀阀 ×2 线圈": "polymer",
+   "HVAC 壳体（顶部出风口）": "polymer",
+   "蒸发器芯体": "aluminum",
+   "暖风芯体": "aluminum",
+   "PTC 加热器": "aluminumCast",
+   "电池冷却液管路（EPDM）": "rubber",
+   "电驱冷却液管路（EPDM）": "rubber",
+   "冷媒主干管路（铝）": "aluminum",
+   "冷媒 chiller 支路（铝）": "aluminum"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.402812783679824,
+   "view_offset_px": [
+    97.39400132290919,
+    177.22367756762932
+   ],
+   "position": [
+    3599.6524211007277,
+    2846.9897431925237,
+    3612.900284265836
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:45:13+00:00"
+ }
+}

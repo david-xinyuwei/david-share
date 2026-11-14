@@ -1,0 +1,25 @@
+[Unit]
+Description=Thermal 3D Modeling Studio (GPT-6 Astra on Microsoft Foundry)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=studio
+Group=studio
+WorkingDirectory=/opt/thermal-3d-studio
+EnvironmentFile=/opt/thermal-3d-studio/.env
+Environment=PYTHONUNBUFFERED=1
+# Loopback only: nginx terminates TLS on 443 and proxies here.
+ExecStart=/opt/thermal-3d-studio/venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 3005 --no-server-header --proxy-headers
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+StandardOutput=append:/var/log/thermal-3d-studio.log
+StandardError=append:/var/log/thermal-3d-studio.log
+
+[Install]
+WantedBy=multi-user.target

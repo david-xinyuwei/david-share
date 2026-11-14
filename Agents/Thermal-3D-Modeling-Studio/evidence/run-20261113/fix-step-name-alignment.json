@@ -1,0 +1,26 @@
+{
+ "what": "derive() name alignment on two STEP files of the cold plate built concurrently with the edge break off (Chinese and English script); the Chinese file had 16 more unnamed ('') literals",
+ "zh_step_sha256": "48ea9bf33fdea23a1f44eca6a90b83a109f705e7aebe9f3bf8d580f2ba07715a",
+ "en_step_sha256": "583f9bf8be6b84bd5c99e3a4be1667eef620e2b401bc819bbe494da2cc8133e4",
+ "result": {
+  "old: all literals": {
+   "zh": 14538,
+   "en": 14522
+  },
+  "new: non-empty literals": {
+   "zh": 1080,
+   "en": 1080,
+   "names_mapped": 5,
+   "conflicts": [],
+   "ascii_pairs_that_differ": [],
+   "cjk_left_after_translation": false,
+   "english_names": [
+    "'Channel base plate'",
+    "'EV battery cold plate'",
+    "'Inlet fitting'",
+    "'Outlet fitting'",
+    "'Top cover'"
+   ]
+  }
+ }
+}

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>热管理 3D 建模工坊 · GPT-6 Astra</title>
+  <link rel="icon" href="https://ai.azure.com/favicon.ico">
+  <link rel="stylesheet" href="/static/styles.css?rev=25">
+  <script src="/static/icons/lucide.min.js" defer></script>
+  <script src="/static/app.js?rev=26" defer></script>
+</head>
+<body>
+  <!-- Sign-in -->
+  <div id="authView" class="auth-shell">
+    <section class="auth-panel" aria-labelledby="loginTitle">
+      <img class="brand-mark" src="https://ai.azure.com/favicon.ico" alt="">
+      <div class="brand-kicker">Microsoft Foundry · GPT-6 Astra</div>
+      <h1 id="loginTitle" data-i18n="title">热管理 3D 建模工坊</h1>
+      <p data-i18n="login_sub">登录后体验 GPT-6 把一句话变成可交互的 3D 模型。</p>
+      <div class="lang-toggle" role="group" aria-label="Language"><button type="button" data-lang="zh">中文</button><button type="button" data-lang="en">EN</button></div>
+      <form id="loginForm" class="auth-form" autocomplete="on">
+        <label><span data-i18n="username">用户名</span><input id="username" autocomplete="username" required></label>
+        <label><span data-i18n="password">密码</span><input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="command primary" type="submit" data-i18n="signin">登录</button>
+        <div id="loginError" class="form-error" role="alert"></div>
+      </form>
+    </section>
+  </div>
+
+  <!-- App -->
+  <div id="appView" class="hidden">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="brand-mark small" src="https://ai.azure.com/favicon.ico" alt="">
+        <div>
+          <div class="brand-kicker">Microsoft Foundry · GPT-6 Astra</div>
+          <h1 data-i18n="title">热管理 3D 建模工坊</h1>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="pill pill-button" id="connPill" title="" data-i18n-title="conn_title"><span class="status-dot" id="globalDot"></span><span id="globalStatus">…</span></button>
+        <div class="lang-toggle" role="group" aria-label="Language"><button type="button" data-lang="zh">中文</button><button type="button" data-lang="en">EN</button></div>
+        <button class="icon-button" id="connButton" title="模型连接" aria-label="Model connection" data-i18n-title="conn_title">🔒</button>
+        <button class="icon-button" id="themeButton" title="切换主题" aria-label="Toggle theme" data-i18n-title="theme">◐</button>
+        <button class="icon-button" id="logoutButton" title="退出" aria-label="Sign out" data-i18n-title="logout">⎋</button>
+      </div>
+    </header>
+
+    <dialog id="connDialog" class="conn-dialog" aria-labelledby="connHeading">
+      <form method="dialog" id="connForm">
+        <h2 id="connHeading" data-i18n="conn_heading">模型连接</h2>
+        <p class="muted" id="connIntro">登录后自动使用服务器固定连接，无需输入 API key。凭据只保存在服务器，浏览器不会接收。</p>
+        <p class="muted conn-notice hidden" id="connOwnerNote"></p>
+        <p class="muted conn-notice hidden" id="connPresenterHint"></p>
+        <label><span data-i18n="conn_endpoint">Endpoint</span><input id="connEndpoint" type="url" placeholder="https://<resource>.openai.azure.com" autocomplete="off" spellcheck="false"><output id="connEndpointValue" class="conn-readonly hidden"></output></label>
+        <label><span data-i18n="conn_deployment">部署名（Deployment）</span><input id="connDeployment" placeholder="gpt-6-astra" autocomplete="off" spellcheck="false"><output id="connDeploymentValue" class="conn-readonly hidden"></output></label>
+        <label><span id="connKeyLabel">认证</span><input id="connKey" type="text" autocomplete="off" spellcheck="false"><output id="connKeyValue" class="conn-readonly hidden"></output></label>
+        <p class="muted hidden" id="connBackupNote" data-i18n="conn_backup_note">password.txt 含明文 key，请保存在私有、非共享且不自动同步的本机目录，不要上传或提交到代码仓库。刷新、退出登录不会清除浏览器连接；更换网址或浏览器后，可导入此文件恢复。</p>
+        <input id="connImportFile" type="file" accept=".txt,.json,text/plain,application/json" hidden>
+        <p class="muted conn-warning hidden" id="connHttpWarning" data-i18n="conn_http_warning">⚠ 本演示环境为 HTTP 明文传输，请使用可随时轮换的 key，用完可在此清除。</p>
+        <p id="connStatus" class="muted" role="status"></p>
+        <div class="conn-actions">
+          <button type="button" class="command small" id="connTest" data-i18n="conn_test">测试连接</button>
+          <button type="button" class="command small hidden" id="connImport" data-i18n="conn_import">导入 password 文件</button>
+          <button type="button" class="command small hidden" id="connClear" data-i18n="conn_clear">清除 · 改用主机默认</button>
+          <span class="spacer"></span>
+          <button type="button" class="command small" id="connCancel" data-i18n="conn_cancel">关闭</button>
+          <button type="button" class="command small primary hidden" id="connSave" data-i18n="conn_save">保存并备份 password.txt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <main class="page">
+      <section class="overview">
+        <div class="overview-main">
+          <h2 data-i18n="workspace_heading">研发工作台</h2>
+          <span class="muted" data-i18n="workspace_boundary">概念设计 · 几何查看 · 未经工程校核</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-value" id="statModel">—</div><div class="stat-label" data-i18n="stat_model">模型部署（Azure AI Foundry）</div></div>
+          <div class="stat"><div class="stat-value" id="statScenarios">–</div><div class="stat-label" data-i18n="stat_scen">预置场景</div></div>
+          <div class="stat"><div class="stat-value" id="statLatency">–</div><div class="stat-label" data-i18n="stat_lat">上次生成耗时</div></div>
+          <div class="stat"><div class="stat-value" id="statCount">0</div><div class="stat-label" data-i18n="stat_cnt">本次会话已生成</div></div>
+        </div>
+      </section>
+
+      <section class="experience-modes" aria-label="Generation mode">
+        <div class="mode-buttons" role="group" aria-label="Generation mode">
+          <button type="button" id="modeExample" class="command" aria-pressed="true" data-i18n="mode_example">浏览预生成示例</button>
+          <button type="button" id="modeLive" class="command" aria-pressed="false" data-i18n="mode_live">仅实时生成</button>
+        </div>
+        <p id="modeHint"></p>
+      </section>
+
+      <section class="workbench">
+        <aside class="sidebar">
+          <div class="panel">
+            <div class="panel-head"><strong data-i18n="scenarios">场景卡片</strong><span class="muted" id="scenarioHint"></span></div>
+            <div id="industryTabs" class="industry-tabs hidden" role="tablist" aria-label="Industry"></div>
+            <div id="scenarioList" class="scenario-list"></div>
+          </div>
+
+          <div class="panel conversation">
+            <div class="panel-head"><strong data-i18n="conversation">对话</strong><button class="command small" id="newChat" type="button" data-i18n="new_chat">新对话</button></div>
+            <div id="messages" class="messages"><div class="empty-hint" data-i18n="empty_msgs">选择左上方的场景，或直接描述你要建模的零件。</div></div>
+            <div id="chips" class="chips"></div>
+            <details id="conceptStudio" class="concept-studio hidden">
+              <summary><span data-i18n="concept_title">🎨 概念图先行 · 先画后建</span><span class="muted" data-i18n="concept_hint">没有图纸时：先用自然语言画概念图，满意后交给 GPT-6 建 3D</span></summary>
+              <form id="conceptForm" class="concept-form">
+                <textarea id="conceptPrompt" rows="2" maxlength="1500" data-i18n-ph="concept_ph" placeholder="例如：一个面向 800 V 平台的热管理集成模块概念：压铸铝阀岛顶部布置九通电子水阀，两台电子水泵并排，集成板换 chiller，接口朝前；参考近两年量产车型的集成模块外形"></textarea>
+                <div class="render-row">
+                  <label class="render-field"><span data-i18n="concept_provider">模型</span><select id="conceptProvider"></select></label>
+                  <label class="render-field concept-grounding hidden"><span data-i18n="concept_grounding">先搜再画</span><select id="conceptGrounding"><option value="1" data-i18n="cg_on">开 · Bing 联网检索后再画</option><option value="0" data-i18n="cg_off">关</option></select></label>
+                  <label class="render-field"><span data-i18n="render_size">尺寸</span><select id="conceptSize"><option value="1024x1024" selected>1024 × 1024</option><option value="1536x1024">1536 × 1024</option><option value="1792x1024">1792 × 1024 · 16:9</option></select></label>
+                  <label class="render-field"><span data-i18n="render_quality">质量</span><select id="conceptQuality"><option value="low" data-i18n="rq_low">低 · 快</option><option value="medium" selected data-i18n="rq_medium">中</option><option value="high" data-i18n="rq_high">高</option><option value="xhigh" data-i18n="rq_xhigh">极高 · 慢</option></select></label>
+                  <span class="spacer"></span>
+                  <button type="submit" class="command small primary" id="conceptGo" data-i18n="concept_go">画概念图</button>
+                </div>
+              </form>
+              <div id="conceptProgress" class="cad-progress hidden"><div class="spinner"></div><div><strong id="conceptProgressTitle"></strong><div id="conceptProgressLog" class="cad-log"></div></div></div>
+              <div id="conceptResult" class="concept-result hidden">
+                <figure class="render-figure"><img id="conceptImg" alt=""><figcaption class="muted" id="conceptCaption"></figcaption></figure>
+                <div class="concept-side">
+                  <div id="conceptHistory" class="render-history"></div>
+                  <div class="render-row">
+                    <input id="conceptEdit" type="text" maxlength="1500" data-i18n-ph="concept_edit_ph" placeholder="微调这张图（gpt-image 编辑）：例如 壳体改成深灰阳极氧化，接口改朝左…">
+                    <button type="button" class="command small" id="conceptEditGo" data-i18n="concept_edit_go">微调</button>
+                  </div>
+                  <div class="cad-actions">
+                    <button type="button" class="command small primary" id="conceptUse" data-i18n="concept_use">用这张图建 3D →</button>
+                    <a class="command small" id="conceptDl" download data-i18n="render_dl">下载 PNG</a>
+                  </div>
+                  <p class="muted" data-i18n="concept_note">概念图只表达外形与布局意图；点「用这张图建 3D」后请在需求里补充关键尺寸（外形包络、接口规格），GPT-6 会按图 + 尺寸建参数化 3D。</p>
+                </div>
+              </div>
+            </details>
+            <div id="splitComposer" class="split-y" role="separator" aria-orientation="horizontal" tabindex="0" data-i18n-title="split_composer"></div>
+            <form id="composer" class="composer">
+              <p id="imageNotice" class="muted hidden" role="status"></p>
+              <p id="connNotice" class="muted conn-notice hidden" role="status"></p>
+              <div id="imagePreview" class="image-preview hidden"><img id="imageThumb" alt=""><button type="button" id="imageRemove" title="移除" data-i18n-title="remove_image">✕</button></div>
+              <textarea id="prompt" rows="4" data-i18n-ph="prompt_ph" placeholder="例如：建一个 320×180×12 mm 的铝合金电池水冷板，6 道 S 形流道……"></textarea>
+              <div class="composer-actions">
+                <label class="command small" title="上传图纸 / 照片" data-i18n-title="upload_title">📎 <span data-i18n="upload">图纸/照片</span><input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden></label>
+                <button type="button" class="command small hidden" id="sampleDrawing" data-i18n="sample_drawing">用示例图纸</button>
+                <span class="spacer"></span>
+                <span class="muted kbd-hint" id="kbdHint"></span>
+              </div>
+              <div class="composer-actions">
+                <label class="effort" id="effortWrap" title="" data-i18n-title="effort_title">
+                  <span data-i18n="effort_label">推理强度</span>
+                  <select id="effort" aria-label="Reasoning effort">
+                    <option value="none" data-i18n="effort_none">无 · 最快</option>
+                    <option value="low" data-i18n="effort_low">低</option>
+                    <option value="medium" data-i18n="effort_medium">中</option>
+                    <option value="high" data-i18n="effort_high">高</option>
+                    <option value="xhigh" data-i18n="effort_xhigh">极高</option>
+                  </select>
+                </label>
+                <span class="spacer"></span>
+                <button type="submit" class="command primary" id="sendBtn">实时调用 GPT-6</button>
+              </div>
+            </form>
+          </div>
+        </aside>
+        <div id="splitSide" class="split-x" role="separator" aria-orientation="vertical" tabindex="0" data-i18n-title="split_side"></div>
+
+        <section class="panel stage" id="stage">
+          <div class="provenance" aria-live="polite">
+            <strong id="sourceLabel"></strong>
+            <span id="renderStatus" class="state-tag"></span>
+            <p id="sourceDetails"></p>
+            <p id="generationStatus" role="status"></p>
+          </div>
+          <div class="stage-head">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="view" data-i18n="tab_view">3D 视图</button>
+              <button class="tab" data-tab="stream" data-i18n="tab_stream">生成过程</button>
+              <button class="tab" data-tab="metrics" data-i18n="tab_metrics">工程量</button>
+              <button class="tab" data-tab="cad" id="tabCad" data-i18n="tab_cad">CAD 实体</button>
+              <button class="tab" data-tab="render" id="tabRender" data-i18n="tab_render">渲染图</button>
+            </div>
+            <div class="stage-tools">
+              <span id="stageBadge" class="state-tag hidden"></span>
+              <button class="icon-button" id="btnPng" disabled title="截图 PNG" aria-label="PNG" data-i18n-title="btn_png"><i data-lucide="camera" aria-hidden="true"></i></button>
+              <button class="command small" id="btnGlb" disabled><i data-lucide="download" aria-hidden="true"></i><span>GLB</span></button>
+              <button class="command small cad-btn" id="btnStep" disabled data-i18n="btn_step" title="GPT-6 编写 CadQuery 脚本 → 服务器 OCCT 内核执行 → STEP 工程实体">生成 STEP</button>
+              <button class="command small cad-btn" id="btnRender" disabled data-i18n="btn_render">生成渲染图</button>
+              <button class="command small cad-btn" id="btnProposal" disabled data-i18n="btn_proposal" title="把本次会话（需求、3D 截图、渲染图、工程量、STEP、token）整理成 Word 方案书；GPT-6 撰写方案要点与风险">生成方案书</button>
+              <button class="icon-button" id="btnHtml" disabled title="下载 HTML" aria-label="HTML" data-i18n-title="btn_html"><i data-lucide="file-code-2" aria-hidden="true"></i></button>
+              <button class="icon-button" id="btnOpen" disabled title="新窗口" aria-label="Open" data-i18n-title="btn_open"><i data-lucide="external-link" aria-hidden="true"></i></button>
+              <button class="command small" id="btnFull" disabled data-i18n="btn_full">全屏</button>
+            </div>
+          </div>
+          <div id="versionStrip" class="version-strip hidden" aria-label="Versions"></div>
+          <div class="stage-body">
+            <div class="tab-pane active" id="pane-view">
+              <div class="viewport-toolbar" role="toolbar" aria-label="Viewport tools">
+                <div class="workspace-tabs" role="group" aria-label="View layout">
+                  <button type="button" data-workspace-layout="original" aria-pressed="true" data-i18n="view_original">原场景</button>
+                  <button type="button" data-workspace-layout="single" aria-pressed="false" data-i18n="view_single">透视</button>
+                  <button type="button" data-workspace-layout="quad" aria-pressed="false" data-i18n="view_quad">四视图</button>
+                </div>
+                <span class="toolbar-divider" aria-hidden="true"></span>
+                <div class="viewport-segment geometry-source" role="group" aria-label="Geometry source">
+                  <button type="button" data-geometry="concept" aria-pressed="true" title="GPT-6 直接编写的 three.js 概念网格" data-i18n-title="geom_concept_title"><i data-lucide="shapes" aria-hidden="true"></i><span data-i18n="geom_concept">概念网格</span></button>
+                  <button type="button" data-geometry="brep" aria-pressed="false" disabled title="OCCT B-rep 实体（真实圆角 / 孔 / 壁厚，与 STEP 一致）" data-i18n-title="geom_brep_title"><i data-lucide="gem" aria-hidden="true"></i><span data-i18n="geom_brep">B-rep 实体</span></button>
+                </div>
+                <span class="toolbar-divider" aria-hidden="true"></span>
+                <div class="viewport-segment" role="group" aria-label="Shading">
+                  <button type="button" data-workspace-shading="wireframe" title="线框" data-i18n-title="view_wireframe" aria-pressed="false"><i data-lucide="network" aria-hidden="true"></i></button>
+                  <button type="button" data-workspace-shading="solid" title="实体" data-i18n-title="view_solid" aria-pressed="false"><i data-lucide="circle-dot" aria-hidden="true"></i></button>
+                  <button type="button" data-workspace-shading="material" title="材质预览" data-i18n-title="view_material" aria-pressed="true"><i data-lucide="circle" aria-hidden="true"></i></button>
+                </div>
+                <label class="viewport-toggle"><input type="checkbox" id="viewGrid" checked><span data-i18n="view_grid">网格</span></label>
+                <label class="viewport-field"><span data-i18n="view_section">剖切</span><select id="viewSection"><option value="none" data-i18n="view_none">关闭</option><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></label>
+                <input id="viewSectionOffset" type="range" min="0" max="100" value="50" class="section-slider" aria-label="Section position" title="剖切位置" data-i18n-title="view_section_position" disabled>
+                <label class="viewport-field exposure-field"><span data-i18n="view_exposure">曝光</span><input id="viewExposure" type="range" min="0.4" max="2" step="0.05" value="1.1" aria-label="Exposure"></label>
+                <button type="button" class="icon-button" id="viewParts" aria-pressed="true" title="部件" data-i18n-title="view_parts"><i data-lucide="list-tree" aria-hidden="true"></i></button>
+              </div>
+              <div class="viewport-body" id="viewportBody">
+              <div class="tool-rail" role="toolbar" aria-label="Viewport actions" aria-orientation="vertical">
+                <button type="button" class="rail-button" id="viewFit" title="框选模型 / 选中部件" data-i18n-title="view_fit"><i data-lucide="scan" aria-hidden="true"></i></button>
+                <button type="button" class="rail-button" id="viewIsolate" title="独显选中" data-i18n-title="view_isolate" disabled><i data-lucide="focus" aria-hidden="true"></i></button>
+                <button type="button" class="rail-button" id="viewShowAll" title="恢复显隐" data-i18n-title="view_show_all"><i data-lucide="eye" aria-hidden="true"></i></button>
+                <span class="rail-divider" aria-hidden="true"></span>
+                <button type="button" class="rail-button" id="railPng" title="截图 PNG" data-i18n-title="btn_png" disabled><i data-lucide="camera" aria-hidden="true"></i></button>
+                <button type="button" class="rail-button" id="railFull" title="全屏" data-i18n-title="btn_full" disabled><i data-lucide="maximize" aria-hidden="true"></i></button>
+              </div>
+              <div class="viewer-surface">
+              <iframe id="viewer" title="3D viewer" sandbox="allow-scripts allow-downloads allow-popups allow-pointer-lock"></iframe>
+              <div id="viewerEmpty" class="empty-state">
+                <div class="empty-icon">⬡</div>
+                <strong data-i18n="empty_title">这里会出现你的 3D 模型</strong>
+                <span data-i18n="empty_sub">选择左侧场景卡片，或输入零件描述后点击"生成 3D 模型"。</span>
+              </div>
+              <figure id="refImage" class="ref-image hidden">
+                <img id="refImageImg" alt="">
+                <figcaption><span data-i18n="ref_image">参考图</span><button type="button" id="refToggle" class="linklike"></button></figcaption>
+              </figure>
+              <div id="systemPanel" class="system-panel hidden" aria-live="polite"></div>
+              <div id="progress" class="progress hidden">
+                <div class="progress-card">
+                  <div class="spinner"></div>
+                  <div class="progress-main">
+                    <div class="progress-head">
+                      <strong id="progressTitle" data-i18n="progress_title">GPT-6 正在建模…</strong>
+                      <button type="button" class="command small" id="cancelBtn">取消</button>
+                    </div>
+                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+                    <span id="progressStage" class="progress-stage"></span>
+                    <span id="progressMeta">0.0 s · 0 字符</span>
+                    <pre id="progressTail"></pre>
+                  </div>
+                </div>
+              </div>
+              </div>
+              <aside id="partInspector" class="part-inspector hidden" aria-label="Model parts">
+                <div class="inspector-heading"><i data-lucide="list-tree" aria-hidden="true"></i><strong data-i18n="view_outliner">大纲</strong><span id="partCount" class="muted"></span></div>
+                <div class="outliner-root"><i data-lucide="chevron-down" aria-hidden="true"></i><i data-lucide="folder" aria-hidden="true"></i><span id="outlinerRootName" data-i18n="view_collection">模型集合</span></div>
+                <div id="partList" class="part-list"></div>
+                <div class="inspector-heading"><i data-lucide="ruler" aria-hidden="true"></i><strong data-i18n="view_dimensions">模型包络 · mm</strong></div>
+                <dl id="viewDimensions" class="model-dimensions"></dl>
+                <div class="inspector-heading"><i data-lucide="triangle" aria-hidden="true"></i><strong data-i18n="view_statistics">统计</strong></div>
+                <dl id="viewStats" class="model-dimensions"></dl>
+              </aside>
+              </div>
+              <div class="viewport-status"><span id="viewStatus" role="status"></span><span data-i18n="view_mesh_boundary">网格视图 · 不替代 STEP / CAE 校核</span></div>
+            </div>
+            <div class="tab-pane" id="pane-stream"><pre id="streamOut" class="stream"></pre></div>
+            <div class="tab-pane" id="pane-metrics">
+              <p class="estimate-note" data-i18n="estimate_note">以下为模型生成的概念设计估算，未经 CAD/CAE 校核；GLB 是可视化网格，不是 STEP 工程实体（工程实体请用「生成 STEP」走 CadQuery 轨）。</p>
+              <div id="summaryBox" class="summary-box"></div>
+              <p id="metricsSource" class="metrics-source"></p>
+              <table id="metricsTable" class="metrics"><thead><tr><th data-i18n="m_label">指标</th><th data-i18n="m_value">数值</th><th data-i18n="m_unit">单位</th><th data-i18n="m_note">说明</th><th id="mDeltaHead" class="hidden" data-i18n="m_delta">较上一版</th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="tab-pane" id="pane-cad">
+              <div class="cad-pane">
+                <div class="cad-head">
+                  <div>
+                    <strong data-i18n="cad_title">轨 B · CadQuery → STEP 工程实体</strong>
+                    <p class="muted" data-i18n="cad_intro">GPT-6 为当前零件编写 CadQuery（OCCT B-rep）脚本，服务器在隔离子进程中执行、导出 STEP/STL，并用 B-rep 精确计算体积与质量。STEP 可直接在 SolidWorks / NX / Creo 中打开。</p>
+                  </div>
+                  <span id="cadBadge" class="state-tag hidden"></span>
+                </div>
+                <div id="cadEmpty" class="cad-empty" data-i18n="cad_empty">先在 3D 视图得到一个模型，再点击右上角「生成 STEP」。</div>
+                <div id="cadProgress" class="cad-progress hidden">
+                  <div class="spinner"></div>
+                  <div><strong id="cadProgressTitle"></strong><div id="cadProgressLog" class="cad-log"></div></div>
+                </div>
+                <div id="cadResult" class="hidden">
+                  <div class="cad-actions">
+                    <a class="command small primary" id="cadDlStep" download data-i18n="cad_dl_step">下载 STEP</a>
+                    <a class="command small" id="cadDlStl" download data-i18n="cad_dl_stl">下载 STL</a>
+                    <a class="command small" id="cadDlPy" download data-i18n="cad_dl_py">下载 CadQuery 脚本</a>
+                    <button type="button" class="command small" id="cadShowCode" data-i18n="cad_show_code">查看脚本</button>
+                    <span class="muted" id="cadRunInfo"></span>
+                  </div>
+                  <div class="cad-grid">
+                    <div class="cad-viewer-wrap">
+                      <iframe id="cadViewer" title="STEP preview (STL tessellation)" sandbox="allow-scripts"></iframe>
+                      <span class="cad-viewer-caption" data-i18n="cad_viewer_caption">STL 预览（由 STEP 实体网格化）· 拖动旋转</span>
+                    </div>
+                    <div>
+                      <div id="cadSummary" class="summary-box"></div>
+                      <table id="cadMetrics" class="metrics"><thead><tr><th data-i18n="m_label">指标</th><th data-i18n="m_value">数值</th><th data-i18n="m_unit">单位</th><th data-i18n="m_note">说明</th></tr></thead><tbody></tbody></table>
+                      <p class="metrics-source live" data-i18n="cad_metrics_note">体积 / 质量 / 包络 / 表面积由 OCCT 从 B-rep 实体直接计算，可与轨 A 的估算值对照。</p>
+                    </div>
+                  </div>
+                  <pre id="cadCode" class="cad-code hidden"></pre>
+                </div>
+              </div>
+            </div>
+            <div class="tab-pane" id="pane-render">
+              <div class="cad-pane">
+                <div class="cad-head">
+                  <div>
+                    <strong data-i18n="render_title">轨 C · WebGL 截图 → gpt-image-2.5 真实感渲染</strong>
+                    <p class="muted" data-i18n="render_intro">把当前 3D 视图的 WebGL 截图交给 gpt-image-2.5，重绘成真实感效果图，用于方案汇报和概念评审。图像模型会重新构图，比例和细节可能与 STEP 不同，尺寸以 STEP 为准。可多轮微调：每次在上一张渲染图上继续改。</p>
+                  </div>
+                  <span id="renderBadge" class="state-tag hidden"></span>
+                </div>
+                <form id="renderForm" class="render-form">
+                  <div class="render-row">
+                    <label class="render-field"><span data-i18n="render_style">风格</span>
+                      <select id="renderStyle">
+                        <option value="studio" data-i18n="rs_studio">工作室产品图</option>
+                        <option value="exhibition" data-i18n="rs_exhibition">展会灯光</option>
+                        <option value="exploded" data-i18n="rs_exploded">爆炸图海报</option>
+                        <option value="section" data-i18n="rs_section">剖切示意</option>
+                        <option value="installed" data-i18n="rs_installed">装车 / 装机场景</option>
+                      </select></label>
+                    <label class="render-field"><span data-i18n="render_size">尺寸</span>
+                      <select id="renderSize"><option value="1024x1024">1024 × 1024</option><option value="1536x1024" selected>1536 × 1024</option><option value="1024x1536">1024 × 1536</option><option value="1792x1024">1792 × 1024 · 16:9</option><option value="2048x1152">2048 × 1152 · 16:9</option></select></label>
+                    <label class="render-field"><span data-i18n="render_quality">质量</span>
+                      <select id="renderQuality"><option value="low" data-i18n="rq_low">低 · 快</option><option value="medium" selected data-i18n="rq_medium">中</option><option value="high" data-i18n="rq_high">高</option><option value="xhigh" data-i18n="rq_xhigh">极高 · 慢</option><option value="max" data-i18n="rq_max">最高 · 最慢</option></select></label>
+                    <label class="render-field render-base"><span data-i18n="render_base">基于</span>
+                      <select id="renderBase"><option value="snapshot" data-i18n="rb_snapshot">当前 3D 视图截图</option><option value="previous" data-i18n="rb_previous">上一张渲染图（微调）</option></select></label>
+                  </div>
+                  <div class="render-row">
+                    <input id="renderInstruction" type="text" maxlength="1500" data-i18n-ph="render_instruction_ph" placeholder="补充要求（可选）：例如 拉丝铝表面、白色背景、俯视 30°、加一根接管的冷却液流动示意…">
+                    <button type="submit" class="command small primary" id="renderGo" data-i18n="render_go">开始渲染</button>
+                  </div>
+                </form>
+                <div id="renderEmpty" class="cad-empty" data-i18n="render_empty">先在 3D 视图得到一个模型（渲染就绪），再点「开始渲染」或右上角「生成渲染图」。</div>
+                <div id="renderProgress" class="cad-progress hidden">
+                  <div class="spinner"></div>
+                  <div><strong id="renderProgressTitle"></strong><div id="renderProgressLog" class="cad-log"></div></div>
+                </div>
+                <div id="renderResult" class="hidden">
+                  <div class="render-grid">
+                    <figure class="render-figure">
+                      <div class="render-stack">
+                        <img id="renderImg" alt="">
+                        <img id="renderCadLines" class="render-cad-lines hidden" alt="">
+                      </div>
+                      <figcaption class="muted" id="renderCaption"></figcaption>
+                    </figure>
+                    <div class="render-side">
+                      <div id="renderViewSwitch" class="viewport-segment render-view-switch hidden" role="group" aria-label="Render source">
+                        <button type="button" data-render-view="gpt" aria-pressed="true" data-i18n="render_view_gpt">效果图 · gpt-image</button>
+                        <button type="button" data-render-view="eng" aria-pressed="false" data-i18n="render_view_eng">工程渲染图 · 与 STEP 一致</button>
+                      </div>
+                      <div class="cad-actions">
+                        <a class="command small primary" id="renderDl" download data-i18n="render_dl">下载 PNG</a>
+                        <button type="button" class="command small" id="renderShowPrompt" data-i18n="render_show_prompt">查看提示词</button>
+                        <button type="button" class="command small hidden" id="renderCadToggle" aria-pressed="false" data-i18n="render_cad_toggle">与 CAD 叠放</button>
+                      </div>
+                      <p id="renderCadNote" class="metrics-source hidden"></p>
+                      <div id="renderHistory" class="render-history"></div>
+                      <pre id="renderPrompt" class="cad-code hidden"></pre>
+                      <p id="renderNote" class="metrics-source" data-i18n="render_note">渲染图由图像模型基于截图重绘，材质与光照为示意，不代表真实表面处理；几何以 3D 模型 / STEP 为准。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="stage-foot"><span id="runInfo" class="muted"></span></div>
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

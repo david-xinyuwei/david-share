@@ -1,0 +1,18 @@
+body[data-studio-workspace="active"] > :not(#studio-workspace):not(script):not(style):not(link) { visibility: hidden !important; pointer-events: none !important; }
+#studio-workspace {
+  --cp-bg: #414549;
+  --cp-border: #606469;
+  --cp-text: #edf0f2;
+  --cp-panel: rgba(39, 42, 45, .86);
+  position: fixed; inset: 0; z-index: 2147483000; overflow: hidden;
+  background: var(--cp-bg); color: var(--cp-text);
+  font: 12px "Segoe UI", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+}
+#studio-workspace[hidden], #studio-workspace [hidden] { display: none !important; }
+#studio-workspace .studio-viewport { position: absolute; box-sizing: border-box; border: 1px solid #2a2c2f; touch-action: none; }
+#studio-workspace .studio-view-label { position: absolute; top: 10px; left: 12px; display: grid; gap: 2px; color: var(--cp-text); pointer-events: none; user-select: none; font-size: 12px; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+#studio-workspace .studio-view-label strong { font-weight: 600; font-size: 12.5px; }
+#studio-workspace .studio-view-label span { opacity: .85; }
+#studio-workspace .studio-gizmo { position: absolute; top: 8px; right: 12px; width: 84px; height: 84px; pointer-events: none; user-select: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+#studio-workspace .studio-gizmo text { font-family: "Segoe UI", sans-serif; }

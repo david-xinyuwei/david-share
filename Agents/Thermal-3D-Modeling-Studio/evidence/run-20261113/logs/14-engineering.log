@@ -1,0 +1,15 @@
+{"id": "aidc", "iou_pct": 91.1, "outline_median_px": 11.4, "outline_p90_px": 45.8, "spp": 256, "render_s": 3.9, "zoom": 1.257, "unmatched_meshes": 0, "ok": true}
+{"id": "aps", "iou_pct": 94.4, "outline_median_px": 3.6, "outline_p90_px": 4.1, "spp": 256, "render_s": 10.8, "zoom": 1.119, "unmatched_meshes": 0, "ok": true}
+{"id": "cdu", "iou_pct": 90.4, "outline_median_px": 3.6, "outline_p90_px": 17.0, "spp": 256, "render_s": 10.3, "zoom": 1.202, "unmatched_meshes": 0, "ok": true}
+{"id": "coldplate", "iou_pct": 17.2, "outline_median_px": 10.6, "outline_p90_px": 369.6, "spp": 256, "render_s": 2.5, "zoom": 1.136, "unmatched_meshes": 0, "ok": true}
+{"id": "drawing2d", "iou_pct": 93.8, "outline_median_px": 3.2, "outline_p90_px": 4.0, "spp": 256, "render_s": 2.1, "zoom": 1.093, "unmatched_meshes": 0, "ok": true}
+{"id": "exv", "iou_pct": 94.1, "outline_median_px": 3.2, "outline_p90_px": 4.0, "spp": 256, "render_s": 2.4, "zoom": 1.118, "unmatched_meshes": 0, "ok": true}
+{"id": "fourway", "iou_pct": 94.7, "outline_median_px": 3.2, "outline_p90_px": 15.6, "spp": 256, "render_s": 2.5, "zoom": 1.361, "unmatched_meshes": 0, "ok": true}
+{"id": "mchx", "iou_pct": 95.1, "outline_median_px": 3.0, "outline_p90_px": 17.0, "spp": 256, "render_s": 14.0, "zoom": 1.067, "unmatched_meshes": 0, "ok": true}
+{"id": "module", "iou_pct": 97.5, "outline_median_px": 3.2, "outline_p90_px": 4.1, "spp": 256, "render_s": 3.6, "zoom": 1.297, "unmatched_meshes": 0, "ok": true}
+{"id": "nb_assembly_line", "iou_pct": 68.0, "outline_median_px": 8.5, "outline_p90_px": 38.6, "spp": 256, "render_s": 8.6, "zoom": 1.413, "unmatched_meshes": 0, "ok": true}
+{"id": "nb_chassis_mold", "iou_pct": 97.5, "outline_median_px": 3.6, "outline_p90_px": 6.3, "spp": 256, "render_s": 2.7, "zoom": 1.233, "unmatched_meshes": 0, "ok": true}
+{"id": "nb_packing", "iou_pct": 96.3, "outline_median_px": 3.2, "outline_p90_px": 5.0, "spp": 256, "render_s": 30.0, "zoom": 1.276, "unmatched_meshes": 0, "ok": true}
+{"id": "nb_thermal", "iou_pct": 97.7, "outline_median_px": 3.2, "outline_p90_px": 3.6, "spp": 256, "render_s": 13.6, "zoom": 1.164, "unmatched_meshes": 0, "ok": true}
+{"id": "thermal_sim", "iou_pct": 15.1, "outline_median_px": 13.0, "outline_p90_px": 314.5, "spp": 256, "render_s": 4.5, "zoom": 1.177, "unmatched_meshes": 0, "ok": true}
+{"id": "vehicle_tms", "iou_pct": 90.2, "outline_median_px": 3.6, "outline_p90_px": 22.8, "spp": 256, "render_s": 8.9, "zoom": 1.403, "unmatched_meshes": 0, "ok": true}

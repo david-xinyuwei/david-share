@@ -1,0 +1,101 @@
+{
+ "id": "nb_assembly_line",
+ "iou_pct": 68.0,
+ "outline_median_px": 8.5,
+ "outline_p90_px": 38.6,
+ "spp": 256,
+ "render_s": 8.6,
+ "zoom": 1.413,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/nb_assembly_line/model.glb",
+  "glb_sha256": "41ccf1457976cda171b8275d5652eb203a0523af597168dad581e0cf13740748",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 8551,
+  "lines_ms": 237,
+  "meshes": 1571,
+  "unmatched_meshes": 0,
+  "materials": {
+   "U 形输送线机架": "aluminum",
+   "输送带面（PVC）": "rubber",
+   "输送线支腿 ×16": "aluminum",
+   "① 底壳上线 工位": "aluminum",
+   "② 主板与散热装配 工位": "aluminum",
+   "③ 自动锁螺钉 工位": "aluminum",
+   "④ 电池与扬声器 工位": "aluminum",
+   "⑤ 屏幕与转轴 工位": "aluminum",
+   "⑥ 键盘与合盖 工位": "aluminum",
+   "⑦ 自动锁螺钉 工位": "aluminum",
+   "⑧ 外观 AOI 工位": "aluminum",
+   "⑨ 测试 工位": "aluminum",
+   "⑩ 老化 工位": "aluminum",
+   "⑪ 软件与终检 工位": "aluminum",
+   "⑫ 贴标与包装 工位": "aluminum",
+   "⑬ 装箱码垛 工位": "aluminum",
+   "⑭ 成品下线 工位": "aluminum",
+   "六轴机器人 ×3（③⑦⑬）": "polymerLight",
+   "机器人末端执行器 ×3": "anodizedRed",
+   "⑧ AOI 视觉检测机": "powderCoat",
+   "⑨ 测试机台 ×6（方案①）": "anodizedBlue",
+   "⑨ 预留测试机位 ×3（方案②启用）": "glass",
+   "⑩ 老化中整机（示意 30 / 240 台位）": "anodizedBlue",
+   "防疲劳地垫 ×8": "rubber",
+   "工位物料盒 ×24": "anodizedBlue",
+   "在制品（合盖整机）×14": "aluminum",
+   "线边仓货架": "powderCoat",
+   "线边仓料箱 ×8": "cardboard",
+   "配送 AGV ×3": "anodizedOrange",
+   "AGV 载料箱 ×3": "cardboard",
+   "AGV 车轮 ×12": "rubber"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.4130043353690063,
+   "view_offset_px": [
+    71.87195780679309,
+    44.46134660622597
+   ],
+   "position": [
+    28168.183833402836,
+    20605.09236005004,
+    32429.66140841326
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:43:57+00:00"
+ }
+}

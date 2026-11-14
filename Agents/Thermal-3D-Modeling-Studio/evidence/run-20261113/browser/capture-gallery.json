@@ -1,0 +1,908 @@
+{
+ "url": "http://127.0.0.1:8015",
+ "only": [
+  "gallery"
+ ],
+ "started": "2026-11-14T02:43:38+00:00",
+ "shots": [
+  {
+   "file": "track-a-concept-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "GPT-6's three.js scene (Track A), recorded response, perspective view",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "f5a23b6b54b8ac4a54075d20dec53cadc9436f01b9cf90fb2c3b722d2ec85d88"
+  },
+  {
+   "file": "track-b-brep-quad-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "OCCT B-rep solid of the reference script (Track B), quad view",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "51077ea8f847d2938a2495aec3d7ed7084e4d604436ce5dd4a2068ae23677c0b"
+  },
+  {
+   "file": "track-b-cad-tab-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "CAD tab: STEP metrics computed by OCCT, STL preview, downloads",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "d36a2f70d5da4c25e4caf8cacab50f7a847e70f7dcec2e3fd4d3568662b62fde"
+  },
+  {
+   "file": "track-a-concept-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "GPT-6's three.js scene (Track A), recorded response, perspective view",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "8da68fced80241e150877111a1514c9d928250aad0390ca6cf0785843fe47470"
+  },
+  {
+   "file": "track-b-brep-quad-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "OCCT B-rep solid of the reference script (Track B), quad view",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "14f0db3ad740cb6a34abac4c628e2090301d24833fa1531c0258a8e5702f2fe2"
+  },
+  {
+   "file": "track-b-cad-tab-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "CAD tab: STEP metrics computed by OCCT, STL preview, downloads",
+   "viewport": {
+    "width": 1600,
+    "height": 900
+   },
+   "sha256": "8b53fd0d7401fd0bbcb5933fdd5f8a7d8cf7fa62f7c85af86b631e769a21dd1c"
+  },
+  {
+   "file": "feature-section-en.png",
+   "lang": "en",
+   "scenario": "coldplate",
+   "shows": "B-rep in the quad view, cut by the section plane normal to Y",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "01970518186ecb4fa71a60af2266df52f7be59d7ef2c53622c4f59d46d172a03"
+  },
+  {
+   "file": "feature-isolate-en.png",
+   "lang": "en",
+   "scenario": "coldplate",
+   "shows": "Cold plate B-rep with only one part shown: Channel base plate",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "cf233ac685cae2da151255331dba61cd187166011ac81954da1f8ce9a2686e33"
+  },
+  {
+   "file": "feature-section-zh.png",
+   "lang": "zh",
+   "scenario": "coldplate",
+   "shows": "B-rep in the quad view, cut by the section plane normal to Y",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "fad34f89a577ed53c5a0ec7164eac946631ba09d57b27ed57923df14247ba666"
+  },
+  {
+   "file": "feature-isolate-zh.png",
+   "lang": "zh",
+   "scenario": "coldplate",
+   "shows": "Cold plate B-rep with only one part shown: 流道基板",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "b919f7421e12b073d1b9162eb326b72e312faebf94f8dbc53e9b306722ee7cc3"
+  },
+  {
+   "file": "gallery-coldplate-brep-en.png",
+   "lang": "en",
+   "scenario": "coldplate",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "cb6810ba68342c07148a1a7df1339de23966f5a376d48451371f26ac77c84e88"
+  },
+  {
+   "file": "gallery-coldplate-gpt6-en.png",
+   "lang": "en",
+   "scenario": "coldplate",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "ef0f801e6c996d3a1765ce389614b97a716f089ca79b4dce56a29310db21c26c"
+  },
+  {
+   "file": "gallery-mchx-brep-en.png",
+   "lang": "en",
+   "scenario": "mchx",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "c95b231650dccfd3b65ea03d4cf87924f692159e80b218a32319c5c12613526a"
+  },
+  {
+   "file": "gallery-mchx-gpt6-en.png",
+   "lang": "en",
+   "scenario": "mchx",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "b8677e1c978a5b3fe44c7c82a558a687e843fbd79d196239b9d0e6ba3ce0f446"
+  },
+  {
+   "file": "gallery-exv-brep-en.png",
+   "lang": "en",
+   "scenario": "exv",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "5422284b021a98ad3158d0f1f9ace60167a26d76f086c3c5eaf8c0160ae7fa85"
+  },
+  {
+   "file": "gallery-exv-gpt6-en.png",
+   "lang": "en",
+   "scenario": "exv",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "c7f86caed5fdfd45216bb54e4c5bc1565faa9d1dbd68bfa0b3f87bf3e9ddda46"
+  },
+  {
+   "file": "gallery-drawing2d-brep-en.png",
+   "lang": "en",
+   "scenario": "drawing2d",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "86f9f3fbd99dd1252ce6836fcfb14873a47fbcc27dc56d97b2c7237d7f1bc418"
+  },
+  {
+   "file": "gallery-drawing2d-gpt6-en.png",
+   "lang": "en",
+   "scenario": "drawing2d",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "aa92c13a4e8852dfa94260f3feb68e659b354ba6b76b1ea6eb66e6c8e2564a61"
+  },
+  {
+   "file": "gallery-aidc-brep-en.png",
+   "lang": "en",
+   "scenario": "aidc",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "dd50b1aba2fdf23da9af281ac86cdd8ee66f8635a8fea7631cf26d7041021b31"
+  },
+  {
+   "file": "gallery-aidc-gpt6-en.png",
+   "lang": "en",
+   "scenario": "aidc",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "5440dfe8e3b07b650af83fb854ee0c81ede37b244062a633f013d521f8da9e96"
+  },
+  {
+   "file": "gallery-fourway-brep-en.png",
+   "lang": "en",
+   "scenario": "fourway",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "fd2866996b86bfa81da1695a68a93c3c5d51c3072e0cd09c8668bf7f6f3766d8"
+  },
+  {
+   "file": "gallery-fourway-gpt6-en.png",
+   "lang": "en",
+   "scenario": "fourway",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "00a1d1fb541470d3556e66d1a227a0906100893cdb5b411410de490f5190b29b"
+  },
+  {
+   "file": "gallery-module-brep-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "5f7098f7d61e91b613e67d9a7b7f7caad37b02940085a77feb989241cb310953"
+  },
+  {
+   "file": "gallery-module-gpt6-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "4133a490e134c633f93e147fd2dc3f4a2dcd1477a3a292932eca3196c67c765d"
+  },
+  {
+   "file": "gallery-thermal_sim-brep-en.png",
+   "lang": "en",
+   "scenario": "thermal_sim",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "c559ba35018f54e70f5a737d76695062322eccdc578bf2a5d82d09a2b392195f"
+  },
+  {
+   "file": "gallery-thermal_sim-gpt6-en.png",
+   "lang": "en",
+   "scenario": "thermal_sim",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "fc13945b078077b9bbfef4696c6b325257c11c21bb9d635824a33beac25c4377"
+  },
+  {
+   "file": "gallery-aps-brep-en.png",
+   "lang": "en",
+   "scenario": "aps",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "0d71299197d36e3f54b6f1540abdd26cce04cb96f2db4b708cbb0aa8ccf386e8"
+  },
+  {
+   "file": "gallery-aps-gpt6-en.png",
+   "lang": "en",
+   "scenario": "aps",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "7603b7aa260510de6c623a09c64b9cb64bc888a8da56c80040daefec32e3f523"
+  },
+  {
+   "file": "gallery-vehicle_tms-brep-en.png",
+   "lang": "en",
+   "scenario": "vehicle_tms",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "32cb115377b16aaebf31218c46e00bee73f61b2a2bc142e206e61f40c886f7ce"
+  },
+  {
+   "file": "gallery-vehicle_tms-gpt6-en.png",
+   "lang": "en",
+   "scenario": "vehicle_tms",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "aea155492375876a83f2221d8ad0b404aef249797870a4b8671b91cfceb13d62"
+  },
+  {
+   "file": "gallery-coldplate-brep-zh.png",
+   "lang": "zh",
+   "scenario": "coldplate",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "e81d3344d3f18892e6ebcfcf40043e2e82910adfb32127bd8096970ed66f41c7"
+  },
+  {
+   "file": "gallery-coldplate-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "coldplate",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "250ebe44b2211dd27ec8a8c7fd53763578ff5e31246bba96ba1dd878b999b6eb"
+  },
+  {
+   "file": "gallery-mchx-brep-zh.png",
+   "lang": "zh",
+   "scenario": "mchx",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "be65c7a944551b274eee61a6ba356897dd2196bc6ef3d9c78729f0fb0a0efa9d"
+  },
+  {
+   "file": "gallery-mchx-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "mchx",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "fbc43c341c5e450034178628ac6e8c21bf7c5c0422450dc73dd94f28eff1e7c8"
+  },
+  {
+   "file": "gallery-exv-brep-zh.png",
+   "lang": "zh",
+   "scenario": "exv",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "b9f95fef3774df9a876e4058b31bc22e93e6f35aec83827a47366bdaaa069864"
+  },
+  {
+   "file": "gallery-exv-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "exv",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "9a1b6be10c095e607e888d5abf5a0ad3811e84ff46cf4530f1bcb7c935f68c27"
+  },
+  {
+   "file": "gallery-drawing2d-brep-zh.png",
+   "lang": "zh",
+   "scenario": "drawing2d",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "3930228b2367cc65dc2a450d8df1e167cf8737b59e82f808f2ac7fab76db47b0"
+  },
+  {
+   "file": "gallery-drawing2d-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "drawing2d",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "e1ff525aabc26c885d837f33468a2e25cbb8f26023985bc8870dc262ca48773f"
+  },
+  {
+   "file": "gallery-aidc-brep-zh.png",
+   "lang": "zh",
+   "scenario": "aidc",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "c67982f4971f79fa1be94aaa02f1a090e2032da389be34609501a78ef4b31bf1"
+  },
+  {
+   "file": "gallery-aidc-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "aidc",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "8ddc0b4ee343a5685b7c6c28fd64df60d7771d027db6686ced7d3cf7f1349a42"
+  },
+  {
+   "file": "gallery-fourway-brep-zh.png",
+   "lang": "zh",
+   "scenario": "fourway",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "34688d2e42f04dc10cc54d7103374800d4315be1b19029c20deb5852bf63ab3d"
+  },
+  {
+   "file": "gallery-fourway-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "fourway",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "6a67d867d59822b13e4562c442548ae803428b09e18ef9109c3686d15ac7d503"
+  },
+  {
+   "file": "gallery-module-brep-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "5b4202a1c4ef5f0965090fdde9c52bed4ab247eb94e9db001f0e7c4bfd15ba9c"
+  },
+  {
+   "file": "gallery-module-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "2e7bd3dcc4ad6b9b863635840b00cb34dd61843e15bab2137ad4c897f9eef17d"
+  },
+  {
+   "file": "gallery-thermal_sim-brep-zh.png",
+   "lang": "zh",
+   "scenario": "thermal_sim",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "26784440269a06da1cf2311772f5fac2e6b43f5520bab7d06e88018ceee7553b"
+  },
+  {
+   "file": "gallery-thermal_sim-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "thermal_sim",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "4fe68dc26b750f2b97840277a305db4cb803dd6af381a40cc10f455ee01090f8"
+  },
+  {
+   "file": "gallery-aps-brep-zh.png",
+   "lang": "zh",
+   "scenario": "aps",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "3971c19fc4e74fe6b6b21a94ba10ab8a16331ab1a64c9517116024144b73f7cc"
+  },
+  {
+   "file": "gallery-aps-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "aps",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "42f6605aa7a84836e935afb1c88e118c449c9b6bd583f4a6d876db1c2ef72d3a"
+  },
+  {
+   "file": "gallery-vehicle_tms-brep-zh.png",
+   "lang": "zh",
+   "scenario": "vehicle_tms",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "40dc577f6d4391d30dafc012f075e78587c765b8ef3838dd155dd0ba20ec6b02"
+  },
+  {
+   "file": "gallery-vehicle_tms-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "vehicle_tms",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "6b41712470939723b8f1852814c717f896e22fa98ba71c71b83718a36b9583b5"
+  },
+  {
+   "file": "render-tab-en.png",
+   "lang": "en",
+   "scenario": "module",
+   "shows": "Render tab: a saved gpt-image render of the module with the STEP outline overlaid",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "0bc3129b14e51d4778bd1f76dc3ffe52cbf95fdc58255e6f803fc908287aee7d"
+  },
+  {
+   "file": "render-tab-zh.png",
+   "lang": "zh",
+   "scenario": "module",
+   "shows": "Render tab: a saved gpt-image render of the module with the STEP outline overlaid",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "f5986abbdecca961605f74f1a6d257a9b03f362c79d0f4c39744ccc94f542c2c"
+  },
+  {
+   "file": "gallery-cdu-brep-en.png",
+   "lang": "en",
+   "scenario": "cdu",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "4a84b6b969bada9ce443549e957c6b11b91c90c17b118cf14cf7a1e2c8d1a4b5"
+  },
+  {
+   "file": "gallery-cdu-gpt6-en.png",
+   "lang": "en",
+   "scenario": "cdu",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "1c8b021728857d0cd087d4334502d7d3886033c7e836c168ce807e4688e9fb47",
+   "status_line": "Original"
+  },
+  {
+   "file": "gallery-nb_thermal-brep-en.png",
+   "lang": "en",
+   "scenario": "nb_thermal",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "527404e7d29af46141aea04454bf3556cc853bb665646bb19aaff08774b86055"
+  },
+  {
+   "file": "gallery-nb_thermal-gpt6-en.png",
+   "lang": "en",
+   "scenario": "nb_thermal",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "4b9f527e41e1326479e2a89b03edd12bceff2c5300f479a870c63d2466825a96",
+   "status_line": "Original"
+  },
+  {
+   "file": "gallery-nb_chassis_mold-brep-en.png",
+   "lang": "en",
+   "scenario": "nb_chassis_mold",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "53679ea8fdc149d6b00bba9b5177ed56e963b34e809c6512676d237cb063f7d8"
+  },
+  {
+   "file": "gallery-nb_chassis_mold-gpt6-en.png",
+   "lang": "en",
+   "scenario": "nb_chassis_mold",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "188fe5364a4a63189a722a0fa6e16deef392ab533f24d6dd9fc12a52c8948bf4",
+   "status_line": "Original"
+  },
+  {
+   "file": "gallery-nb_assembly_line-brep-en.png",
+   "lang": "en",
+   "scenario": "nb_assembly_line",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "7db2919e256ec2b9669a44323751af72ed583bbcdc43f80791bc59b2ea64d9fa"
+  },
+  {
+   "file": "gallery-nb_assembly_line-gpt6-en.png",
+   "lang": "en",
+   "scenario": "nb_assembly_line",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "d5d3b8182b6150c49596e4310426cfb7f60c8022e4f748687fab92a9b7952f32",
+   "status_line": "Original"
+  },
+  {
+   "file": "gallery-nb_packing-brep-en.png",
+   "lang": "en",
+   "scenario": "nb_packing",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "a5b32ac2d2d07b50b6ca6499d1bd4a4f7145072fdde0f1e6154b08fb8d20c9a6"
+  },
+  {
+   "file": "gallery-nb_packing-gpt6-en.png",
+   "lang": "en",
+   "scenario": "nb_packing",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "527429548f7966ebe88c038c5320a2be06abe1baa45d457cafceb570086820e1",
+   "status_line": "Original"
+  },
+  {
+   "file": "gallery-cdu-brep-zh.png",
+   "lang": "zh",
+   "scenario": "cdu",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "c6265cd561fd49b4d564cc4ffdd580bd643ee7f2cd1f67799b8f550d048f2f32"
+  },
+  {
+   "file": "gallery-cdu-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "cdu",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "8ea2e721e6317ca5555741fa3eec3d31e7b80b57d82ead3d83df4aa74409476a",
+   "status_line": "原场景"
+  },
+  {
+   "file": "gallery-nb_thermal-brep-zh.png",
+   "lang": "zh",
+   "scenario": "nb_thermal",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "3619265a5b2a5cf56c1c5f69012762ab37c0aa4c82d597d3cbbd8a13a3465faf"
+  },
+  {
+   "file": "gallery-nb_thermal-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "nb_thermal",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "edd45b0ef11c36b064961728f8a87e171205e43beb75ed4e38d0aa8e5ad71c88",
+   "status_line": "原场景"
+  },
+  {
+   "file": "gallery-nb_chassis_mold-brep-zh.png",
+   "lang": "zh",
+   "scenario": "nb_chassis_mold",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "96d5dfa2c8ec98ae89b9bdceb945d92957d817b3c24cb8b561aa05c6f4563758"
+  },
+  {
+   "file": "gallery-nb_chassis_mold-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "nb_chassis_mold",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "df15e2aff8aa7aa2706c42b5f731e5f562eca452ec6ce1afa3d4d49baa95a93f",
+   "status_line": "原场景"
+  },
+  {
+   "file": "gallery-nb_assembly_line-brep-zh.png",
+   "lang": "zh",
+   "scenario": "nb_assembly_line",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "94ba1ebf093779afb6449c4ac762452d19f3efee22af4c8c23d336ff64e0d35f"
+  },
+  {
+   "file": "gallery-nb_assembly_line-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "nb_assembly_line",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "247d4b8b6137ea0fe54c3e4994b17ced3e9970f0369342871462c14e21f016d5",
+   "status_line": "",
+   "scene_error": "代码已返回，但 3D 渲染未成功：Uncaught TypeError: Cannot read properties of undefined (reading 'x')"
+  },
+  {
+   "file": "gallery-nb_packing-brep-zh.png",
+   "lang": "zh",
+   "scenario": "nb_packing",
+   "shows": "3D viewport: OCCT B-rep solid of the reference script (Track B)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "44b399baeacd3d6176025da3dc3b2aebb2881a263073aeda64004bb69ca0e588"
+  },
+  {
+   "file": "gallery-nb_packing-gpt6-zh.png",
+   "lang": "zh",
+   "scenario": "nb_packing",
+   "shows": "3D viewport: GPT-6's three.js page as written (Track A, recorded response)",
+   "viewport": {
+    "width": 1600,
+    "height": 1200
+   },
+   "sha256": "dfa3b46efa1b83351016c98175bce63f0bd0936e75831f4ef169548c19ad9279",
+   "status_line": "原场景"
+  }
+ ],
+ "model_calls": [],
+ "page_errors": [],
+ "scene_errors": [
+  {
+   "scenario": "nb_assembly_line",
+   "lang": "zh",
+   "message": "代码已返回，但 3D 渲染未成功：Uncaught TypeError: Cannot read properties of undefined (reading 'x')"
+  }
+ ],
+ "scene_page_errors": [
+  "Cannot read properties of undefined (reading 'x')",
+  "Cannot read properties of undefined (reading 'x')",
+  "Cannot read properties of undefined (reading 'x')"
+ ],
+ "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "browser": "Microsoft Edge 157.0.4341.57, headless",
+ "finished": "2026-11-14T02:47:47+00:00",
+ "runs": [
+  {
+   "only": [
+    "module"
+   ],
+   "started": "2026-11-14T01:48:15+00:00",
+   "finished": "2026-11-14T01:49:17+00:00"
+  },
+  {
+   "only": [
+    "module"
+   ],
+   "started": "2026-11-14T01:49:17+00:00",
+   "finished": "2026-11-14T01:50:39+00:00"
+  },
+  {
+   "only": [
+    "features"
+   ],
+   "started": "2026-11-14T01:50:40+00:00",
+   "finished": "2026-11-14T01:52:07+00:00"
+  },
+  {
+   "only": [
+    "features"
+   ],
+   "started": "2026-11-14T01:52:07+00:00",
+   "finished": "2026-11-14T01:53:31+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T01:53:32+00:00",
+   "finished": "2026-11-14T01:57:08+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T01:57:09+00:00",
+   "finished": "2026-11-14T02:00:57+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T02:02:41+00:00",
+   "finished": "2026-11-14T02:06:31+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T02:06:32+00:00",
+   "finished": "2026-11-14T02:10:20+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T02:21:25+00:00",
+   "finished": "2026-11-14T02:25:22+00:00"
+  },
+  {
+   "only": [
+    "render"
+   ],
+   "started": "2026-11-14T02:33:34+00:00",
+   "finished": "2026-11-14T02:35:43+00:00"
+  },
+  {
+   "only": [
+    "gallery"
+   ],
+   "started": "2026-11-14T02:39:46+00:00",
+   "finished": "2026-11-14T02:43:37+00:00"
+  }
+ ]
+}

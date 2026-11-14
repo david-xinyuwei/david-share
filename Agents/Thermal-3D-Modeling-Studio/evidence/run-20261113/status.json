@@ -1,0 +1,66 @@
+{
+ "started": "2026-11-13T17:11:54.6293163+08:00",
+ "steps": [
+  {
+   "name": "01-venv",
+   "exit": 0,
+   "seconds": 39.6,
+   "log": "01-venv.log"
+  },
+  {
+   "name": "02-pip-upgrade",
+   "exit": 0,
+   "seconds": 28.2,
+   "log": "02-pip-upgrade.log"
+  },
+  {
+   "name": "03-pip-install",
+   "exit": 0,
+   "seconds": 776.7,
+   "log": "03-pip-install.log"
+  },
+  {
+   "name": "04-pip-dev",
+   "exit": 0,
+   "seconds": 63.9,
+   "log": "04-pip-dev.log"
+  },
+  {
+   "name": "05-freeze",
+   "exit": 0,
+   "seconds": 2.8,
+   "log": "05-freeze.log"
+  },
+  {
+   "name": "06-vendor-check",
+   "exit": 0,
+   "seconds": 3.0,
+   "log": "06-vendor-check.log"
+  },
+  {
+   "name": "07-pregen-cad-zh",
+   "exit": 0,
+   "seconds": 1025.0,
+   "log": "07-pregen-cad-zh.log"
+  },
+  {
+   "name": "08-pregen-cad-en",
+   "exit": 1,
+   "seconds": 406.7,
+   "log": "08-pregen-cad-en.log"
+  },
+  {
+   "name": "09-unittest",
+   "exit": 0,
+   "seconds": 29.4,
+   "log": "09-unittest.log"
+  },
+  {
+   "name": "10-node-test",
+   "exit": 0,
+   "seconds": 2.0,
+   "log": "10-node-test.log"
+  }
+ ],
+ "finished": "2026-11-13T17:51:32.2741540+08:00"
+}

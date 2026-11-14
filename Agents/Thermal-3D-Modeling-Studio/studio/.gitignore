@@ -1,0 +1,19 @@
+# secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# downloaded or built on your machine (see the README steps)
+static/vendor/
+*.js.gz
+cad_cache/
+cad_cache_en/
+render_cache/
+cad_out/
+*.log

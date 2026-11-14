@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+openai>=1.60
+azure-identity>=1.19
+pydantic>=2.7
+# 轨 B: CadQuery (OCCT) for STEP export; ~300 MB, import ~2 s on the VM. Optional: without it /api/cad is disabled.
+cadquery>=2.5
+python-docx>=1.1

@@ -1,0 +1,115 @@
+{
+ "ok": true,
+ "volume_mm3": 64636.27558882248,
+ "area_mm2": 19526.952485430764,
+ "density_g_cm3": 5.943843474780955,
+ "mass_kg": 0.38418790489276605,
+ "bbox_mm": [
+  72.0000001,
+  32.0000002,
+  136.0
+ ],
+ "solids": 4,
+ "faces": 59,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "阀体（H62 黄铜）",
+   "volume_mm3": 39426.171138068305,
+   "mass_kg": 0.3351224546735806,
+   "density_g_cm3": 8.5,
+   "faces": 32,
+   "solids": 1,
+   "material": "brass"
+  },
+  {
+   "id": "part_2",
+   "name": "线圈座与顶盖（PA66）",
+   "volume_mm3": 23384.95565110539,
+   "mass_kg": 0.03273893791154754,
+   "density_g_cm3": 1.4,
+   "faces": 11,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_3",
+   "name": "侧接管（TP2 紫铜）",
+   "volume_mm3": 1005.7164981050671,
+   "mass_kg": 0.009011219823021402,
+   "density_g_cm3": 8.96,
+   "faces": 8,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_4",
+   "name": "下接管（TP2 紫铜）",
+   "volume_mm3": 819.4326201178069,
+   "mass_kg": 0.007342116276255551,
+   "density_g_cm3": 8.96,
+   "faces": 8,
+   "solids": 1,
+   "material": "copper"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0.63,
+  "edges": 29,
+  "candidates": 35,
+  "elapsed_s": 6.1,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "图纸识别尺寸",
+   "value": "10",
+   "unit": "处",
+   "note": "Ø32 / Ø28 / Ø9.52 / Ø14 / Ø1.6 / 60 / 35 / 35 / 40 / 22"
+  },
+  {
+   "label": "装配总高",
+   "value": "136",
+   "unit": "mm",
+   "note": "下接管端面至顶盖：35 + 60 + 35 + 6"
+  },
+  {
+   "label": "阀腔容积",
+   "value": "8",
+   "unit": "cm³",
+   "note": "Ø14 × 52 内孔"
+  },
+  {
+   "label": "节流孔流通面积",
+   "value": "2.01",
+   "unit": "mm²",
+   "note": "Ø1.6"
+  },
+  {
+   "label": "接管内径",
+   "value": "7.92",
+   "unit": "mm",
+   "note": "Ø9.52 × 0.8 紫铜管"
+  },
+  {
+   "label": "侧承插孔底壁厚",
+   "value": "3",
+   "unit": "mm",
+   "note": "承插深 6（假设）后到 Ø14 内孔的余量"
+  }
+ ],
+ "t_model_s": 10.9,
+ "t_export_s": 0.6,
+ "elapsed_s": 14.1,
+ "step_bytes": 322104,
+ "stl_bytes": 1167784,
+ "glb_bytes": 512916,
+ "scenario_id": "drawing2d",
+ "summary": "2D 图纸 / 照片 → 3D的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：阀体（H62 黄铜） / 线圈座与顶盖（PA66） / 侧接管（TP2 紫铜） / 下接管（TP2 紫铜），共 4 个部件；59 个面，质量 0.384 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/drawing2d.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:32:23+00:00",
+ "cadquery": "2.8.0"
+}

@@ -1,0 +1,11 @@
+# Versions the 68 unit tests and the local preview passed with (2026-11-09); a fresh VM installs exactly these.
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.52.4
+openai==3.7.0
+azure-identity==1.25.3
+azure-core==1.41.0
+pydantic==2.13.5
+cadquery==2.8.0
+cadquery-ocp==7.9.3.1.1
+python-docx==1.2.0

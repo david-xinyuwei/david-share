@@ -1,0 +1,395 @@
+{
+ "ok": true,
+ "volume_mm3": 1200300096.0682197,
+ "area_mm2": 130171748.25533192,
+ "density_g_cm3": 2.4525730224107987,
+ "mass_kg": 2943.8236344140055,
+ "bbox_mm": [
+  8410.0,
+  1205.0,
+  2100.0
+ ],
+ "solids": 289,
+ "faces": 1928,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "CDU 机柜框架（侧板未建模，便于查看内部）",
+   "volume_mm3": 179423999.99999994,
+   "mass_kg": 280.0,
+   "density_g_cm3": 1.5605493133583026,
+   "faces": 24,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_2",
+   "name": "钓焊板式换热器（18 片）",
+   "volume_mm3": 119302820.73791753,
+   "mass_kg": 235.6230709573871,
+   "density_g_cm3": 1.975,
+   "faces": 168,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_3",
+   "name": "变频电子水泵 1（运行）泵壳",
+   "volume_mm3": 14670434.41093563,
+   "mass_kg": 69.53785910783489,
+   "density_g_cm3": 4.74,
+   "faces": 11,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_4",
+   "name": "变频电子水泵 2（备用）泵壳",
+   "volume_mm3": 14670434.410931483,
+   "mass_kg": 69.53785910781524,
+   "density_g_cm3": 4.74,
+   "faces": 11,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_5",
+   "name": "水泵电机 ×2",
+   "volume_mm3": 11776260.061981339,
+   "mass_kg": 55.819472693791546,
+   "density_g_cm3": 4.74,
+   "faces": 6,
+   "solids": 2,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_6",
+   "name": "水泵底座 ×2",
+   "volume_mm3": 18720000.0,
+   "mass_kg": 147.888,
+   "density_g_cm3": 7.9,
+   "faces": 12,
+   "solids": 2,
+   "material": "steelDark"
+  },
+  {
+   "id": "part_7",
+   "name": "一次侧电子比例调节阀",
+   "volume_mm3": 2267287.4180957535,
+   "mass_kg": 17.911570602956456,
+   "density_g_cm3": 7.9,
+   "faces": 7,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_8",
+   "name": "二次侧过滤器",
+   "volume_mm3": 6398294.923662937,
+   "mass_kg": 15.163958969081161,
+   "density_g_cm3": 2.37,
+   "faces": 8,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_9",
+   "name": "膨胀 / 补液罐",
+   "volume_mm3": 15628454.931692025,
+   "mass_kg": 10.549207078892117,
+   "density_g_cm3": 0.675,
+   "faces": 7,
+   "solids": 1,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_10",
+   "name": "液位视窗",
+   "volume_mm3": 117621.2289504018,
+   "mass_kg": 0.2940530723760045,
+   "density_g_cm3": 2.5,
+   "faces": 3,
+   "solids": 1,
+   "material": "glass"
+  },
+  {
+   "id": "part_11",
+   "name": "供回液温压流传感器 ×3",
+   "volume_mm3": 1039081.7701748242,
+   "mass_kg": 1.4547144782447539,
+   "density_g_cm3": 1.4,
+   "faces": 9,
+   "solids": 3,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_12",
+   "name": "传感器支架",
+   "volume_mm3": 2112000.0,
+   "mass_kg": 16.6848,
+   "density_g_cm3": 7.9,
+   "faces": 6,
+   "solids": 1,
+   "material": "steelDark"
+  },
+  {
+   "id": "part_13",
+   "name": "一次侧设施水接口",
+   "volume_mm3": 35627178.09682829,
+   "mass_kg": 281.45470696494345,
+   "density_g_cm3": 7.9,
+   "faces": 10,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_14",
+   "name": "一次侧设施水回路管",
+   "volume_mm3": 5577001.407201774,
+   "mass_kg": 44.058311116894025,
+   "density_g_cm3": 7.9,
+   "faces": 26,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_15",
+   "name": "CDU 内二次侧管路 ×4",
+   "volume_mm3": 4389645.343045753,
+   "mass_kg": 34.67819821006145,
+   "density_g_cm3": 7.9,
+   "faces": 16,
+   "solids": 4,
+   "material": "steel"
+  },
+  {
+   "id": "part_16",
+   "name": "二次侧供液主管",
+   "volume_mm3": 5309857.071244404,
+   "mass_kg": 41.94787086283079,
+   "density_g_cm3": 7.9,
+   "faces": 7,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_17",
+   "name": "二次侧回液主管",
+   "volume_mm3": 5309857.071244404,
+   "mass_kg": 41.94787086283079,
+   "density_g_cm3": 7.9,
+   "faces": 7,
+   "solids": 1,
+   "material": "steel"
+  },
+  {
+   "id": "part_18",
+   "name": "机柜 1",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_19",
+   "name": "机柜 2",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_20",
+   "name": "机柜 3",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_21",
+   "name": "机柜 4",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_22",
+   "name": "机柜 5（漏液隔离演示）",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_23",
+   "name": "机柜 6",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_24",
+   "name": "机柜 7",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_25",
+   "name": "机柜 8",
+   "volume_mm3": 57992000.00000006,
+   "mass_kg": 140.0,
+   "density_g_cm3": 2.4141260863567364,
+   "faces": 20,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_26",
+   "name": "服务器托盘 ×64",
+   "volume_mm3": 257587200.0,
+   "mass_kg": 231.82848,
+   "density_g_cm3": 0.9,
+   "faces": 384,
+   "solids": 64,
+   "material": "aluminum"
+  },
+  {
+   "id": "part_27",
+   "name": "GPU 铜冷板 ×128",
+   "volume_mm3": 12390400.00000006,
+   "mass_kg": 111.01798400000055,
+   "density_g_cm3": 8.96,
+   "faces": 768,
+   "solids": 128,
+   "material": "copper"
+  },
+  {
+   "id": "part_28",
+   "name": "机柜供回液分歧管 ×16",
+   "volume_mm3": 4751093.4018768985,
+   "mass_kg": 37.5336378748275,
+   "density_g_cm3": 7.9,
+   "faces": 64,
+   "solids": 16,
+   "material": "steel"
+  },
+  {
+   "id": "part_29",
+   "name": "机柜供回液支管 ×16",
+   "volume_mm3": 1298860.0667001563,
+   "mass_kg": 10.260994526931235,
+   "density_g_cm3": 7.9,
+   "faces": 64,
+   "solids": 16,
+   "material": "steel"
+  },
+  {
+   "id": "part_30",
+   "name": "支路隔离电子水阀 ×14",
+   "volume_mm3": 5085035.27617554,
+   "mass_kg": 40.17177868178677,
+   "density_g_cm3": 7.9,
+   "faces": 42,
+   "solids": 14,
+   "material": "steel"
+  },
+  {
+   "id": "part_31",
+   "name": "机柜 5 支路隔离电子水阀 ×2",
+   "volume_mm3": 726433.6108822202,
+   "mass_kg": 5.73882552596954,
+   "density_g_cm3": 7.9,
+   "faces": 6,
+   "solids": 2,
+   "material": "steel"
+  },
+  {
+   "id": "part_32",
+   "name": "电动执行器 ×17",
+   "volume_mm3": 6806000.0,
+   "mass_kg": 9.5284,
+   "density_g_cm3": 1.4,
+   "faces": 102,
+   "solids": 17,
+   "material": "anodizedBlue"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0,
+  "edges": 0,
+  "candidates": 0,
+  "elapsed_s": 0.0,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "液冷机柜",
+   "value": "8",
+   "unit": "个",
+   "note": "每柜 8 层服务器托盘"
+  },
+  {
+   "label": "GPU 铜冷板",
+   "value": "128",
+   "unit": "块",
+   "note": "每盘 2 块（示意）"
+  },
+  {
+   "label": "供 / 回液主管长度",
+   "value": "6.38",
+   "unit": "m",
+   "note": "各一根，DN90 × 3"
+  },
+  {
+   "label": "二次侧管路充液量",
+   "value": "123.2",
+   "unit": "L",
+   "note": "主管 + CDU 内管路 + 机柜支管与分歧管，不含板换与冷板"
+  },
+  {
+   "label": "机柜列长度",
+   "value": "5.92",
+   "unit": "m",
+   "note": "间距 760 mm"
+  },
+  {
+   "label": "CDU 外形",
+   "value": "1100 × 950 × 2100",
+   "unit": "mm",
+   "note": "宽 × 深 × 高"
+  }
+ ],
+ "t_model_s": 23.1,
+ "t_export_s": 7.3,
+ "elapsed_s": 31.5,
+ "step_bytes": 6141804,
+ "stl_bytes": 3609634,
+ "glb_bytes": 2521716,
+ "scenario_id": "cdu",
+ "summary": "AIDC CDU 液冷分配单元的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：CDU 机柜框架（侧板未建模，便于查看内部） / 钓焊板式换热器（18 片） / 变频电子水泵 1（运行）泵壳 / 变频电子水泵 2（备用）泵壳 / 水泵电机 ×2 / 水泵底座 ×2 等 32 个部件；1928 个面，质量 2943.824 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/cdu.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:31:00+00:00",
+ "cadquery": "2.8.0"
+}

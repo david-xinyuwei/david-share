@@ -1,0 +1,85 @@
+{
+ "id": "aps",
+ "iou_pct": 94.4,
+ "outline_median_px": 3.6,
+ "outline_p90_px": 4.1,
+ "spp": 256,
+ "render_s": 10.8,
+ "zoom": 1.119,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/aps/model.glb",
+  "glb_sha256": "1e374b52f360168d0f8204bbf1d4e101d1593bd7223cdd562990cf04e2ddaba8",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 10752,
+  "lines_ms": 1028,
+  "meshes": 2308,
+  "unmatched_meshes": 0,
+  "materials": {
+   "AI 排程 · 沙盘底板": "powderCoat",
+   "AI 排程 · A 族订单 ×5": "anodizedBlue",
+   "AI 排程 · B 族订单 ×4": "anodizedGreen",
+   "AI 排程 · C 族订单 ×3": "anodizedOrange",
+   "AI 排程 · 换型 4.5 h": "aluminumCast",
+   "AI 排程 · 交期柱 ×12": "brass",
+   "AI 排程 · 休息 / 停线时段": "polymerLight",
+   "经验排法 · 沙盘底板": "powderCoat",
+   "经验排法 · A 族订单 ×5": "anodizedBlue",
+   "经验排法 · B 族订单 ×4": "anodizedGreen",
+   "经验排法 · C 族订单 ×3": "anodizedOrange",
+   "经验排法 · 换型 10.5 h": "aluminumCast",
+   "经验排法 · 迟到红帽 ×3": "anodizedRed",
+   "经验排法 · 交期柱 ×12": "brass",
+   "经验排法 · 休息 / 停线时段": "polymerLight"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.118882472517296,
+   "view_offset_px": [
+    76.19254754692997,
+    135.61220160522686
+   ],
+   "position": [
+    1356.755633033218,
+    633.8640557839168,
+    1229.6439779882005
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:42:48+00:00"
+ }
+}

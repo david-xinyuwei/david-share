@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>engineering render</title>
+<script type="importmap">{"imports":{"three":"/static/vendor/three/three.module.js","three/addons/":"/static/vendor/three/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+// Worker frame for the app's 工程渲染图 of a live STEP result: the parent posts the B-rep glTF bytes (it fetched them with the
+// session) and parts.json, this frame renders them with engineering-render.mjs and posts the PNGs back.
+import { renderEngineering } from '/static/engineering-render.mjs?rev=2';
+addEventListener('message', async (e) => {
+  const d = e.data || {};
+  if (e.source !== parent || d.type !== 'eng-render') return;
+  try {
+    const result = await renderEngineering({ glb: d.buffer, parts: d.parts || [], width: d.width, height: d.height, spp: d.spp, maxMs: d.maxMs,
+      onProgress: (n, total) => parent.postMessage({ type: 'eng-progress', n, total }, location.origin) });
+    parent.postMessage({ type: 'eng-result', result }, location.origin);
+  } catch (err) {
+    parent.postMessage({ type: 'eng-error', message: String((err && err.message) || err) }, location.origin);
+  }
+});
+parent.postMessage({ type: 'eng-ready' }, location.origin);
+</script>
+</body>
+</html>

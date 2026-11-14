@@ -1,0 +1,189 @@
+{
+ "ok": true,
+ "volume_mm3": 28679366895.853603,
+ "area_mm2": 758481061.6561652,
+ "density_g_cm3": 0.46543753923427256,
+ "mass_kg": 13348.453954802959,
+ "bbox_mm": [
+  14696.0,
+  2498.0,
+  2896.0
+ ],
+ "solids": 1038,
+ "faces": 7022,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "集装箱结构（40 尺高柜，剖视）",
+   "volume_mm3": 815844927.9999892,
+   "mass_kg": 2399.6801056144577,
+   "density_g_cm3": 2.941343413750425,
+   "faces": 630,
+   "solids": 37,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_2",
+   "name": "柜门 ×2（开启 90°）",
+   "volume_mm3": 315223874.2466704,
+   "mass_kg": 927.1816663723363,
+   "density_g_cm3": 2.941343413750425,
+   "faces": 52,
+   "solids": 2,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_3",
+   "name": "门锁杆 ×4",
+   "volume_mm3": 6270606.694856823,
+   "mass_kg": 18.44400770213644,
+   "density_g_cm3": 2.941343413750425,
+   "faces": 20,
+   "solids": 4,
+   "material": "steel"
+  },
+  {
+   "id": "part_4",
+   "name": "木地板",
+   "volume_mm3": 792361579.546183,
+   "mass_kg": 554.6531056823281,
+   "density_g_cm3": 0.7,
+   "faces": 26,
+   "solids": 1,
+   "material": "wood"
+  },
+  {
+   "id": "part_5",
+   "name": "木托盘 ×20",
+   "volume_mm3": 1278000000.0000005,
+   "mass_kg": 440.0,
+   "density_g_cm3": 0.3442879499217526,
+   "faces": 1560,
+   "solids": 260,
+   "material": "wood"
+  },
+  {
+   "id": "part_6",
+   "name": "瓦楞外箱 ×720（每箱 5 台，含货）",
+   "volume_mm3": 25445478240.0,
+   "mass_kg": 8996.697,
+   "density_g_cm3": 0.3535676128836634,
+   "faces": 4320,
+   "solids": 720,
+   "material": "cardboard"
+  },
+  {
+   "id": "part_7",
+   "name": "剖开外箱（单箱剖视）",
+   "volume_mm3": 2075533.0186164407,
+   "mass_kg": 0.3113299527924661,
+   "density_g_cm3": 0.15,
+   "faces": 104,
+   "solids": 4,
+   "material": "cardboard"
+  },
+  {
+   "id": "part_8",
+   "name": "彩盒 ×4（封口，含整机）",
+   "volume_mm3": 21566536.046566572,
+   "mass_kg": 9.59854732297189,
+   "density_g_cm3": 0.4450667136459308,
+   "faces": 104,
+   "solids": 4,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_9",
+   "name": "彩盒（打开）",
+   "volume_mm3": 366214.5338767979,
+   "mass_kg": 0.2563501737137585,
+   "density_g_cm3": 0.7,
+   "faces": 102,
+   "solids": 2,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_10",
+   "name": "纸浆模塑缓冲",
+   "volume_mm3": 1220624.850802488,
+   "mass_kg": 0.305156212700622,
+   "density_g_cm3": 0.25,
+   "faces": 78,
+   "solids": 3,
+   "material": "cardboard"
+  },
+  {
+   "id": "part_11",
+   "name": "笔记本整机（合盖）",
+   "volume_mm3": 958758.9160159843,
+   "mass_kg": 1.2991402624218118,
+   "density_g_cm3": 1.3550228745931712,
+   "faces": 26,
+   "solids": 1,
+   "material": "aluminum"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 1.2,
+  "edges": 240,
+  "candidates": 240,
+  "elapsed_s": 8.1,
+  "skipped": [
+   "集装箱结构（40 尺高柜，剖视）（37 个实体的阵列）",
+   "木托盘 ×20（260 个实体的阵列）",
+   "瓦楞外箱 ×720（每箱 5 台，含货）（720 个实体的阵列）"
+  ]
+ },
+ "extra_metrics": [
+  {
+   "label": "每箱台数",
+   "value": "5",
+   "unit": "台",
+   "note": "假设彩盒最短边堆叠"
+  },
+  {
+   "label": "每托盘台数",
+   "value": "180",
+   "unit": "台",
+   "note": "假设规则整层，限重含托盘"
+  },
+  {
+   "label": "每柜总台数",
+   "value": "3600",
+   "unit": "台",
+   "note": "假设托盘不堆码，未扣绑扎空间"
+  },
+  {
+   "label": "集装箱容积利用率(%)",
+   "value": "25.43",
+   "unit": "%",
+   "note": "假设按彩盒包络总体积计算"
+  },
+  {
+   "label": "每台包装材料质量(g)",
+   "value": "661.3",
+   "unit": "g",
+   "note": "假设纸板0.75kg/m²，不计搭接辅材"
+  },
+  {
+   "label": "每台海运碳排放(kg CO₂e)",
+   "value": "0.333",
+   "unit": "kg CO₂e",
+   "note": "假设全程每柜1200kg CO₂e均摊"
+  }
+ ],
+ "t_model_s": 28.8,
+ "t_export_s": 39.5,
+ "elapsed_s": 70.9,
+ "step_bytes": 19582028,
+ "stl_bytes": 2543684,
+ "glb_bytes": 4209816,
+ "scenario_id": "nb_packing",
+ "summary": "包装与集装箱装载优化的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：集装箱结构（40 尺高柜，剖视） / 柜门 ×2（开启 90°） / 门锁杆 ×4 / 木地板 / 木托盘 ×20 / 瓦楞外箱 ×720（每箱 5 台，含货） 等 11 个部件；7022 个面，质量 13348.454 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/nb_packing.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:39:59+00:00",
+ "cadquery": "2.8.0"
+}

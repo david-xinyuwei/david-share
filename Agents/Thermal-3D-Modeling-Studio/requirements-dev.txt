@@ -1,0 +1,4 @@
+# Only for the browser checks and the offline engineering renders (studio/tests/check_workspace_browser.py,
+# studio/pregen_engineering.py). They drive the Microsoft Edge already installed on the machine; no browser download.
+playwright==1.62.0
+pillow==12.3.0

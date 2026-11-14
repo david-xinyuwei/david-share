@@ -1,0 +1,77 @@
+{
+ "id": "module",
+ "iou_pct": 97.5,
+ "outline_median_px": 3.2,
+ "outline_p90_px": 4.1,
+ "spp": 256,
+ "render_s": 3.6,
+ "zoom": 1.297,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/module/model.glb",
+  "glb_sha256": "343e725c51f658c35f94872f1398534b3eea620dd6940889e516d5b2c6196245",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 3596,
+  "lines_ms": 680,
+  "meshes": 796,
+  "unmatched_meshes": 0,
+  "materials": {
+   "歧管本体": "polymer",
+   "五通电子水阀": "aluminumCast",
+   "电子水泵": "aluminumCast",
+   "板式换热器壳体": "steel",
+   "换热板片 × 20": "steel",
+   "快插接头 A": "aluminum",
+   "快插接头 B": "aluminum"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.2972360463863675,
+   "view_offset_px": [
+    43.01160137545592,
+    113.67452470479301
+   ],
+   "position": [
+    370.79403489811756,
+    342.97170512664457,
+    427.4131401328351
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:43:46+00:00"
+ }
+}

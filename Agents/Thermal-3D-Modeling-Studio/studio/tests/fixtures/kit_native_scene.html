@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>studio-kit 契约样例 · 四通阀简化件</title>
+<style>html,body{margin:0;overflow:hidden;height:100%}</style>
+<script type="importmap">{"imports":{"three":"/static/vendor/three/three.module.js","three/addons/":"/static/vendor/three/jsm/","studio-kit":"/static/studio-kit.js"}}</script>
+</head>
+<body>
+<script type="module">
+// Minimal scene written exactly the way the updated system prompt tells GPT-6 to write one.
+// Used by tests/check_workspace_browser.py (--fixture) to prove the kit path end to end without a model call.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { kit } from 'studio-kit';
+try {
+  const P = { bodyD: 34, bodyL: 110, wall: 3, portD: 12.7, pitch: 22, pilotD: 14, pilotL: 45 }; // mm
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  kit.setupRenderer(renderer);
+  renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 20000);
+  const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
+  const model = new THREE.Group(); model.name = '四通换向阀';
+  const body = new THREE.Mesh(kit.chamferedCylinder(P.bodyD / 2, P.bodyL, 1.5), kit.material('copper')); body.rotation.z = Math.PI / 2; body.name = '主阀体'; model.add(body);
+  const portD = new THREE.Mesh(kit.chamferedCylinder(P.portD / 2, 30, 0.8), kit.material('copper')); portD.position.set(0, P.bodyD / 2 + 12, 0); portD.name = '高压进气管 D'; model.add(portD);
+  ['E', 'S', 'C'].forEach((n, i) => { const m = new THREE.Mesh(kit.chamferedCylinder(P.portD / 2, 30, 0.8), kit.material('copper')); m.position.set((i - 1) * P.pitch, -P.bodyD / 2 - 12, 0); m.name = `接管 ${n}`; model.add(m); });
+  const pilot = new THREE.Mesh(kit.chamferedCylinder(P.pilotD / 2, P.pilotL, 0.6), kit.material('powderCoat')); pilot.position.set(0, 0, P.bodyD / 2 + 10); pilot.rotation.x = Math.PI / 2; pilot.name = '先导电磁阀'; model.add(pilot);
+  const bracket = new THREE.Mesh(kit.filletBox(60, 4, 30, 1.5), kit.material('steel')); bracket.position.set(0, -P.bodyD / 2 - 2, -22); bracket.name = '安装支架'; model.add(bracket);
+  const cap = new THREE.Mesh(kit.pipe([[-P.bodyL / 2 - 2, 10, 8], [-P.bodyL / 2 - 20, 14, 14], [P.bodyL / 2 + 20, 14, 14], [P.bodyL / 2 + 2, 10, 8]], 1.5), kit.material('copperWire')); cap.name = '毛细管'; model.add(cap);
+  scene.add(model);
+  const r = new THREE.Box3().setFromObject(model, true).getBoundingSphere(new THREE.Sphere()).radius;
+  kit.studioLights(scene, renderer, r);
+  kit.workbench(scene, r, new THREE.Box3().setFromObject(model, true).min.y);
+  kit.enableShadows(model);
+  kit.frame(camera, controls, model);
+  window.__scene = scene; window.__camera = camera; window.__renderer = renderer; window.__controls = controls; window.__model = model;
+  window.__studioKit = kit.KIT_VERSION;
+  window.__metrics = [{ label: '铜材质量', value: '0.61', unit: 'kg', note: '简化件 · 密度 8.96 g/cm³' }];
+  addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+  (function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+} catch (e) { document.body.innerHTML = `<p style="color:#d33;font:14px sans-serif;padding:16px">${e.message}</p>`; }
+</script>
+</body>
+</html>

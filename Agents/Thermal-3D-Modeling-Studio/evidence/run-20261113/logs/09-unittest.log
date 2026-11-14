@@ -1,0 +1,132 @@
+..2026-11-13 17:51:21,756 WARNING asyncio: Executing <Task finished name='Task-11' coro=<CadJobTests.test_pre_generated_cad_cache_is_served_like_a_live_result() done, defined at <repo>/studio\tests\test_cad.py:227> result=None created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\runners.py:100> took 0.188 seconds
+....2026-11-13 17:51:23,017 WARNING asyncio: Executing <Task pending name='Task-28' coro=<CadJobTests.test_runtime_failure_retries_and_gives_up() running at <repo>/studio\tests\test_cad.py:195> wait_for=<Future pending cb=[Task.task_wakeup()] created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py:428> cb=[_run_until_complete_cb() at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py:181] created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\runners.py:100> took 0.156 seconds
+2026-11-13 17:51:23,496 WARNING asyncio: Executing <Task pending name='Task-32' coro=<with_heartbeat.<locals>.pump() running at <repo>/studio\app.py:272> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\futures.py:387, Task.task_wakeup()] created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py:428> created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\tasks.py:384> took 0.375 seconds
+2026-11-13 17:51:23,712 WARNING asyncio: Executing <Task pending name='Task-33' coro=<Queue.get() running at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\queues.py:158> wait_for=<Future pending cb=[Task.task_wakeup()] created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py:428> cb=[_release_waiter(<Future pendi...events.py:428>)() at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\tasks.py:431] created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\tasks.py:680> took 0.188 seconds
+2026-11-13 17:51:23,761 WARNING thermal3d: cad job=060bc5b5d1fa attempt=1 failed after 1.0s: Traceback... | ValueError: BRep_API: command not done
+2026-11-13 17:51:23,861 WARNING thermal3d: cad job=060bc5b5d1fa attempt=2 failed after 1.0s: Traceback... | ValueError: BRep_API: command not done
+2026-11-13 17:51:23,861 ERROR thermal3d: cad job=060bc5b5d1fa failed
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 1103, in run_cad
+    raise ValueError((f"The CadQuery script failed {CAD_MAX_ATTEMPTS} times in a row; last error: " if en
+ValueError: CadQuery 鑴氭湰杩炵画 2 娆℃墽琛屽け璐ワ紱鏈€鍚庨敊璇細Traceback...
+ValueError: BRep_API: command not done
+.2026-11-13 17:51:23,931 WARNING thermal3d: cad job=5f9b9b8b1372 attempt=1 rejected: 涓嶅厑璁稿鍏ユā鍧楋細os
+2026-11-13 17:51:24,115 INFO thermal3d: cad job=5f9b9b8b1372 done attempts=2 latency=0.2s occt=3.2s step=106639B effort=low
+2026-11-13 17:51:24,135 WARNING asyncio: Executing <Task finished name='Task-45' coro=<CadJobTests.test_static_rejection_then_success_feeds_error_back() done, defined at <repo>/studio\tests\test_cad.py:175> result=None created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\runners.py:100> took 0.141 seconds
+.2026-11-13 17:51:24,295 INFO thermal3d: cad job=a674b1ee5cdf done attempts=1 latency=0.1s occt=3.2s step=106639B effort=low
+.2026-11-13 17:51:24,363 ERROR thermal3d: cad job=d7512a2d1c8c failed
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 1019, in run_cad
+    raise RuntimeError("CadQuery is not installed on the server (pip install cadquery); STEP export unavailable."
+RuntimeError: 鏈嶅姟鍣ㄦ湭瀹夎 CadQuery锛坧ip install cadquery锛夛紝鏃犳硶瀵煎嚭 STEP銆?
+..........2026-11-13 17:51:24,660 INFO thermal3d: connection test failed host=acme.openai.azure.com deployment=gpt-6-astra: RuntimeError
+...2026-11-13 17:51:24,831 INFO thermal3d: request=c4551e764b034714b327211ac3ecbdcc generation done scenario=None ok=True latency=0.1s ttft=0.0 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+.2026-11-13 17:51:24,933 INFO thermal3d: request=c9ad0e264e8e462292c73ff8a62d6412 generation done scenario=None ok=True latency=0.1s ttft=0.1 tokens=None effort=none reasoning_tokens=None key=host host=host-res.openai.azure.com predicted=False accepted=None
+..2026-11-13 17:51:25,121 INFO thermal3d: request=aff0cf11aba74d339e3522a70c728904 generation done scenario=coldplate ok=True latency=0.1s ttft=0.0 tokens=None effort=none reasoning_tokens=None key=visitor host=acme.openai.azure.com predicted=False accepted=None
+..2026-11-13 17:51:25,226 INFO thermal3d: concept=2f76599d393a done provider=gpt-image model=gpt-image-2.5-sunburst grounded=False edit=False size=1536x1024 latency=0.0s
+2026-11-13 17:51:25,251 INFO thermal3d: concept=a2196d9ad502 done provider=gpt-image model=gpt-image-2.5-sunburst grounded=False edit=True size=1024x1024 latency=0.0s
+..2026-11-13 17:51:25,330 ERROR thermal3d: concept=eba38c0d5359 failed provider=mai
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 1490, in run_concept
+    async for kind, item in with_heartbeat(_single(work())):
+  File "<repo>/studio\app.py", line 289, in with_heartbeat
+    raise item
+  File "<repo>/studio\app.py", line 272, in pump
+    async for item in source:
+  File "<repo>/studio\app.py", line 296, in _single
+    yield await aw
+          ^^^^^^^^
+  File "<repo>/studio\app.py", line 1475, in work
+    return await mai_generate(prompt, body.size, body.web_grounding, png)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>/studio\app.py", line 1428, in mai_generate
+    raise RuntimeError("MAI_ENDPOINT not configured")
+RuntimeError: MAI_ENDPOINT not configured
+2026-11-13 17:51:25,350 INFO thermal3d: concept=ac4d66aeede0 done provider=mai model=MAI-Image-2.6 grounded=True edit=False size=1024x1024 latency=0.0s
+2026-11-13 17:51:25,387 INFO thermal3d: concept=0ad009046851 done provider=mai model=MAI-Image-2.6 grounded=False edit=True size=1024x1024 latency=0.0s
+..2026-11-13 17:51:25,478 ERROR thermal3d: request=d9045d5dcbb34981969f181c2df0ac89 generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 679, in run_generation
+    raise RuntimeError(f"Server busy: {MAX_CONCURRENT_GENERATIONS} generations already running 鈥?please retry in a moment."
+RuntimeError: Server busy: 0 generations already running 鈥?please retry in a moment.
+2026-11-13 17:51:25,534 INFO thermal3d: request=17457533ade4463b8120f9065b79c1e5 generation done scenario=coldplate ok=True latency=0.0s ttft=0.0 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+...2026-11-13 17:51:25,824 INFO thermal3d: request=77bf225dfa4f4ad39bc0d029a17a2335 generation done scenario=coldplate ok=True latency=0.1s ttft=0.1 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+.2026-11-13 17:51:26,000 WARNING asyncio: Executing <Task finished name='Task-235' coro=<GenerationTests.test_english_cache_falls_back_to_chinese_and_is_flagged() done, defined at <repo>/studio\tests\test_generation.py:298> result=None created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\runners.py:100> took 0.125 seconds
+..2026-11-13 17:51:26,484 INFO thermal3d: request=3b390d580af04b87bda0f65a90d32093 generation done scenario=None ok=True latency=0.4s ttft=0.4 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+..2026-11-13 17:51:26,622 ERROR thermal3d: request=e6fac9bf2d0c48758ab3ec2a2f9dca4b generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 770, in run_generation
+    raise ValueError("The model did not return complete HTML with the END sentinel; please retry. No cached result was substituted." if en
+ValueError: 妯″瀷鏈繑鍥炲畬鏁寸殑 HTML 涓庣粨鏉熸爣璁帮紝璇烽噸璇曪紱鏈娇鐢ㄧ紦瀛樻浛浠ｃ€?
+..2026-11-13 17:51:26,788 INFO thermal3d: request=14ea5ccb544743f1a098da47a5b36686 generation done scenario=coldplate ok=True latency=0.1s ttft=0.1 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:26,856 INFO thermal3d: request=763ae2a17c804603b70602307fe5968f generation done scenario=coldplate ok=True latency=0.0s ttft=0.0 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+....2026-11-13 17:51:27,139 ERROR thermal3d: request=9698e9a983ac4e94b48645a9854b6933 generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 770, in run_generation
+    raise ValueError("The model did not return complete HTML with the END sentinel; please retry. No cached result was substituted." if en
+ValueError: 妯″瀷鏈繑鍥炲畬鏁寸殑 HTML 涓庣粨鏉熸爣璁帮紝璇烽噸璇曪紱鏈娇鐢ㄧ紦瀛樻浛浠ｃ€?
+..2026-11-13 17:51:27,362 INFO thermal3d: request=5d9fa3da521e40729a7274ac08415d4a generation done scenario=coldplate ok=True latency=0.1s ttft=0.1 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:27,407 WARNING thermal3d: request=5d371ad7cfd84c4d8cec48ad200e3a4f predicted outputs rejected by deployment, retrying without
+2026-11-13 17:51:27,421 INFO thermal3d: request=5d371ad7cfd84c4d8cec48ad200e3a4f generation done scenario=coldplate ok=True latency=0.0s ttft=0.0 tokens=None effort=none reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+.2026-11-13 17:51:27,480 INFO thermal3d: request=ff9cf8f5acf0439488e7f6fcfa45dd7d generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=low reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:27,532 INFO thermal3d: request=61ea0a2055eb4f2f961b04158157d9f8 generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=None reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:27,559 INFO thermal3d: request=6d76d5b7f823419fb43645448ccbce0d generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=None reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:27,601 INFO thermal3d: request=2d51c3e7031044399fe30a954200746e generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=None reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+2026-11-13 17:51:27,645 INFO thermal3d: request=0e1b80a43a2e4a489326398fdc67fcf2 generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=medium reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+.2026-11-13 17:51:27,705 INFO thermal3d: request=770bc680574e463c8d93a5356d308466 generation done scenario=None ok=True latency=0.0s ttft=0.0 tokens=None effort=high reasoning_tokens=None key=host host=example.invalid predicted=False accepted=None
+...2026-11-13 17:51:27,772 ERROR thermal3d: request=e180e6b4bbc54dfdb16f9caa2ceea7ed generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 685, in run_generation
+    async for kind, item in with_heartbeat(_single(conn.client())):
+  File "<repo>/studio\app.py", line 289, in with_heartbeat
+    raise item
+  File "<repo>/studio\app.py", line 272, in pump
+    async for item in source:
+  File "<repo>/studio\app.py", line 296, in _single
+    yield await aw
+          ^^^^^^^^
+  File "<repo>/studio\app.py", line 222, in client
+    api_key = self.key or AOAI_API_KEY or await tokens.get()
+                                          ^^^^^^^^^^^^^^^^^^
+  File "<home>\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 2240, in _execute_mock_call
+    raise effect
+azure.core.exceptions.ClientAuthenticationError: test failure
+.2026-11-13 17:51:27,859 ERROR thermal3d: request=6e0964a520754e5796de5bd6b409a5b0 generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 766, in run_generation
+    raise ValueError(f"The model did not finish normally (finish_reason={finish_reason}); no cached result was substituted." if en
+ValueError: 妯″瀷杈撳嚭鏈甯稿畬鎴愶紙finish_reason=length锛夛紝鏈娇鐢ㄧ紦瀛樻浛浠ｃ€?
+.2026-11-13 17:51:27,915 ERROR thermal3d: request=a00e40f18ac149f7908c236404dc65f5 generation failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 720, in run_generation
+    async for kind, item in with_heartbeat(_single(open_stream())):
+  File "<repo>/studio\app.py", line 289, in with_heartbeat
+    raise item
+  File "<repo>/studio\app.py", line 272, in pump
+    async for item in source:
+  File "<repo>/studio\app.py", line 296, in _single
+    yield await aw
+          ^^^^^^^^
+  File "<repo>/studio\app.py", line 705, in open_stream
+    return await client.chat.completions.create(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<home>\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 2240, in _execute_mock_call
+    raise effect
+RuntimeError: upstream exploded
+...2026-11-13 17:51:28,192 WARNING asyncio: Executing <Task finished name='Task-498' coro=<RenderTests.test_pre_generated_render_is_served_like_a_live_result() done, defined at <repo>/studio\tests\test_generation.py:699> result=None created at <home>\AppData\Local\Programs\Python\Python311\Lib\asyncio\runners.py:100> took 0.203 seconds
+.2026-11-13 17:51:28,229 INFO thermal3d: render=ef73e0b63809 done style=studio base=previous size=1536x1024 quality=high latency=0.0s key=visitor host=acme.openai.azure.com usage=739
+.2026-11-13 17:51:28,254 ERROR thermal3d: render=698100079c52 failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 1275, in run_render
+    raise RuntimeError("No image deployment configured on the server (AOAI_IMAGE_DEPLOYMENT)." if en else "鏈嶅姟鍣ㄦ湭閰嶇疆鍥惧儚妯″瀷閮ㄧ讲锛圓OAI_IMAGE_DEPLOYMENT锛夈€?)
+RuntimeError: 鏈嶅姟鍣ㄦ湭閰嶇疆鍥惧儚妯″瀷閮ㄧ讲锛圓OAI_IMAGE_DEPLOYMENT锛夈€?
+2026-11-13 17:51:28,254 ERROR thermal3d: render=272783bd80ce failed (key=host host=example.invalid)
+Traceback (most recent call last):
+  File "<repo>/studio\app.py", line 1278, in run_render
+    raise ValueError("The snapshot is not a valid PNG." if en else "鎴浘涓嶆槸鏈夋晥鐨?PNG銆?)
+ValueError: 鎴浘涓嶆槸鏈夋晥鐨?PNG銆?
+.........
+----------------------------------------------------------------------
+Ran 68 tests in 8.602s
+
+OK

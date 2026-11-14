@@ -1,0 +1,123 @@
+{
+ "ok": true,
+ "volume_mm3": 57363.57658794341,
+ "area_mm2": 26874.14603552819,
+ "density_g_cm3": 8.5,
+ "mass_kg": 0.487590400997519,
+ "bbox_mm": [
+  68.0,
+  36.0,
+  124.0
+ ],
+ "solids": 2,
+ "faces": 181,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "黄铜阀体",
+   "volume_mm3": 38712.879261131435,
+   "mass_kg": 0.3290594737196172,
+   "density_g_cm3": 8.5,
+   "faces": 105,
+   "solids": 1,
+   "material": "brass"
+  },
+  {
+   "id": "part_2",
+   "name": "进口铜管",
+   "volume_mm3": 874.2219959964129,
+   "mass_kg": 0.007833029084127861,
+   "density_g_cm3": 8.96,
+   "faces": 8,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_3",
+   "name": "出口铜管",
+   "volume_mm3": 764.6432442392006,
+   "mass_kg": 0.006851203468383238,
+   "density_g_cm3": 8.96,
+   "faces": 8,
+   "solids": 1,
+   "material": "copper"
+  },
+  {
+   "id": "part_4",
+   "name": "线圈组件外壳",
+   "volume_mm3": 6971.979426320733,
+   "mass_kg": 0.009760771196849026,
+   "density_g_cm3": 1.4,
+   "faces": 45,
+   "solids": 1,
+   "material": "polymer"
+  },
+  {
+   "id": "part_5",
+   "name": "定子线圈",
+   "volume_mm3": 9010.068533538182,
+   "mass_kg": 0.08073021406050213,
+   "density_g_cm3": 8.96,
+   "faces": 8,
+   "solids": 1,
+   "material": "copperWire"
+  },
+  {
+   "id": "part_6",
+   "name": "针阀阀芯",
+   "volume_mm3": 1358.5192563108965,
+   "mass_kg": 0.010732302124856083,
+   "density_g_cm3": 7.9,
+   "faces": 7,
+   "solids": 1,
+   "material": "steel"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 0.58,
+  "edges": 87,
+  "candidates": 112,
+  "elapsed_s": 38.6,
+  "skipped": []
+ },
+ "extra_metrics": [
+  {
+   "label": "整阀高度",
+   "value": "124",
+   "unit": "mm",
+   "note": "出口管端到线圈顶"
+  },
+  {
+   "label": "铜管总长",
+   "value": "75",
+   "unit": "mm",
+   "note": "进口 + 出口"
+  },
+  {
+   "label": "节流孔",
+   "value": "φ1.6",
+   "unit": "mm",
+   "note": "针阀锥面 + 节流孔，剖切可见"
+  },
+  {
+   "label": "安装孔",
+   "value": "4 × M3",
+   "unit": "",
+   "note": "法兰 φ36.0，孔径 φ3.4"
+  }
+ ],
+ "t_model_s": 45.6,
+ "t_export_s": 2.2,
+ "elapsed_s": 49.0,
+ "step_bytes": 1416747,
+ "stl_bytes": 2350584,
+ "glb_bytes": 1082392,
+ "scenario_id": "exv",
+ "summary": "电子膨胀阀阀体的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：黄铜阀体 / 进口铜管 / 出口铜管 / 线圈组件外壳 / 定子线圈 / 针阀阀芯，共 6 个部件；181 个面，质量 0.488 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/exv.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:33:12+00:00",
+ "cadquery": "2.8.0"
+}

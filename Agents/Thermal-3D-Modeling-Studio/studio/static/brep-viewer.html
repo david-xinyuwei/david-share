@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B-rep viewer</title>
+<style>html,body{margin:0;overflow:hidden;height:100%;background:#3d4044}#msg{position:absolute;inset:0;display:grid;place-content:center;font:12px "Segoe UI",sans-serif;color:#c9ced3;pointer-events:none}#msg:empty{display:none}</style>
+<script type="importmap">{"imports":{"three":"/static/vendor/three/three.module.js","three/addons/":"/static/vendor/three/jsm/","studio-kit":"/static/studio-kit.js"}}</script>
+</head>
+<body>
+<div id="msg">loading B-rep…</div>
+<script type="module">
+// Main-viewport scene for 轨 B results: the OCCT-tessellated glTF (real fillets, bores, slots, wall thickness) with
+// studio-kit materials per part, subtle edge lines and the studio light rig. The host hands over the glTF bytes and
+// parts.json through postMessage (the files sit behind the authenticated /api/cad/file endpoint, which this
+// opaque-origin frame cannot fetch itself). Publishes the same window.__* contract as generated scenes, so the
+// engineering workspace (quad view / section / outliner) and PNG/GLB export work unchanged.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { kit } from 'studio-kit';
+const msg = document.getElementById('msg');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+kit.setupRenderer(renderer);
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 50000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.8;
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+let model = null;
+function show(buffer, parts, title, lang) {
+  new GLTFLoader().parse(buffer, '', (gltf) => {
+    try {
+      model = new THREE.Group(); model.name = title || 'model';
+      // OCCT writes one node per assembly part (part_1, part_2, …), each holding one or more face meshes.
+      const byId = new Map((parts || []).map(p => [p.id, p]));
+      const partNodes = [];
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(node => { if (byId.has(node.name)) partNodes.push(node); });
+      if (!partNodes.length) partNodes.push(gltf.scene);   // legacy glb without part ids
+      for (const node of partNodes) {
+        const info = byId.get(node.name);
+        const group = new THREE.Group();
+        group.name = info ? info.name : node.name || 'part';
+        group.userData.part = info || null;
+        const preset = info && info.material ? info.material : 'aluminum';
+        const meshes = [];
+        node.traverse(o => { if (o.isMesh) meshes.push(o); });
+        for (const m of meshes) {
+          const clone = m.clone();
+          // OCCT tessellations carry normals but no UVs: materialFor() drops the brushed anisotropy there (NaN tangent frame otherwise).
+          clone.geometry = m.geometry; clone.material = kit.materialFor(preset, m.geometry);
+          clone.castShadow = clone.receiveShadow = true;
+          m.getWorldPosition(clone.position); m.getWorldQuaternion(clone.quaternion); m.getWorldScale(clone.scale);
+          group.add(clone);
+        }
+        model.add(group);
+        // Workbench cavity per part: welded across OCCT's one-mesh-per-face output, ridges light / valleys dark.
+        kit.cavityLines(group, { thresholdDeg: 28 });
+      }
+      scene.add(model);
+      const box = new THREE.Box3().setFromObject(model, true);
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      const r = Math.max(sphere.radius, 5);
+      kit.studioLights(scene, renderer, r);
+      kit.workbench(scene, r, box.min.y);
+      kit.frame(camera, controls, model);
+      window.__scene = scene; window.__camera = camera; window.__renderer = renderer; window.__controls = controls; window.__model = model;
+      window.__studioKit = kit.KIT_VERSION;
+      const cm3 = p => (p.volume_mm3 / 1000).toFixed(1);
+      window.__metrics = (parts || []).slice(0, 10).map(p => ({ label: p.name, value: p.mass_kg.toFixed(3), unit: 'kg',
+        note: lang === 'en' ? `${p.material} · ${p.faces} faces · OCCT volume ${cm3(p)} cm³` : `${p.material} · ${p.faces} 面 · OCCT 体积 ${cm3(p)} cm³` }));
+      msg.textContent = '';
+      let tris = 0; model.traverse(o => { if (o.isMesh && o.geometry) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+      parent.postMessage({ type: 'brep-ready', parts: partNodes.length, triangles: Math.round(tris) }, '*');
+    } catch (e) { fail(e); }
+  }, fail);
+}
+function fail(e) { msg.textContent = `B-rep load failed: ${e && e.message || e}`; parent.postMessage({ type: 'brep-error', message: String(e && e.message || e) }, '*'); }
+addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'brep' && d.buffer) show(d.buffer, d.parts, d.title, d.lang);
+});
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+parent.postMessage({ type: 'brep-viewer-ready' }, '*');
+</script>
+</body>
+</html>

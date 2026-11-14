@@ -1,0 +1,228 @@
+{
+ "ok": true,
+ "volume_mm3": 4732034.402577262,
+ "area_mm2": 1506873.816738226,
+ "density_g_cm3": 2.642153046892284,
+ "mass_kg": 12.502759114768622,
+ "bbox_mm": [
+  1105.0,
+  530.0,
+  32.0
+ ],
+ "solids": 121,
+ "faces": 2308,
+ "parts": [
+  {
+   "id": "part_1",
+   "name": "AI 排程 · 沙盘底板",
+   "volume_mm3": 1852063.665928162,
+   "mass_kg": 5.000571898006037,
+   "density_g_cm3": 2.7,
+   "faces": 143,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_2",
+   "name": "AI 排程 · A 族订单 ×5",
+   "volume_mm3": 155974.38276290378,
+   "mass_kg": 0.42113083345984026,
+   "density_g_cm3": 2.7,
+   "faces": 208,
+   "solids": 8,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_3",
+   "name": "AI 排程 · B 族订单 ×4",
+   "volume_mm3": 105821.41595267813,
+   "mass_kg": 0.285717823072231,
+   "density_g_cm3": 2.7,
+   "faces": 182,
+   "solids": 7,
+   "material": "anodizedGreen"
+  },
+  {
+   "id": "part_4",
+   "name": "AI 排程 · C 族订单 ×3",
+   "volume_mm3": 116928.194800946,
+   "mass_kg": 0.31570612596255426,
+   "density_g_cm3": 2.7,
+   "faces": 182,
+   "solids": 7,
+   "material": "anodizedOrange"
+  },
+  {
+   "id": "part_5",
+   "name": "AI 排程 · 换型 4.5 h",
+   "volume_mm3": 10749.49878706095,
+   "mass_kg": 0.029023646725064564,
+   "density_g_cm3": 2.7,
+   "faces": 234,
+   "solids": 9,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_6",
+   "name": "AI 排程 · 交期柱 ×12",
+   "volume_mm3": 904.778684233863,
+   "mass_kg": 0.007690618815987836,
+   "density_g_cm3": 8.5,
+   "faces": 36,
+   "solids": 12,
+   "material": "brass"
+  },
+  {
+   "id": "part_7",
+   "name": "AI 排程 · 休息 / 停线时段",
+   "volume_mm3": 109499.99999999997,
+   "mass_kg": 0.15329999999999994,
+   "density_g_cm3": 1.4,
+   "faces": 78,
+   "solids": 13,
+   "material": "polymerLight"
+  },
+  {
+   "id": "part_8",
+   "name": "经验排法 · 沙盘底板",
+   "volume_mm3": 1852063.665928162,
+   "mass_kg": 5.000571898006037,
+   "density_g_cm3": 2.7,
+   "faces": 143,
+   "solids": 1,
+   "material": "powderCoat"
+  },
+  {
+   "id": "part_9",
+   "name": "经验排法 · A 族订单 ×5",
+   "volume_mm3": 155920.0117571132,
+   "mass_kg": 0.4209840317442057,
+   "density_g_cm3": 2.7,
+   "faces": 260,
+   "solids": 10,
+   "material": "anodizedBlue"
+  },
+  {
+   "id": "part_10",
+   "name": "经验排法 · B 族订单 ×4",
+   "volume_mm3": 105785.74193304619,
+   "mass_kg": 0.28562150321922475,
+   "density_g_cm3": 2.7,
+   "faces": 182,
+   "solids": 7,
+   "material": "anodizedGreen"
+  },
+  {
+   "id": "part_11",
+   "name": "经验排法 · C 族订单 ×3",
+   "volume_mm3": 116925.04272917003,
+   "mass_kg": 0.31569761536875907,
+   "density_g_cm3": 2.7,
+   "faces": 182,
+   "solids": 7,
+   "material": "anodizedOrange"
+  },
+  {
+   "id": "part_12",
+   "name": "经验排法 · 换型 10.5 h",
+   "volume_mm3": 24854.868421143943,
+   "mass_kg": 0.06710814473708865,
+   "density_g_cm3": 2.7,
+   "faces": 234,
+   "solids": 9,
+   "material": "aluminumCast"
+  },
+  {
+   "id": "part_13",
+   "name": "经验排法 · 迟到红帽 ×3",
+   "volume_mm3": 14138.356208405743,
+   "mass_kg": 0.038173561762695506,
+   "density_g_cm3": 2.7,
+   "faces": 130,
+   "solids": 5,
+   "material": "anodizedRed"
+  },
+  {
+   "id": "part_14",
+   "name": "经验排法 · 交期柱 ×12",
+   "volume_mm3": 904.778684233862,
+   "mass_kg": 0.007690618815987827,
+   "density_g_cm3": 8.5,
+   "faces": 36,
+   "solids": 12,
+   "material": "brass"
+  },
+  {
+   "id": "part_15",
+   "name": "经验排法 · 休息 / 停线时段",
+   "volume_mm3": 109499.99999999997,
+   "mass_kg": 0.15329999999999994,
+   "density_g_cm3": 1.4,
+   "faces": 78,
+   "solids": 13,
+   "material": "polymerLight"
+  }
+ ],
+ "edge_finish": {
+  "radius_mm": 1.2,
+  "edges": 964,
+  "candidates": 964,
+  "elapsed_s": 10.3,
+  "skipped": [
+   "AI 排程 · 休息 / 停线时段（13 个实体的阵列）",
+   "经验排法 · 休息 / 停线时段（13 个实体的阵列）"
+  ]
+ },
+ "extra_metrics": [
+  {
+   "label": "总完工时间 AI/经验",
+   "value": "40.0 / 49.0",
+   "unit": "h",
+   "note": "与示例页面 schedule() 同式"
+  },
+  {
+   "label": "准时率 AI/经验",
+   "value": "100.0 / 75.0",
+   "unit": "%",
+   "note": "与示例页面 schedule() 同式"
+  },
+  {
+   "label": "迟到订单 AI/经验",
+   "value": "0 / 3",
+   "unit": "单",
+   "note": "与示例页面 schedule() 同式"
+  },
+  {
+   "label": "换型时间 AI/经验",
+   "value": "4.5 / 10.5",
+   "unit": "h",
+   "note": "与示例页面 schedule() 同式"
+  },
+  {
+   "label": "平均利用率 AI/经验",
+   "value": "75.6 / 73.1",
+   "unit": "%",
+   "note": "与示例页面 schedule() 同式"
+  },
+  {
+   "label": "各线利用率 AI",
+   "value": "L1 93.3 / L2 63.3 / L3 70.0",
+   "unit": "%",
+   "note": "与示例页面 schedule() 同式"
+  }
+ ],
+ "t_model_s": 52.9,
+ "t_export_s": 5.1,
+ "elapsed_s": 59.1,
+ "step_bytes": 6887124,
+ "stl_bytes": 5395884,
+ "glb_bytes": 3529616,
+ "scenario_id": "aps",
+ "summary": "APS 智能排程推理的参考 B-rep 实体（CadQuery / OCCT 预生成，非本次 GPT-6 输出）：AI 排程 · 沙盘底板 / AI 排程 · A 族订单 ×5 / AI 排程 · B 族订单 ×4 / AI 排程 · C 族订单 ×3 / AI 排程 · 换型 4.5 h / AI 排程 · 交期柱 ×12 等 15 个部件；2308 个面，质量 12.503 kg。真实圆角、孔、槽与壁厚，与 STEP 一致；点「生成 STEP」可由 GPT-6 现场重建。",
+ "model": "reference-script",
+ "source": "pre_generated",
+ "script": "cad_examples/aps.py",
+ "lang": "zh",
+ "created_at": "2026-11-13T09:30:28+00:00",
+ "cadquery": "2.8.0"
+}

@@ -1,0 +1,134 @@
+{
+ "started": "2026-11-14T09:47:55.4901141+08:00",
+ "steps": [
+  {
+   "name": "21-module-en",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 62.7
+  },
+  {
+   "name": "22-module-zh",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 82.3
+  },
+  {
+   "name": "23-features-en",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 87.7
+  },
+  {
+   "name": "24-features-zh",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 84.4
+  },
+  {
+   "name": "25-gallery-en-1",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 217.5
+  },
+  {
+   "name": "26-gallery-en-2",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 228.8
+  },
+  {
+   "name": "27-gallery-en-3",
+   "attempt": 1,
+   "exit": 1,
+   "seconds": 51.4
+  },
+  {
+   "name": "27-gallery-en-3",
+   "attempt": 2,
+   "exit": 1,
+   "seconds": 51.9
+  },
+  {
+   "name": "28-gallery-zh-1",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 230.7
+  },
+  {
+   "name": "29-gallery-zh-2",
+   "attempt": 1,
+   "exit": 0,
+   "seconds": 229.0
+  },
+  {
+   "name": "30-gallery-zh-3",
+   "attempt": 1,
+   "exit": 1,
+   "seconds": 208.4
+  },
+  {
+   "name": "30-gallery-zh-3",
+   "attempt": 2,
+   "exit": 1,
+   "seconds": 210.5
+  },
+  {
+   "name": "31-render",
+   "attempt": 1,
+   "exit": 1,
+   "seconds": 73.7
+  },
+  {
+   "name": "31-render",
+   "attempt": 2,
+   "exit": 1,
+   "seconds": 76.0
+  },
+  {
+   "name": "27-gallery-en-3",
+   "attempt": 3.0,
+   "exit": 0,
+   "seconds": 237.9,
+   "note": "rerun after the tool fixes"
+  },
+  {
+   "name": "30-gallery-zh-3",
+   "attempt": 3.0,
+   "exit": 1,
+   "seconds": 360.4,
+   "note": "rerun after the tool fixes"
+  },
+  {
+   "name": "30-gallery-zh-3",
+   "attempt": 4.0,
+   "exit": -1,
+   "seconds": 119.2,
+   "note": "rerun after the tool fixes"
+  },
+  {
+   "name": "31-render",
+   "attempt": 3.0,
+   "exit": 0,
+   "seconds": 129.2,
+   "note": "rerun after the tool fixes"
+  },
+  {
+   "name": "27-gallery-en-3",
+   "attempt": 4.0,
+   "exit": 0,
+   "seconds": 231.1,
+   "note": "rerun with the final tool: Original clicked whenever enabled; errors of GPT-6 pages recorded per picture"
+  },
+  {
+   "name": "30-gallery-zh-3",
+   "attempt": 5.0,
+   "exit": 0,
+   "seconds": 250.3,
+   "note": "rerun with the final tool: Original clicked whenever enabled; errors of GPT-6 pages recorded per picture"
+  }
+ ],
+ "finished": "2026-11-14T10:19:49.5122483+08:00",
+ "rerun_finished": "2026-11-14T10:47:49.6433271+08:00",
+ "render_cache_removed": true
+}

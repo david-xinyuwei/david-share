@@ -1,0 +1,82 @@
+{
+ "id": "fourway",
+ "iou_pct": 94.7,
+ "outline_median_px": 3.2,
+ "outline_p90_px": 15.6,
+ "spp": 256,
+ "render_s": 2.5,
+ "zoom": 1.361,
+ "unmatched_meshes": 0,
+ "meta": {
+  "method": "pregen_engineering.py → static/engineering-render.mjs in headless Edge: cad_cache/<id>/model.glb with the main-viewport materials, workspace perspective direction framed to fill the frame; STEP outline + edges drawn with the same camera, no fit",
+  "cad_source": "cad_cache/fourway/model.glb",
+  "glb_sha256": "59af01acbaa01394df1757a5e855051031ae10defd3dc50cf5c50612b46faf38",
+  "image_model": null,
+  "source": "pre_generated",
+  "version": "2",
+  "size": [
+   2048,
+   1152
+  ],
+  "spp": 256,
+  "look": {
+   "fill": 0.74,
+   "exposure": 1.05,
+   "floor": "#d9d9d6",
+   "floorRoughness": 0.75,
+   "key": 3,
+   "cone": 0.72,
+   "soft": 0.35,
+   "sky": 1.8,
+   "hemi": 0.12,
+   "rim": 1.2,
+   "env": 1,
+   "dome": 0.04,
+   "envFloor": 0.12,
+   "back": 2,
+   "backElev": 0.75,
+   "backH": 5,
+   "vignette": 0.28
+  },
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "float_accumulation": true,
+  "render_ms": 2516,
+  "lines_ms": 392,
+  "meshes": 304,
+  "unmatched_meshes": 0,
+  "materials": {
+   "主阀体（铜筒 + 封头）": "copper",
+   "高压进气管 D": "copper",
+   "接管 E": "copper",
+   "接管 S": "copper",
+   "接管 C": "copper",
+   "主滑块阀芯": "polymerLight",
+   "活塞组件": "steel",
+   "先导电磁阀": "powderCoat",
+   "先导阀支座": "steelDark",
+   "毛细管（左）": "copper",
+   "毛细管（右）": "copper",
+   "安装支架": "powderCoat"
+  },
+  "camera": {
+   "fov": 38,
+   "aspect": 1.7777777777777777,
+   "zoom": 1.360610018519554,
+   "view_offset_px": [
+    -3.5770499813626766,
+    38.120440142758206
+   ],
+   "position": [
+    156.28066627091079,
+    112.52207971505577,
+    171.72276621154737
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  "rendered_at": "2026-11-14T00:43:22+00:00"
+ }
+}

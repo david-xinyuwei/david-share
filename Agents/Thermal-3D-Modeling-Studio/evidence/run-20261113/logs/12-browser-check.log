@@ -1,0 +1,24 @@
+PASS served_bytes_match_source
+PASS pre_generated_cad_opens_with_the_scenario
+PASS brep_perspective_ambient_occlusion_darkens_the_part
+PASS authenticated_cached_model
+PASS legacy_example_retrofitted_with_studio_kit
+PASS four_nonblank_model_views_without_grid
+PASS hidden_lid_can_be_shown_without_mutating_source
+PASS shading_changes_rendered_pixels
+PASS section_changes_rendered_geometry
+PASS part_isolation_and_restore
+PASS perspective_drag_changes_view
+PASS png_export_from_active_workspace
+PASS original_model_glb_export
+PASS original_scene_and_controls_restored
+PASS second_real_model
+PASS english_workspace_controls
+PASS mobile_quad_without_horizontal_overflow
+PASS new_conversation_clears_workspace
+PASS kit_native_scene_renders_through_bridge
+PASS brep_solid_becomes_main_viewport
+PASS brep_quad_views_are_shaded_not_blank
+PASS brep_glb_export
+PASS geometry_source_round_trip_reuses_glb
+{"status": "PASS", "checks": 23, "evidence": "<run>\\browser"}
