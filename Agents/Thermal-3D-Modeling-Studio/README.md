@@ -64,6 +64,16 @@ What the figure shows: the four tracks, which code is ours, and which model each
 
 ## Results
 
+**Videos.** Two narrated walkthroughs in English, 7:22 and 6:21 long.
+
+*Recorded examples.* The architecture, then saved GPT-6 pages and pre-generated STEP solids opened with no model call: the electronic expansion valve as the three.js page and the code GPT-6 wrote, its OCCT solid cut by a section, the gpt-image render with the STEP outline laid over it next to the engineering render, the cost comparison for the four-way valve, and a drawing rebuilt in 3D. The video covers the thermal-management cards.
+
+https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
+
+*Live generation.* One request sent live to the studio on its Azure VM: the EV battery cold plate with eight channels instead of six. GPT-6 Astra streams the three.js page, **Generate STEP** has it write the CadQuery script that OpenCascade builds, and **Photoreal render** calls gpt-image-2.5. The waits are shown in real time, uncut. It is a demonstration, not one of the measured runs below.
+
+https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
+
 The integrated thermal-management module, one of the 15 scenarios, as the studio shows it. The screenshots and the engineering render come from this repository's recorded run (2026-11-14) with no model call; the gpt-image picture comes from one call through the studio page on 2026-11-10. None of them is retouched.
 
 | Track A: the three.js page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the same part, quad view |

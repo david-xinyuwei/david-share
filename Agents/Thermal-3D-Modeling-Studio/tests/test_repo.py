@@ -23,7 +23,9 @@ NUMBER = re.compile(r"(?<![\w.#/-])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?![\w])"
 SKIP_SPANS = re.compile(r"`[^`]*`|\]\([^)]*\)|<[^>]+>|https?://\S+|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}:\d{2}(?::\d{2})?\b|"
                         r"\b\d+(?:\.\d+){2,}\b|\br\d+\b|\d+(?:\s?[×x]\s?\d+)+")
 PRIVATE = [
-    (re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I), "GUID (subscription, tenant or client id)"),
+    # The README videos are GitHub attachments whose public URL ends in a GUID; any other GUID still fails.
+    (re.compile(r"(?<!github\.com/user-attachments/assets/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I),
+     "GUID (subscription, tenant or client id)"),
     (re.compile(r"[A-Za-z]:\\Users\\", re.I), "local Windows user path"),
     (re.compile(r"\b[\w.-]+@(microsoft|outlook|hotmail|gmail)\.com\b", re.I), "e-mail address"),
     (re.compile(r"\b[a-z0-9-]+\.[a-z]+\.cloudapp\.azure\.com\b", re.I), "public VM host name"),
