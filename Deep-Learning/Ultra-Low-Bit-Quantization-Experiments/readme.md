@@ -1,5 +1,9 @@
 # Exploring 1-Bit LLMs: Efficient Large Language Models through Ternary Weight Quantization
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 In the current field of artificial intelligence, **Large Language Models (LLMs)** have become indispensable. However, their enormous number of parameters leads to significant computational and memory demands, limiting their applications on resource-constrained devices. Is it possible to reduce these demands without significantly compromising model performance? Microsoft's **BitNet** architecture and **1-Bit LLMs** provide an affirmative answer.  This article delves into the concept and implementation of 1-Bit LLMs from multiple perspectives, using examples to help readers better understand this cutting-edge technology. 
 
 ***Please click below picture to see my demo vedio on Yutube***:

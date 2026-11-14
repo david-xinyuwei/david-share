@@ -1,5 +1,11 @@
 # 远场英文会议转写：六条 Azure 语音路径，四段 AMI 片段
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 2026-10-02 · 每个模型跑一次 · 4 段片段，282 s，归一化后 930 个参考词 · 语料：AMI Meeting Corpus, test set, SDM (Array1-01)（CC BY 4.0）
 
 把片段放在这里，是为了让读者听到模型听到的原声，并把人工参考文本和每份机器转写对照着读。这是一份带评分表的试听集，不是

@@ -4,7 +4,7 @@
 
 A measured comparison of MAI-Image-2.6 against GPT-Image-2 and GPT-Image-2.5. The spine is the same-session run of 2026-09-20 from one client, one account and one region (Sweden Central), in which MAI and 2.5 flare medium and high were called alternately over 11 text-to-image scenarios in two rounds; the three GPT-Image-2 tiers come from the 2026-09-07 session, and the remaining 2.5 tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README_CN.md)
 

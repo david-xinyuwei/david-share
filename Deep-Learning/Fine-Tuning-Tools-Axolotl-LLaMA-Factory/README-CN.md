@@ -1,6 +1,8 @@
-# 微调
+# Fine-Tuning Tools: Axolotl & LLaMA-Factory
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 This article covers two popular fine-tuning tools for large language models: **Axolotl** and **LLaMA-Factory**. It also provides a deep dive into parallel training strategies (DP, FSDP, TP, PP) that are essential for understanding how these tools scale across GPUs.
 
@@ -25,7 +27,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## Part I: Fine-Tuning with Axolotl and Inference with vLLM/Transformers
 
-### 概述
+### Axolotl Overview
 
 Axolotl is a tool designed to streamline the fine-tuning of various AI models, offering support for multiple configurations and architectures.
 You should install Axolotl and related library according to the following link:
@@ -87,13 +89,13 @@ Output quality: Generated text is detailed and accurate.
 ##### Description: 
 Merge adapter and original model together, then do inference with FP/BF16 on HF transformer.
 
-##### 推理
+##### Inference Results:
 Generation time: 45.78 seconds
 Tokens per second: 43.47
 Prompt: 'Who is the current president of United States?'
 Generated text: Accurate response about Joe Biden being the current president, but with additional context and examples.
 
-##### 分析
+##### Analysis:
 Model merging: Adapter and original model merged.
 Inference framework: HF transformer.
 Precision: FP/BF16.
@@ -105,13 +107,13 @@ Output quality: Generated text is accurate but includes more context and example
 ##### Description: 
 Based on merged model #1, use bnb to quantize and infer on HF transformer.
 
-##### 推理
+##### Inference Results:
 Generation time: 21.50 seconds
 Tokens per second: 24.93
 Prompt: 'Who is the current president of United States?'
 Generated text: Accurate response about Joe Biden being the current president, with brief context.
 
-##### 分析
+##### Analysis:
 Model merging: Based on merged model #1.
 Inference framework: HF transformer.
 Quantization method: bnb quantization.
@@ -122,14 +124,14 @@ Output quality: Generated text is accurate with brief context, suitable for scen
 
 ##### Description: Use bnb to dynamically load the phi-3 base model, load the post-FT checkpoints as adapter, and then use the INFERENCE on HF transformer.
 
-##### 推理
+##### Inference Results:
 Model loading time: 1.92 seconds
 Generation time: 95.35 seconds
 Tokens per second: 20.87
 Prompt: 'Who is the current president of United States?'
 Generated text: Accurate response about Joe Biden being the current president, with repetitive context.
 
-##### 分析
+##### Analysis:
 Model loading: Dynamically load phi-3 base model, load post-FT checkpoints as adapter.
 Inference framework: HF transformer.
 Quantization method: bnb quantization.
@@ -288,7 +290,7 @@ special_tokens:
 
 ```
 
-#### 训练
+#### Training Result
 Launch training:
 ```
 (axolotl-test2) root@h100vm:~/axolotl-test# accelerate launch -m axolotl.cli.train 1.yaml
@@ -830,7 +832,7 @@ PP 的出发点截然不同，从层的维度切割模型，每张 GPU 专门负
   - 对单层巨大矩阵不起作用（适合层数众多但单层矩阵适中的情况）；
   - 流水线调度容易产生空闲时间（气泡bubble），需要精细调优。
 
-### 对比
+### Parallel Strategy Comparison
 
 **FSDP（Fully-Sharded Data Parallel）适用于这种场景：**
 
@@ -1346,7 +1348,7 @@ Assistant: 哥德巴赫猜想是指任意一个大于 2 的整数都可以被分
 
 ```
 
-### 微调
+### Using the Web UI for Fine-Tuning
 
 ```
 cd /content/LLaMA-Factory/

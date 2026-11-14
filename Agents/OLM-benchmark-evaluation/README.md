@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps.
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 This repo draws inspiration and references the ideas and code from https://github.com/huggingface/optimum-benchmark, with practical adjustments made for user convenience, allowing for direct and easy use within VS Code. Using microsoft/Phi-3-mini-4k-instruct as a case study, this repo independently verifies the performance of PyTorch inference and vLLM inference. 
 

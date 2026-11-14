@@ -1,6 +1,6 @@
 # Qwen3-ASR Training and Inference Validation on Azure
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 English | [中文版](README-CN.md)
 

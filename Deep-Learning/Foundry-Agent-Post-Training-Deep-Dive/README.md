@@ -5,9 +5,9 @@
 [![Official Code](https://img.shields.io/badge/Official%20Code-BRK232-green)](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry)
 [![Post-Training](https://img.shields.io/badge/Post--Training-SFT%20%7C%20RFT%20%7C%20Low--Level%20API-orange)](#the-three-layer-training-system)
 
-A systematic technical breakdown of the agent post-training pipeline announced at Microsoft Build 2026 — covering distillation, supervised fine-tuning (SFT), reinforcement fine-tuning (RFT), and the new Foundry Low-Level Training API. Based on sessions BRK231 and BRK232. **Result: Qwen3-32B achieves 86.9% retail_quality at ~$0.50/M tokens — surpassing GPT-5.4 (65% at $15/M).**
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB
+A systematic technical breakdown of the agent post-training pipeline announced at Microsoft Build 2026 — covering distillation, supervised fine-tuning (SFT), reinforcement fine-tuning (RFT), and the new Foundry Low-Level Training API. Based on sessions BRK231 and BRK232. **Result: Qwen3-32B achieves 86.9% retail_quality at ~$0.50/M tokens — surpassing GPT-5.4 (65% at $15/M).**
 
 [中文版](README-CN.md) | English | [Official BRK232 Code Repo](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry) (Microsoft)
 
@@ -828,7 +828,7 @@ Production agent traces
   → Next training dataset (loop back)
 ```
 
-> Source: Cross-session analysis based on BRK231, BRK232, DEM320, BRK230, BRK234, BRK241, and BRK252 slides, transcripts, and demo repos. Full analysis: [Build-2026-Keynote-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive/../../../Build-2026-Keynote-Deep-Dive).
+> Source: Cross-session analysis based on BRK231, BRK232, DEM320, BRK230, BRK234, BRK241, and BRK252 slides, transcripts, and demo repos. Full analysis: Build-2026-Keynote-Deep-Dive (not published in this repository).
 
 ---
 

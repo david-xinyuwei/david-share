@@ -1,5 +1,11 @@
 # Foundry IQ - Azure AI Search Knowledge Retrieval Guide
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 > **Foundry IQ** is a new capability of Azure AI Search announced at Microsoft Ignite 2025. It enables Agentic RAG through Knowledge Sources and Knowledge Bases, providing intelligent document retrieval, automatic vectorization, and answer generation.
 
 **Demo Repository**: [farzad528/azure-ai-search-knowledge-retrieval-demo](https://github.com/farzad528/azure-ai-search-knowledge-retrieval-demo)  
@@ -511,4 +517,4 @@ MIT
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI GBB) | Verified: 2025-12-09*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Verified: 2025-12-09*

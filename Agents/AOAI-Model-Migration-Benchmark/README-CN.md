@@ -1,4 +1,7 @@
 # Azure OpenAI 模型迁移 Benchmark 与 PTU 流量管理
+
+> **Author**: Xinyu Wei (魏新宇), Microsoft AI Lead Senior System Engineer | **Date**: 2026-03-28
+
 ## gpt-4o-mini → gpt-5.4-nano | Web Search Grounding + PTU 流量管理
 
 ![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-Model%20Migration-0078D4)
@@ -8,8 +11,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)
 
 面向低延迟 AI assistant 的生产级 benchmark 与流量管理工具集，用于从 gpt-4o-mini 迁移到更新的 Azure OpenAI / OpenAI 模型家族。所有 web grounding 路径都同时测试内置 search 方案和 WebIQ 显式 retrieval 对照。
-
-> **Author**: Xinyu Wei (魏新宇), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer | **Date**: 2026-03-28
 
 中文版 | [English](README.md)
 

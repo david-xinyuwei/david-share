@@ -1,5 +1,9 @@
 # Voice Live Agent
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
 [English](README.md) | 中文
 
 基于 **Azure AI Foundry Voice Live API** 的中文桌面语音代理。跑在 Windows 本机，用语音完成实时问答、查数据、看摄像头识物、控制系统设置、整理简报、发邮件、换桌面壁纸——**所有工具都在用户自己的电脑上执行**。

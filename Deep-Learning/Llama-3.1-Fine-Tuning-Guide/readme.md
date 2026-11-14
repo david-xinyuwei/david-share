@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 3.1). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-Fine-Tuning-and-Alignment](../LLM-Fine-Tuning-and-Alignment/).
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 Llama 3.1 and Llama 3 do not differ significantly in terms of fine-tuning implementation. In this article, I will first introduce the differences between the two models and then present the code for QLoRA and LoRA
 
@@ -222,7 +222,7 @@ trainer.train()
 
 ---
 
-# Part 2: Llama-3.1-70B FSDP Fine-Tuning (Multi-GPU)
+## Part 2: Llama-3.1-70B FSDP Fine-Tuning (Multi-GPU)
 
 > *Merged from the original Llama-3.1-70B-FSDP-Fine-Tuning project.*
 
@@ -238,7 +238,7 @@ We see that using QLoRA requires approximately 80GB of VRAM. To further save mem
 
 
 
-## Difference between Pytorch FSDP and DeepSpeed Zero-3
+### Difference between Pytorch FSDP and DeepSpeed Zero-3
 
 FSDP is a type of data-parallel training, but unlike traditional data-parallel, which maintains a per-GPU copy of a model’s parameters, gradients and optimizer states, it shards all of these states across data-parallel workers and can optionally offload the sharded model parameters to CPUs.
 
@@ -252,7 +252,7 @@ Usually, model layers are wrapped with FSDP in a nested way, so that only layers
 
 
 
-## Prepare training environment
+### Prepare training environment
 ```
 pip install --upgrade accelerate
 ```
@@ -430,7 +430,7 @@ Model files after training:
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nW81Idvzj0dbl6jyIWT2YPrbeFXAPmOicKu1b2Pt6vSMJV9YtbzxsjyfjRobj74KnUiaPfZ7QlSK7RQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
-## Increase batchsize
+### Increase batchsize
 Use this configuration in fsdp+QLoRA.py
 ```
 training_arguments = SFTConfig(

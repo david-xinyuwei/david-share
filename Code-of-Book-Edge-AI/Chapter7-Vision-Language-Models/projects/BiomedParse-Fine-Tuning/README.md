@@ -4,7 +4,7 @@
 
 Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom datasets.
 
-**Author**: Xinyu Wei (Microsoft AI and Apps GBB)  
+**Author**: Xinyu Wei (Microsoft AI Lead Senior System Engineer)  
 **Model**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
 **Paper**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
 **Test Environment**: NVIDIA A10 24GB GPU

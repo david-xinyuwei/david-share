@@ -1,6 +1,8 @@
 # 5D KV Cache：精度、分页和显存布局不是一回事
 
-> **系列**: DL-Algorithm-Insights | **作者**: 魏新宇 (Xinyu Wei)
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **系列**: DL-Algorithm-Insights | **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 **语言**: [English](README.md) | 中文
 

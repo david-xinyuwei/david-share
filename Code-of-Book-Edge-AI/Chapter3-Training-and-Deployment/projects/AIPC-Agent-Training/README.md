@@ -582,4 +582,4 @@ This finding is critical for anyone applying GRPO to small (<8B) models.
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2026-01-02*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Verified: 2026-01-02*

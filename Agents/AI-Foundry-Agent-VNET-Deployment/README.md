@@ -3,11 +3,9 @@
 [![Azure](https://img.shields.io/badge/Azure-Foundry_Agent_Service-0078D4?logo=microsoftazure)](https://learn.microsoft.com/en-us/azure/foundry/agents/)
 [![BYO VNET](https://img.shields.io/badge/Network-BYO_VNET_(GA)-107c10)](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/virtual-networks)
 [![Template](https://img.shields.io/badge/IaC-Bicep_%2B_Terraform-ff8c00)](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-bicep/15-private-network-standard-agent-setup)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
-
-[中文版](README-CN.md) | English
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ---
 

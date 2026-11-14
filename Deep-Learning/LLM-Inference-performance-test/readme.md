@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 3 and Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-Inference-Optimization-on-Azure-GPU-VMs](../LLM-Inference-Optimization-on-Azure-GPU-VMs/).
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 GuideLLM (*https://github.com/neuralmagic/guidellm*) can test the inference performance of various models under TGI and vLLM. We can test with different hyper parameters on various GPU hardware to identify performance bottlenecks in the environment.
 

@@ -6,9 +6,11 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-一个 AI 驱动的 executive assistant——通过 **Microsoft Graph API** 读取 M365 邮件、日历和 Teams 聊天，使用 **Azure OpenAI** 做结构化分析，生成每日简报：邮件优先级排序、带详细上下文的待办事项、联系人画像、关系网络映射、跨数据源智能洞察，以及可直接在 Dashboard 上编辑发送的 AI 草拟回复。
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[English](README.md) | **中文**
+
+一个 AI 驱动的 executive assistant——通过 **Microsoft Graph API** 读取 M365 邮件、日历和 Teams 聊天，使用 **Azure OpenAI** 做结构化分析，生成每日简报：邮件优先级排序、带详细上下文的待办事项、联系人画像、关系网络映射、跨数据源智能洞察，以及可直接在 Dashboard 上编辑发送的 AI 草拟回复。
 
 English | [中文版](README-CN.md) | [源码仓库](https://github.com/david-xinyuwei/M365-Morning-Sweep)（私有 — [申请访问](https://github.com/david-xinyuwei/david-share/issues)）
 

@@ -1,16 +1,12 @@
 # Azure Content Safety + Flux Image Generation
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 A complete demonstration of integrating Azure Content Safety API with third-party image generation models (FLUX.2-pro) to implement custom input/output content filtering.
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## 📋 Overview

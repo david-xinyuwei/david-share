@@ -1,6 +1,8 @@
 # 5D KV Cache: Precision, Paging, and Memory Layout Are Not the Same Thing
 
-> **Series**: DL-Algorithm-Insights | **Author**: Xinyu Wei
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Series**: DL-Algorithm-Insights | **Author**: Xinyu Wei — Microsoft AI Lead Senior System Engineer
 
 **Language**: English | [中文](README-CN.md)
 

@@ -5,9 +5,9 @@
 [![Agent Framework](https://img.shields.io/badge/Agent-Framework-green)](https://github.com/microsoft/agents)
 [![Hosted Agents](https://img.shields.io/badge/Hosted%20Agents-GA%20Soon-orange)](#act-2-deploy--from-laptop-to-production)
 
-A systematic walkthrough of the full agent lifecycle announced at Microsoft Build 2026 — covering how to **build** agents locally with any framework, **deploy** them as hosted agents with sub-second cold start, and **operate** them with tracing, evaluation, optimization, and governance. Based on session [BRK241](https://build.microsoft.com/en-US/sessions/BRK241) by Tina Schuchman (CVP, Microsoft Foundry) and Jeff Hollan (Partner Director, Microsoft Foundry).
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB
+A systematic walkthrough of the full agent lifecycle announced at Microsoft Build 2026 — covering how to **build** agents locally with any framework, **deploy** them as hosted agents with sub-second cold start, and **operate** them with tracing, evaluation, optimization, and governance. Based on session [BRK241](https://build.microsoft.com/en-US/sessions/BRK241) by Tina Schuchman (CVP, Microsoft Foundry) and Jeff Hollan (Partner Director, Microsoft Foundry).
 
 [中文版](README-CN.md) | English
 

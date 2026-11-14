@@ -3,12 +3,10 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-Fine-Tuning-and-Alignment](../LLM-Fine-Tuning-and-Alignment/).
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 
 ## Overview
-
-This repository contains implementation and documentation for LoRA-Training-Different-LM-Modules.
 
 In LoRA/QLoRA, there are two parameter target_modules and modules_to_save, with which we can specify which modules' parameters should be fully fine-tuned.
 

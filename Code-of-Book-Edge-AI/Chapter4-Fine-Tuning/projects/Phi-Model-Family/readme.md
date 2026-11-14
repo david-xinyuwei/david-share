@@ -3,7 +3,7 @@
 # Phi Model Family
 
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## Running on Azure
 

@@ -2,9 +2,9 @@
 
 [![MAF](https://img.shields.io/badge/MAF-1.8-0078D4?logo=microsoft&logoColor=white)](https://github.com/microsoft/agent-framework) [![MXC](https://img.shields.io/badge/MXC_SDK-0.7-purple)](https://github.com/microsoft/mxc) [![Hyperlight](https://img.shields.io/badge/Hyperlight-Sandbox-blue)](https://github.com/hyperlight-dev/hyperlight) [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-AIPC 需要本地 reasoning，也需要安全可控的 Windows-native local execution。本 repo 按 Build 2026（BRK262 / KEY01）里的两条实现路径组织：**Path A — 基于 MAF 的完整 agent loop**，以及 **Path B — MXC + runtime backend direct**。测试代码、policy profiles、evidence logs 均已入库。
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+AIPC 需要本地 reasoning，也需要安全可控的 Windows-native local execution。本 repo 按 Build 2026（BRK262 / KEY01）里的两条实现路径组织：**Path A — 基于 MAF 的完整 agent loop**，以及 **Path B — MXC + runtime backend direct**。测试代码、policy profiles、evidence logs 均已入库。
 
 [English](README.md) | 中文版
 

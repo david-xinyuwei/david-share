@@ -1,5 +1,11 @@
 # AI Agent Training Flywheel
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 > **"DevOps for AI"** — A complete, reproducible training pipeline demonstrating how to incrementally improve domain-specific AI agents through **SFT → GRPO → DPO** stages.
 
 
@@ -491,7 +497,6 @@ A: 笔记本在"7B 模型"上的要求依赖以下几点：推理方式、内存
 1) 精度与推理方式
 - FP16/BF16：通常需要 16GB-24GB
 - INT8/INT4（量化）：可能降低到 8GB-16GB，但需要对模型做校准与评估
-```
 具体配置：pip install onnxruntime-directml 测试 NPU 是否可用。
 ```
 
@@ -580,4 +585,4 @@ This finding is critical for anyone applying GRPO to small (<8B) models.
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2026-01-02*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Verified: 2026-01-02*

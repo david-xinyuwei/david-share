@@ -4,6 +4,10 @@
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 A benchmark study demonstrating **16-24% inference speedup** on virtual try-on diffusion models using `torch.compile`, with in-depth analysis of PyTorch's three-layer optimization framework.
 
 

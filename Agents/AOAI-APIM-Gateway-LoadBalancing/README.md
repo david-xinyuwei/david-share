@@ -1,6 +1,10 @@
 # Azure OpenAI Multi-Region Load Balancing with APIM AI Gateway
 
-**Author**: Xinyu Wei (魏新宇)
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+**Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 This guide demonstrates how to set up **Azure API Management (APIM) AI Gateway** to load-balance across multiple Azure OpenAI endpoints with **priority/weight-based routing**, **circuit breaker**, and **backend pool** — the recommended architecture for production GenAI workloads requiring high availability.
 

@@ -4,6 +4,10 @@
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 在 NVIDIA H100 GPU 上对 **Qwen-Image-Edit-2511** 虚拟试穿模型进行的推理引擎对比基准测试，实现最高 **6.8 倍加速**，附质量分析。
 
 

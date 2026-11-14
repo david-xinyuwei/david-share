@@ -1,6 +1,11 @@
 # GPU Architecture Deep Dive: From 3D Rendering to AI Inference — A GPU Panoramic Guide for Inference Engineers
 
-> **Author**: Xinyu Wei
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 >
 > **Core Thesis**: GPUs were born for 3D rendering; AI inference is the "accidental beneficiary." Understanding the design philosophy of rendering reveals why GPUs are naturally suited for AI.
 >

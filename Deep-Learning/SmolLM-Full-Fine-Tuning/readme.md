@@ -1,6 +1,8 @@
 # SmolLM Full Fine-Tuning
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 Hugging Face has launched a series of miniatures: the SmolLM, including 135M, 360M and 1.7B parameter versions.
 
@@ -19,16 +21,6 @@ Hugging Face has launched a series of miniatures: the SmolLM, including 135M, 36
    3. **Python-Edu**: Contains 4B tokens of Python code.
 
       In total, 252B training tokens were used, distributed across the SmolLM corpus.
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Training Architecture and Hyperparameters

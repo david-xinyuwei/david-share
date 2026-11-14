@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师  
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer  
 > **出版社**: 机械工业出版社（2026）
 
 本目录收录《边缘侧AI小模型训练、优化与部署》一书中出现的全部代码，以及书中引用的、位于本仓库其他目录下的完整项目快照，按章节组织，供读者随书下载使用。

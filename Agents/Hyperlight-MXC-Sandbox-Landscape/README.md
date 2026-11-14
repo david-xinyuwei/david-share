@@ -5,9 +5,9 @@
 [![Windows 11](https://img.shields.io/badge/Windows_11-24H2+-0078D4?logo=windows11&logoColor=white)](https://learn.microsoft.com/windows/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A walkthrough of Microsoft's Windows agent trust platform announced at Build 2026 [BRK262](https://build.microsoft.com/en-US/sessions/BRK262), with real Windows smoke-test results for Hyperlight and MXC.
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB
+A walkthrough of Microsoft's Windows agent trust platform announced at Build 2026 [BRK262](https://build.microsoft.com/en-US/sessions/BRK262), with real Windows smoke-test results for Hyperlight and MXC.
 
 [中文版](README-CN.md) | English
 

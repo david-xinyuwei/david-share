@@ -1,11 +1,12 @@
 # 深入理解 SGLang 与 vLLM：LLM 推理引擎技术对比解析
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+> **Note:** This article is written mainly in Chinese; an English version is not available yet.
 
 ## Overview
-
-This repository contains implementation and documentation for 深入理解 SGLang 与 vLLM：LLM 推理引擎技术对比解析.
 
 随着大语言模型（Large Language Models，简称 LLM）持续快速发展，推理引擎逐渐成为模型生产部署的关键基石。在诸多开源推理引擎中，SGLang 和 vLLM 无疑是近期社区瞩目的焦点。本文旨在从底层架构与核心技术角度，对二者进行全面、准确的对比和解析。
 

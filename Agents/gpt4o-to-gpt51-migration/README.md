@@ -1,5 +1,9 @@
 # GPT-4o vs GPT-5.1: Raw Results of an Earlier Migration Benchmark
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 This folder holds the raw output of a comparison run on 2026-01-22: [`benchmark_results.json`](benchmark_results.json), stored with Git LFS. The script that produced it is not included. For the maintained migration benchmarks, see [AOAI-Model-Migration-Benchmark](../AOAI-Model-Migration-Benchmark/) and [Model-And-Router-Benchmark](../Model-And-Router-Benchmark/).
 
 ## What was run

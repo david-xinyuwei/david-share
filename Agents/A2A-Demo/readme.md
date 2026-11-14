@@ -1,6 +1,8 @@
-## A2A Demo on Azure
+# A2A Demo on Azure
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 This repository contains a minimal end-to-end demo that shows how multiple A2A-compatible micro-agents can cooperate behind a single LLM-based router while being protected by the same fixed Bearer-Token.
 

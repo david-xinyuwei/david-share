@@ -1,12 +1,14 @@
 # How Does One Line of PyTorch Reach the GPU? Operators, Kernels, Data Layout, and the Full Toolchain
 
-[中文完整版](M01_gpu_kernel_stack_full_article.md) | English
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
 
-This complete edition follows one line of PyTorch through the runtime stack, then follows the separate toolchain that produces GPU kernels. It covers operators, kernels, libraries, Triton, Gluon, FlyDSL, CK, HIP/CUDA C++, layout algebra, machine instructions, and data movement. Its evidence boundary is the five source articles assigned to M01; source hashes, normalization rules, and all 43 detail figures are traceable in [FULL_MERGE_LEDGER.md](FULL_MERGE_LEDGER.md). The MI300X backend incident is an operational example, not a universal benchmark; hypothetical percentages remain examples, while hardware, version, and source-code claims retain their original scope qualifiers.
+**English** | [中文](README-CN.md)
+
+This complete edition follows one line of PyTorch through the runtime stack, then follows the separate toolchain that produces GPU kernels. It covers operators, kernels, libraries, Triton, Gluon, FlyDSL, CK, HIP/CUDA C++, layout algebra, machine instructions, and data movement. Its evidence boundary is the five source articles assigned to M01; source hashes, normalization rules, and all 43 detail figures are traceable in `FULL_MERGE_LEDGER.md` (not published in this repository). The MI300X backend incident is an operational example, not a universal benchmark; hypothetical percentages remain examples, while hardware, version, and source-code claims retain their original scope qualifiers.
 
 **Repository:** <https://github.com/david-xinyuwei/david-share>  
 **Series:** `DL-Algorithm-Insights/`  
-**Author:** Xinyu Wei | Microsoft AI and Apps GBB Senior System Engineer
+**Author:** Xinyu Wei | Microsoft AI Lead Senior System Engineer
 
 ## Reading Map
 
@@ -2007,4 +2009,4 @@ All sources below are public:
 | #10 `10_data_movement_article.md` | `a190d6e1b85ff5663800eca65bc503ccaa7e0e01a0f933263d1a5c72678819f2` | `219fe1abb6cb90a93de07c45bd779a2c0bb411bc26e1e4806340c644d45956ad` | 8 |
 | #11 `11_gpu_stack_article.md` | `1d55790dee1a68efdaacda7b97b91efa98e5d176a063553e1ab0a72e4152a501` | `e9288bedfd18ab3b68a6f4d90b9572591db3ba6aed2863b4708fa64f077ddd93` | 9 |
 
-The normalized-body hashes correspond to the deterministic Chinese source bodies after repeated publication scaffolding was removed, embedded images were extracted, and heading levels were shifted. [FULL_MERGE_LEDGER.md](FULL_MERGE_LEDGER.md) records every excluded line and every image SHA-256. The source merger can extract each Chinese source interval and compare it byte for byte; a missing line, changed order, or missing detail figure fails that check.
+The normalized-body hashes correspond to the deterministic Chinese source bodies after repeated publication scaffolding was removed, embedded images were extracted, and heading levels were shifted. `FULL_MERGE_LEDGER.md` (not published in this repository) records every excluded line and every image SHA-256. The source merger can extract each Chinese source interval and compare it byte for byte; a missing line, changed order, or missing detail figure fails that check.

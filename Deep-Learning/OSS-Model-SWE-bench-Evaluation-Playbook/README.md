@@ -8,7 +8,7 @@
 
 Measure the SWE-bench Verified accuracy of OSS models running on Microsoft platforms — open-weight or fine-tuned — across four deployment paths: Azure GPU VM, AI Foundry OSS Serverless, AI Foundry Managed Compute, and AI Foundry / Fireworks. This Repo supplies the endpoint configuration and auditable glue only; the agent loop comes from official mini-swe-agent and scoring runs through the official SWE-bench Docker harness, so results are comparable with published SWE-bench numbers.
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 English | [中文版](README-CN.md)
 

@@ -1,11 +1,11 @@
 # Computer Vision Workshop
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 
 ## Overview
-
-This repository contains implementation and documentation for Computer Vision Workshop.
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/14.png" alt="images" style="width:80%;"> 
 
@@ -49,8 +49,6 @@ Login https://oai.azure.com/ with your account, create dalle-3 deployment under 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/2.png" alt="images" style="width:80%;">  
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/3.png" alt="images" style="width:80%;">  
-
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/4.png" alt="images" style="width:80%;"> 
 
 ### Lab2:  gpt-4o
 

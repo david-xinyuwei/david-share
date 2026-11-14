@@ -1,6 +1,11 @@
 # GPU 架构深潜：从 3D 渲染到 AI 推理 — 一个推理工程师的 GPU 全景指南
 
-> **作者**: 魏新宇 (Xinyu Wei)
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 >
 > **核心命题**: GPU 为 3D 渲染而生，AI 推理是"意外的受益者"。理解渲染的设计哲学，就理解了 GPU 为什么天生适合 AI。
 >

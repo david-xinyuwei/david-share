@@ -6,9 +6,9 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An AI-powered executive assistant that reads your Microsoft 365 emails, calendar, and Teams chats via **Microsoft Graph API**, analyzes them with **Azure OpenAI**, and produces a structured daily briefing — prioritized emails, action items with detailed context, contact profiles, relationship network mapping, cross-source intelligence, and draft replies you can edit and send directly from the dashboard.
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+An AI-powered executive assistant that reads your Microsoft 365 emails, calendar, and Teams chats via **Microsoft Graph API**, analyzes them with **Azure OpenAI**, and produces a structured daily briefing — prioritized emails, action items with detailed context, contact profiles, relationship network mapping, cross-source intelligence, and draft replies you can edit and send directly from the dashboard.
 
 [中文版](README-CN.md) | English | [Source Code](https://github.com/david-xinyuwei/M365-Morning-Sweep) (private — [request access](https://github.com/david-xinyuwei/david-share/issues))
 

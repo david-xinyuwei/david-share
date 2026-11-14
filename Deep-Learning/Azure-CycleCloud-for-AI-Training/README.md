@@ -1,9 +1,13 @@
 # Azure CycleCloud Deep Dive — Architecture, Slurm Integration, and AI Training Suitability Analysis
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > **Customer**: Insilico Medicine (AI Drug Discovery)
 > **Scenario**: 9× ND H200 v5 (72 GPUs), DeepSpeed distributed training
 > **Last Updated**: 2026-03-11
-> **Author**: Xinyu Wei (Senior System Engineer, Microsoft)
+> **Author**: Xinyu Wei (Microsoft AI Lead Senior System Engineer)
+
+**English** | [中文](README-CN.md)
 
 ---
 

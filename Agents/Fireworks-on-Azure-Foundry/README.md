@@ -1,6 +1,6 @@
 # Fireworks AI on Microsoft Foundry — Deep Research & BYOW Hands-on Validation
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [中文版](README-CN.md) | English
 

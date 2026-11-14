@@ -1,22 +1,12 @@
 # Wake Word Detection: Hard Negative Mining Approach
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 
 A data-centric approach to wake word detection that achieves **100% false positive reduction** using hard negative mining with a simple 3-layer neural network.
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## 🎯 Key Results

@@ -1,11 +1,12 @@
-## 在 Azure NC H100 上运行 Qwen3-Reranker-0.6B —— vLLM 断言与稳定性优化
+# 在 Azure NC H100 上运行 Qwen3-Reranker-0.6B —— vLLM 断言与稳定性优化
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+> **Note:** This article is written mainly in Chinese; an English version is not available yet.
 
 ## Overview
-
-This repository contains implementation and documentation for Qwen Reranker.
-
 
 Qwen3-Reranker-0.6B 虽然是一个体量较小的模型，但在结合 **vLLM** 推理引擎运行，尤其是在高并发、超短生成任务（如单 token 判别）下，可能会触发底层 **C++ 路由模块的断言（assert）**，直接导致服务进程 crash。
 

@@ -1,6 +1,6 @@
 # Qwen3-VL Product Tagging on Azure
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [中文版](README-CN.md) | English
 

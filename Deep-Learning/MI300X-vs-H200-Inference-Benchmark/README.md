@@ -1,6 +1,8 @@
 # MI300X vs H200: LLM Inference Benchmark for Dense and MoE Models
 
-> **Author**: Xinyu Wei (魏新宇)  
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer  
 > **Date**: 2026-04-27  
 > **Purpose**: An objective, data-driven comparison of AMD Instinct MI300X and NVIDIA H200 for LLM inference, with focus on large MoE models and long-context workloads.
 
@@ -328,4 +330,4 @@ This is exactly the scenario for:
 
 ---
 
-*Running on Azure. Author: Xinyu Wei (魏新宇), Microsoft AI GBB.*
+*Running on Azure. Author: Xinyu Wei (魏新宇), Microsoft AI Lead Senior System Engineer.*

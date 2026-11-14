@@ -1,8 +1,12 @@
 # NVIDIA Groq LPU — 架构深度解析：从 TSP 到 Vera Rubin 平台
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > **最后更新**: 2026-04-10
 > **分类**: AI 基础设施 — 芯片架构分析
-> **作者**: 魏新宇 (Xinyu Wei) | Microsoft AI GBB
+> **作者**: 魏新宇 (Xinyu Wei) | Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 ---
 

@@ -1,9 +1,11 @@
+# Prompt Engineering 实践示例
+
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4). It stays here so existing links keep working; check current documentation before reusing the steps.
 
-## 在 Azure 上运行
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+## 在 Azure 上运行
 
 本项目使用 **Azure OpenAI 服务**进行 Prompt Engineering 实践。
 

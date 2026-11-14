@@ -1,6 +1,8 @@
 # Fine-Tuning a Sentence Embeddings Model for Domain-Specific RAG
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 Semantic retrieval is the backbone of modern Retrieval-Augmented Generation (RAG) and search systems. While generic embedding models such as `all-mpnet-base-v2` and `text-embedding-3` are effective for many open-domain tasks, they often fall short when deployed in narrow, domain-specific scenarios. This results in:
 
@@ -10,16 +12,6 @@ Semantic retrieval is the backbone of modern Retrieval-Augmented Generation (RAG
 This repository presents a fully reproducible pipeline for **fine-tuning sentence (bi-encoder) embeddings** on your domain data, using the example of AI job search. We demonstrate how domain adaptation (via contrastive learning) lifts recall and downstream answer accuracy, and provide scripts to quantitatively and qualitatively compare performance—both before and after fine-tuning.
 
 ------
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Why Fine-Tune Embeddings?

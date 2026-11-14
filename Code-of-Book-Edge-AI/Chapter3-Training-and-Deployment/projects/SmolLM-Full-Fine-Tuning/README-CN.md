@@ -2,7 +2,7 @@
 
 # 微调
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 Hugging Face has launched a series of miniatures: the SmolLM, including 135M, 360M and 1.7B parameter versions.
 

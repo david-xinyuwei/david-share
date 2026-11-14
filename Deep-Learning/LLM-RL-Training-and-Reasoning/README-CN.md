@@ -1,6 +1,10 @@
 # LLM 强化学习训练与推理增强
 
-**作者：魏新宇 (Xinyu Wei)**
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+**作者：魏新宇 (Xinyu Wei)** — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 本文是一份 LLM 强化学习训练与推理增强的完整技术指南，涵盖 RL 基础（PPO/GRPO）、奖励函数设计、DeepSeek R1 & DeepSeekMath-V2 训练架构、数学推理 RL、Test-time Compute Scaling、SLM 微调实验，以及 GSPO 等前沿方法。
 
@@ -43,17 +47,17 @@
 
 ---
 
-# I. RL 基础
+## I. RL 基础
 
-# Part 1: 强化学习三种训练模式
+## Part 1: 强化学习三种训练模式
 
-## 强化学习三种模式
+### 强化学习三种模式
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png" width="800">
 
 上面这三种强化学习训练大模型做推理的模式，可以简单理解为“最终只看答案给奖励”到“分步骤给奖励”的逐步演进。它们的主要区别如下：
 
-### 1. 直接强化学习 (Direct RL)
+#### 1. 直接强化学习 (Direct RL)
 
 - 核心思路：
 模型只输出一个答案，奖励模型(Reward Model)仅根据这最终答案是否正确或符合目标来给出奖励。
@@ -62,7 +66,7 @@
 – 实现最简单，但无法直接指导模型中间的推理步骤对不对。
 – 如果中途思路错了，模型只能在最终答案“被扣分”时才知道哪里出了问题，学习速度慢。
 
-### 2. 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
+#### 2. 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
 
 - 核心思路：
 模型在输出答案前，会先“显式地”或“隐式地”写下一系列中间推理步骤(Reasoning steps)，最后依然只看最终答案来给奖励。
@@ -71,7 +75,7 @@
 – 相比直接RL，模型在训练时可以学会更有条理的分步思考，但依旧无法从每一步是否正确获得即时反馈。
 – 如果中间步骤错误，但最终答案凑巧对了或者错了，模型依旧只能在最终才能得到一次奖惩信号。
 
-### 3. 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
+#### 3. 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
 
 - 核心思路：
 模型同样会写下一系列的中间推理步骤，但现在在每个推理步骤上都进行评价。如果该推理步骤正确或对最终答案的正确性有帮助，则给一个正向奖励；如果出错则给负向反馈。最终得到答案后，也会有最终结果的整体奖励。
@@ -80,7 +84,7 @@
 – 可以更细粒度地引导模型，让模型在每次思考时都更容易修正错误，提高推理的可控性和准确度。
 – 实现更复杂，因为需要额外的“过程奖励模型”去判断每一步是否正确或合理。
 
-### 示例：用解简单方程来对比
+#### 示例：用解简单方程来对比
 
 假设我们让模型解一个非常简单的方程：“2x + 3 = 7，求 x”。
 
@@ -105,7 +109,7 @@
    – 如果某一步过程出错(比方说“减去3”后误写成“2x = 5”)，在那一步就能得到负反馈，模型能迅速发现错误并修正。
    – 在训练中，模型更容易学到正确的推理过程，因为每一步都能获得有针对性的指导。
 
-### 总结
+#### 总结
 
 - Direct RL：只关心最终答案，最简单，但难以给中间步骤提供反馈。
 - Multi-Step RL + Outcome RM：显式地把推理拆成多步，但仍只有最后的结果反馈。
@@ -118,11 +122,11 @@
 
 ---
 
-# Part 2: DeepSeek R1 训练范式与技术对比
+## Part 2: DeepSeek R1 训练范式与技术对比
 
-## DeepSeek R1 的训练范式
+### DeepSeek R1 的训练范式
 
-### SFT + RL 四阶段混合范式（DeepSeek-R1）
+#### SFT + RL 四阶段混合范式（DeepSeek-R1）
 
 1. **SFT-1**：少量高质量 CoT，教会格式→保证可读性。
 2. **RL-1**：R1-Zero 风格奖励→逼出长链条、提升正确率。
@@ -136,7 +140,7 @@
 推理：默认 Greedy，可选 Majority-Vote
 ```
 
-## Test-time Compute Scaling 模式
+### Test-time Compute Scaling 模式
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
@@ -172,7 +176,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 - Majority Vote 像考场里你自己想几遍，然后合并这些想法，出现最多的答案就是输出。
 - Tree Search、Beam Search 和 Lookahead 则更像“全盘搜索”，经常在搜索树里做剪枝，逐步找出最优解，能相比多次瞎猜更在“每一步”进行评判，力图深入探索而不盲目。
 
-## 技术对比
+### 技术对比
 
 我们现在讨论的是两种不同的技术（分别用于训练阶段和推理测试阶段）：
 
@@ -186,7 +190,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
   3. **Beam或Tree Search**：通过搜索树构建多条生成路径，并对过程进行剪枝选择最佳路径。
   4. **Look-ahead Search(MCTS类)**：向前“预看”几步后续选择再决定。
 
-### 排列组合一览表 （行是RL训练模式，列是推理阶段模式）
+#### 排列组合一览表 （行是RL训练模式，列是推理阶段模式）
 
 | RL训练模式 ↓ / 推理阶段模式 →                                | 简单采样<br>(Greedy/温度)  | 多数投票<br> (Majority Voting)             | Beam Search/<br>Tree Search               | Look-ahead <br> Search     |
 | ------------------------------------------------------------ | -------------------------- | ------------------------------------------ | ----------------------------------------- | -------------------------- |
@@ -196,7 +200,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ------
 
-### DeepSeek R1 目前公开采用的策略（明确文献表示）：
+#### DeepSeek R1 目前公开采用的策略（明确文献表示）：
 
 - **训练阶段 (RL模式)**：
 
@@ -212,7 +216,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ------
 
-### 如何理解表格
+#### 如何理解表格
 
 - 行（RL训练）代表模型的“先天能力”（通过训练阶段提高）。
 - 列（推理搜索）代表在实际使用模型时“答题/解题策略”（通过推理阶段提升精确度）。
@@ -220,7 +224,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
   - 训练很弱(Direct RL) → 推理更依赖多数投票、搜索补救。
   - 训练很强(Process RM) → 推理阶段仍可额外做简单搜索和投票进一步提升稳健性。
 
-## DS R1的范式
+### DS R1的范式
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png" width="800">
 
@@ -247,7 +251,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
    - 在最后阶段，往往会把体量更加庞大的模型(例如Qwen、Llama等)作为师模型，把它在推理和回答上的能力“蒸馏”出来，迁移到一个规模相对小或更高效的模型(DeepSeek R1 Distill版)。
    - 这样做既能保留很多推理能力，又能降低推理时的算力需求。
 
-## 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
+### 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
 
 *Refer to：https://zhuanlan.zhihu.com/p/25423170224*
 
@@ -255,9 +259,9 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ---
 
-# Part 3: PPO/RLHF 角色详解 —— "剧组" 类比
+## Part 3: PPO/RLHF 角色详解 —— "剧组" 类比
 
-## 🎯 目标
+### 🎯 目标
 
 - 解释：为什么 "基于规则的奖励" 和 "LLM-as-Judge" 在 LLM 数学推理中共存
 - 厘清：RLHF 中 Actor / Reward / Reference / Critic(Value) 各自做什么、哪些被训练、为什么
@@ -266,11 +270,11 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ---
 
-## 🎭 第一章：通过"剧组"类比理解 RL 角色（核心直觉）
+### 🎭 第一章：通过"剧组"类比理解 RL 角色（核心直觉）
 
 在深入论文细节之前，先弄清训练中"谁是谁"——后续所有内容都会更清晰。
 
-### 1.1 PPO/RLHF："四角色"剧组
+#### 1.1 PPO/RLHF："四角色"剧组
 
 | 组件 | 剧组类比 | 一句话职责 | 训练中是否更新参数？ |
 |---|---|---|---|
@@ -279,7 +283,7 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 | **Reference Model** | 📜 原始剧本 | 防止演员为了高分"走形"（KL 约束） | ❌ 冻结 |
 | **Critic / Value Model** | 🎓 陪练教练 | 边陪练边学习"这次表演大概能拿几分" | ✅ 被训练（与 Actor 同步更新） |
 
-### 训练信号如何流动？（PPO 架构图）
+#### 训练信号如何流动？（PPO 架构图）
 
 ```mermaid
 flowchart TB
@@ -293,19 +297,16 @@ flowchart TB
     Critic --> Adv
     Adv --> Update["Policy Gradient Update"]
 ```
+```text
            Advantage A = r - v
-```text
                   │
-```
-```text
                   ├──> Update Actor θ (make high-A behaviors more frequent)
                   └──> Update Critic ψ (make v closer to r)
-```
 ```
 
 **关键点**：Reward Model 和 Critic **并行计算**，都基于生成的 (x, y)，然后联合计算 Advantage。
 
-### 为什么 Critic 必须"一起训练"？
+#### 为什么 Critic 必须"一起训练"？
 
 - 随着 Actor 提升（策略分布变化），奖励分布也随之变化
 - 如果 Critic 不跟着学，它的"分数预测"就会越来越不准
@@ -313,14 +314,14 @@ flowchart TB
 
 > 这就是为什么我把 Critic 比作"陪练教练"：它不是旁观者——必须不断校准自己。
 
-### 1.2 GRPO：去掉"教练"，用"组内对比"作为基线
+#### 1.2 GRPO：去掉"教练"，用"组内对比"作为基线
 
 DeepSeek-R1 和 DeepSeekMath-V2 都强调 **GRPO**。直觉上：
 
 - PPO 需要 Critic 来估计基线
 - GRPO 对同一提示采样一组回答，用**组内相对表现**作为基线，不需要单独训练 Critic
 
-### GRPO 更新直觉（伪代码）
+#### GRPO 更新直觉（伪代码）
 
 ```text
 Given prompt x:
@@ -335,26 +336,24 @@ Given prompt x:
 
 ```text
 Same problem x
-```text
   ├─ y1 → r1
   ├─ y2 → r2
   ├─ y3 → r3
   └─ yK → rK
 
-```
 Group baseline r̄ = mean(r)
 Advantage: Ai = ri - r̄
 ```
 
 ---
 
-# II. GRPO 与奖励设计
+## II. GRPO 与奖励设计
 
-# Part 4: GRPO 方法详解
+## Part 4: GRPO 方法详解
 
-## GRPO 方法详解
+### GRPO 方法详解
 
-### 1. GRPO 核心概念
+#### 1. GRPO 核心概念
 
 GRPO（Generative Relative Policy Optimization，生成式相对策略优化）的主要目标是通过在线、自生成的方式来优化模型的策略，使其无需依赖大量外部数据或人工反馈即可提升性能。其核心概念包括：
 
@@ -362,17 +361,17 @@ GRPO（Generative Relative Policy Optimization，生成式相对策略优化）�
 - **相对优势评估**：通过计算生成样本的相对优势，引导模型向最优方向优化。
 - **策略正则化**：约束新策略与参考策略之间的差异，防止模型偏离原始知识结构。
 
-### 2. GRPO 工作流程
+#### 2. GRPO 工作流程
 
-### Step 1: 样本生成**
+#### Step 1: 样本生成**
 
 对于每个输入（如提示或问题），模型生成多个可能的输出（称为"completions"）。例如给定一个问题，模型可能生成 8 个不同的答案。
 
-### Step 2: 奖励评估**
+#### Step 2: 奖励评估**
 
 对每个生成的输出，定义奖励函数来评估其质量。奖励函数可以根据任务需求设计，例如根据输出的格式、内容准确性等进行打分。
 
-### Step 3: 计算相对优势**
+#### Step 3: 计算相对优势**
 
 对每个生成的输出，使用以下公式计算其相对于同组其他输出的相对优势（Advantage）：
 
@@ -419,7 +418,7 @@ A_4 = (0.7 - 0.625) / 0.148 ≈ 0.507
 
 相对优势反映了每个输出相对于平均水平的表现。正值表示高于平均，负值表示低于平均。
 
-### Step 4: 策略更新**
+#### Step 4: 策略更新**
 
 使用相对优势来更新模型策略。为防止策略偏离过大，引入 KL 散度作为正则化项：
 
@@ -447,21 +446,21 @@ L = - E[ A_i * log π_θ(a_i | x_i) ] + β * D_KL [ π_θ || π_ref ]
 
 - **第二项**：使用 KL 散度限制新策略与参考策略之间的差异，防止模型遗忘先前知识。
 
-### 3. GRPO 的优势
+#### 3. GRPO 的优势
 
-### 减少对外部数据的依赖
+#### 减少对外部数据的依赖
 
 - **自我生成训练数据**：模型通过在线生成样本进行学习，减少对大规模标注数据的需求。
 - **降低人工成本**：无需大量人工反馈或标注，降低训练成本。
 
-### 提升训练效率
+#### 提升训练效率
 
 - **快速收敛**：通过评估相对优势，模型能更高效地识别和学习高质量策略。
 - **策略稳定性**：引入策略正则化防止模型策略剧烈变化，确保训练过程稳定。
 
-### 4. 实践中的关键技术分析
+#### 4. 实践中的关键技术分析
 
-### 相对优势的计算与应用
+#### 相对优势的计算与应用
 
 计算相对优势使模型能在一组生成输出中识别哪些更优，从而集中学习这些高质量输出。
 
@@ -498,11 +497,11 @@ A_C = (0.7 - 0.7) / 0.163 = 0
 
 模型由此知道输出 A 高于平均水平，在策略更新时应赋予更大权重。
 
-### 策略正则化的重要性
+#### 策略正则化的重要性
 
 引入 KL 散度作为正则化项，防止模型在更新过程中偏离原始策略过远，避免过拟合或遗忘先前学到的知识。
 
-### 奖励函数设计
+#### 奖励函数设计
 
 奖励函数的设计对 GRPO 的成功至关重要。良好的奖励函数应满足：
 
@@ -512,7 +511,7 @@ A_C = (0.7 - 0.7) / 0.163 = 0
 
 - **具有区分度**：对高质量和低质量输出提供显著不同的奖励。
 
-### 5. 实践中的挑战与解决方案
+#### 5. 实践中的挑战与解决方案
 
 | 挑战 | 解决方案 |
 |------|---------|
@@ -520,7 +519,7 @@ A_C = (0.7 - 0.7) / 0.163 = 0
 | 模型训练不稳定 | 调整学习率、正则化系数 β 等超参数寻找最优平衡点；增加输入数据多样性 |
 | 资源限制 | 模型量化（8bit/4bit）降低显存使用；使用 LoRA 等参数高效微调技术 |
 
-### 6. 未来展望
+#### 6. 未来展望
 
 GRPO 方法为在有限资源下训练大语言模型提供了新途径。未来研究方向包括：
 
@@ -534,15 +533,15 @@ GRPO 的优势在于减少对昂贵硬件和大量人工标注数据的依赖，
 
 ---
 
-## GSPO vs GRPO — 为 MoE 模型打造的序列级优化
+### GSPO vs GRPO — 为 MoE 模型打造的序列级优化
 
-### 1. 背景
+#### 1. 背景
 
 ---
 
-# Part 5: 奖励函数设计实战
+## Part 5: 奖励函数设计实战
 
-## 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
+### 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
 
 *Refer to：https://zhuanlan.zhihu.com/p/25423170224*
 
@@ -573,7 +572,7 @@ def legal_reward(pred, judge_out, gold_ans):
 | **抗噪正则解析**   | 判分模型输出变异干扰信号 | 奖励计算失败率<0.3%          | `re.search(r"误差[:：]?\s*(\d+)\s*个月")`        |
 | **金标有效性校验** | 无效标注污染训练过程     | 无效样本处理速度提升5倍      | `if "个月" not in gold_ans: return 0`            |
 
-### 训练阶段性能演进（可视化）
+#### 训练阶段性能演进（可视化）
 
 ```
 # 刑期预测能力进阶过程（奖励驱动）
@@ -608,12 +607,12 @@ def legal_reward(pred, judge_out, gold_ans):
    r"误差[:：]?\s*(\d+)\s*个月"
    ```
 
-## 选择 SFT 还是 RL
+### 选择 SFT 还是 RL
 
 在绝大多数情况下，最安全且最高效的流程是 **“先 SFT，后 RL”** —— 尤其是对于容量较小的模型，或需要严格输出格式的任务。
 此原则并非绝对，下列速查可帮助你判断。
 
-### 1. 为什么 “SFT → RL” 通常更好
+#### 1. 为什么 “SFT → RL” 通常更好
 
 1. 训练稳定性
    - 直接做 RL（小模型尤甚）很容易触发 KL 激增、梯度爆炸，甚至整体崩溃。
@@ -624,7 +623,7 @@ def legal_reward(pred, judge_out, gold_ans):
 3. 人工标注成本
    - SFT 可以复制少量高质量标注（或合成标注）；RL 只需奖励信号即可放大效果。二者结合能节省标注工作。
 
-### 2. 何时直上 RL 更合适
+#### 2. 何时直上 RL 更合适
 
 1. 几乎没有标注数据，但奖励可自动计算
    例：解数独、玩 Atari——得分由环境直接给出。
@@ -633,7 +632,7 @@ def legal_reward(pred, judge_out, gold_ans):
 3. 任务鼓励高多样性且没有单一“标准答案”
    例：创意写作、对话风格调优——仅凭偏好得分即可。
 
-### 3. 速查表
+#### 3. 速查表
 
 | 场景                  | 建议策略           | 备注                          |
 | --------------------- | ------------------ | ----------------------------- |
@@ -655,15 +654,15 @@ def legal_reward(pred, judge_out, gold_ans):
 “先 SFT 后 RL” 并非强制，但对大多数标签充足且输出结构化的任务，它是最省心、最稳妥的路径。
 只有在标签稀缺或任务本身可直接计算奖励时，才考虑 “只做 RL”。
 
-## 常见 RL 坑点
+### 常见 RL 坑点
 
 前文提到的 KL 激增、梯度爆炸与模型坍塌详解如下。
 
-## 嵌入式代码的奖励函数设计
+### 嵌入式代码的奖励函数设计
 
-## 🎯 核心问题：代码训练如何验证正确性？
+### 🎯 核心问题：代码训练如何验证正确性？
 
-### 数学题 vs 代码生成
+#### 数学题 vs 代码生成
 
 | 任务类型 | 答案形式 | 验证方式 |
 |---------|---------|---------|
@@ -684,7 +683,7 @@ def legal_reward(pred, judge_out, gold_ans):
 
 ---
 
-## 📊 DeepSeek-R1 的代码训练方案
+### 📊 DeepSeek-R1 的代码训练方案
 
 DeepSeek-R1 论文明确说明了代码训练的方法：
 
@@ -717,7 +716,7 @@ def reward_code(generated_code, test_cases):
     return passed / len(test_cases)  # 0.0 ~ 1.0
 ```
 
-### 关键洞察：**RL 阶段不需要标准答案！**
+#### 关键洞察：**RL 阶段不需要标准答案！**
 
 ```
 传统 SFT 思路：
@@ -731,7 +730,7 @@ R1 的 RL 思路：
 
 ---
 
-## 🔧 嵌入式代码的奖励函数设计
+### 🔧 嵌入式代码的奖励函数设计
 
 | 验证方式 | 适用场景 | 奖励分数 |
 |---------|---------|---------|
@@ -741,7 +740,7 @@ R1 的 RL 思路：
 | **单元测试** | 有测试用例 | +10 × 通过率 |
 | **硬件状态验证** | 嵌入式专用 | +5 (状态正确) |
 
-### 本项目的奖励函数
+#### 本项目的奖励函数
 
 ```python
 # 1. 格式奖励 - 检查必要标记
@@ -767,9 +766,9 @@ def reward_static_analysis(completions):
 
 ---
 
-## 📋 训练流程
+### 📋 训练流程
 
-### 阶段 1：SFT（监督微调）
+#### 阶段 1：SFT（监督微调）
 
 **目的**：教模型代码格式和风格
 
@@ -782,7 +781,7 @@ def reward_static_analysis(completions):
 
 **这里需要示例代码，但只是教模型"怎么写"，不是唯一正确答案。**
 
-### 阶段 2：RL/GRPO（强化学习）
+#### 阶段 2：RL/GRPO（强化学习）
 
 **目的**：用可验证奖励提升代码正确性
 
@@ -793,14 +792,14 @@ def reward_static_analysis(completions):
 
 ---
 
-## 🚀 快速开始
+### 🚀 快速开始
 
-### 环境要求
+#### 环境要求
 
 - GPU: H100 / A100 (推荐 80GB 显存)
 - 工具链: `arm-none-eabi-gcc`, `clang`, `cppcheck`
 
-### 安装依赖
+#### 安装依赖
 
 ```bash
 # 系统依赖
@@ -810,7 +809,7 @@ apt-get install -y clang cppcheck gcc-arm-none-eabi
 pip install unsloth trl transformers datasets accelerate peft vllm
 ```
 
-### 运行训练
+#### 运行训练
 
 ```bash
 # 快速测试（5 步 GRPO）
@@ -829,7 +828,7 @@ pip install unsloth trl transformers datasets accelerate peft vllm
 ./run_train.sh full_compile
 ```
 
-### 推理测试
+#### 推理测试
 
 ```bash
 python embedded_infer.py \
@@ -839,24 +838,22 @@ python embedded_infer.py \
 
 ---
 
-## 📁 项目结构
+### 📁 项目结构
 
 ```
 embedded_sft_rl/
-```text
 ├── embedded_grpo_train.py   # 主训练脚本
 ├── embedded_infer.py        # 推理脚本
 ├── run_train.sh             # 训练启动脚本
 ├── requirements.txt         # Python 依赖
 └── README.md                # 本文档
 ```
-```
 
 ---
 
-## 📊 训练效果
+### 📊 训练效果
 
-### 测试环境
+#### 测试环境
 
 | 配置 | 规格 |
 |------|------|
@@ -865,7 +862,7 @@ embedded_sft_rl/
 | 训练框架 | Unsloth + TRL (GRPOTrainer) |
 | 总训练时间 | ~6 分钟 |
 
-### SFT 阶段
+#### SFT 阶段
 
 | Epoch | Loss | 下降幅度 |
 |-------|------|----------|
@@ -877,7 +874,7 @@ embedded_sft_rl/
 
 **SFT 耗时**: 44 秒
 
-### GRPO 阶段
+#### GRPO 阶段
 
 | Step | Total Reward | Format | Syntax | 说明 |
 |------|--------------|--------|--------|------|
@@ -889,7 +886,7 @@ embedded_sft_rl/
 
 **GRPO 耗时**: 333 秒 (50 steps)
 
-### 关键指标
+#### 关键指标
 
 | 指标 | 初始值 | 最终值 | 变化 |
 |------|--------|--------|------|
@@ -897,7 +894,7 @@ embedded_sft_rl/
 | Total Reward | 1.75 | 3.88 | ↑122% |
 | KL Divergence | - | 0.39 | 正常范围 |
 
-### 推理验证
+#### 推理验证
 
 ```
 任务: Initialize GPIO PA5 as output for LED control
@@ -918,9 +915,9 @@ void GPIO_Init(void) {
 
 ---
 
-## ⚠️ 踩坑记录
+### ⚠️ 踩坑记录
 
-### 问题 1: `stm32f4xx_hal.h` 找不到
+#### 问题 1: `stm32f4xx_hal.h` 找不到
 
 **症状**:
 ```
@@ -939,7 +936,7 @@ typedef struct { uint32_t Pin; uint32_t Mode; ... } GPIO_InitTypeDef;
 void HAL_GPIO_Init(void* port, GPIO_InitTypeDef* init);
 ```
 
-### 问题 2: `GPIO_PIN_RESET` 未定义
+#### 问题 2: `GPIO_PIN_RESET` 未定义
 
 **症状**:
 ```
@@ -955,7 +952,7 @@ error: use of undeclared identifier 'GPIO_PIN_RESET'
 #define GPIO_PIN_SET 1
 ```
 
-### 问题 3: 生成代码缺少 `#include`
+#### 问题 3: 生成代码缺少 `#include`
 
 **症状**: 模型有时生成的代码不包含头文件引用，导致语法检查失败。
 
@@ -968,7 +965,7 @@ full_code = STM32_STUB_HEADERS + "\n" + extracted_code
 
 ---
 
-## 🎯 客户场景实操建议
+### 🎯 客户场景实操建议
 
 ```
 Step 1: 收集客户的代码库
@@ -982,7 +979,7 @@ Step 4: SFT 教模型格式和风格
 Step 5: RL 用测试通过率作为奖励，提升功能正确性
 ```
 
-### 嵌入式代码测试用例格式
+#### 嵌入式代码测试用例格式
 
 ```json
 {
@@ -1000,7 +997,7 @@ Step 5: RL 用测试通过率作为奖励，提升功能正确性
 }
 ```
 
-### 使用 QEMU 模拟验证（高级）
+#### 使用 QEMU 模拟验证（高级）
 
 ```python
 def reward_hardware_state(code, expected_state):
@@ -1017,7 +1014,7 @@ def reward_hardware_state(code, expected_state):
 
 ---
 
-## ⚠️ 常见问题
+### ⚠️ 常见问题
 
 1. **开放式任务**：对于难以定义测试用例的任务，可以使用 LLM-as-Judge 作为奖励
 2. **长代码处理**：拆分成小函数，每个函数单独测试
@@ -1025,7 +1022,7 @@ def reward_hardware_state(code, expected_state):
 
 ---
 
-## 📚 参考资料
+### 📚 参考资料
 
 - [DeepSeek-R1 论文](https://arxiv.org/abs/2401.02954) - Rule-based rewards for code
 - [TRL GRPO Trainer](https://huggingface.co/docs/trl/main/grpo_trainer) - GRPO 训练框架
@@ -1033,17 +1030,17 @@ def reward_hardware_state(code, expected_state):
 
 ---
 
-## 📝 License
+### 📝 License
 
 ---
 
-# III. 进阶训练架构
+## III. 进阶训练架构
 
-# Part 6: DeepSeekMath-V2 自验证证明训练架构
+## Part 6: DeepSeekMath-V2 自验证证明训练架构
 
-## 🧠 第二章：两种数学任务决定两种奖励
+### 🧠 第二章：两种数学任务决定两种奖励
 
-### 2.1 "填空题" vs "证明题"
+#### 2.1 "填空题" vs "证明题"
 
 | 任务类型 | 典型竞赛 | 输出 | 验证难度 | 适合的奖励 |
 |---|---|---|---|---|
@@ -1060,11 +1057,11 @@ def reward_hardware_state(code, expected_state):
 
 ---
 
-## 🔧 第三章：DeepSeek-R1——"可验证奖励"如何提升推理能力
+### 🔧 第三章：DeepSeek-R1——"可验证奖励"如何提升推理能力
 
 > 要点：R1 大量使用**基于规则的奖励**（可验证）来处理数学/代码任务，仅在通用任务中引入更主观的模型评分。
 
-### 3.1 R1 的"规则奖励"长什么样？
+#### 3.1 R1 的"规则奖励"长什么样？
 
 ```python
 def rule_reward(answer, ground_truth):
@@ -1076,25 +1073,25 @@ def rule_reward(answer, ground_truth):
     return 1.0 if extract_boxed(answer) == ground_truth else 0.0
 ```
 
-### 3.2 基于规则奖励的工程优势
+#### 3.2 基于规则奖励的工程优势
 
 - **可靠**：几乎没有噪声
 - **低成本**：不需要调用额外的 LLM
 - **可扩展**：可以大规模 rollout
 - **防奖励黑客**：目标对齐清晰
 
-### 3.3 但它的天花板也很明显
+#### 3.3 但它的天花板也很明显
 
 - 最终答案正确 ≠ 推理正确
 - 完全不适用于证明题（没有"唯一可判定"的标准答案）
 
 ---
 
-## 🔬 第四章：DeepSeekMath-V2——"自验证证明"训练架构（含 Meta-Verification）
+### 🔬 第四章：DeepSeekMath-V2——"自验证证明"训练架构（含 Meta-Verification）
 
 本节内容来自 DeepSeekMath-V2 论文（已与本地 `DeepSeekMath_V2.pdf` 核对）。
 
-### 4.1 Verifier：先训练"评审"来找问题并打分
+#### 4.1 Verifier：先训练"评审"来找问题并打分
 
 Verifier 的目标（论文第 2.1.1 节）：给定问题 X 和证明 Y，输出分析 + 分数 s ∈ {0, 0.5, 1}。
 
@@ -1107,7 +1104,7 @@ Verifier 的目标（论文第 2.1.1 节）：给定问题 X 和证明 Y，输�
 - R_format：检查输出是否包含必需的"评价 + boxed 分数"
 - R_score(s', s) = 1 - |s' - s|：预测分数与专家标注分数的距离
 
-### 4.2 Meta-Verifier：专防"评审编造问题"
+#### 4.2 Meta-Verifier：专防"评审编造问题"
 
 论文第 2.1.2 节的关键洞察：
 
@@ -1125,11 +1122,10 @@ R_V = R_format · R_score · R_meta
 
 **效果**：验证分析质量分从 **0.85 提升到 0.96**，同时保持分数预测准确率。
 
-#### 双层验证架构（证明 → Verifier → Meta-Verifier）
+##### 双层验证架构（证明 → Verifier → Meta-Verifier）
 
 ```text
 Problem X + Proof Y
-```text
         │
         ▼
 ┌───────────────────────┐
@@ -1147,7 +1143,6 @@ Problem X + Proof Y
 │ - Output quality score ms∈{0,0.5,1}│
 └───────────┬───────────┘
             ▼
-```
 ```
 Trustworthy review for training/filtering
 ```
@@ -1203,7 +1198,7 @@ Reward R = α·(proof score) + β·(self-review fidelity)
 
 > **在最后两轮训练迭代中，全自动流水线完全取代了人工标注。**
 
-### 4.5 推理阶段：单一模型，巨大计算开销
+#### 4.5 推理阶段：单一模型，巨大计算开销
 
 **关键发现**：论文明确指出——
 
@@ -1211,7 +1206,6 @@ Reward R = α·(proof score) + β·(self-review fidelity)
 
 **Not two model weights—one model switching roles via prompts!**
 
-```text
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │              Inference: Single Model + Prompt Role Switching         │
@@ -1224,8 +1218,6 @@ Reward R = α·(proof score) + β·(self-review fidelity)
 │      └── Prompt B (Verification) ─► Verify others' proofs (majority voting)│
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
-```
-```
 ```
 
 **但代价是什么？看论文的推理配置：**
@@ -1256,9 +1248,9 @@ Reward R = α·(proof score) + β·(self-review fidelity)
 
 ---
 
-## 📝 第五章：核心 Prompt 模板（论文精华）
+### 📝 第五章：核心 Prompt 模板（论文精华）
 
-### 5.1 证明生成 Prompt（完整版）
+#### 5.1 证明生成 Prompt（完整版）
 
 该 Prompt 使模型能够**生成证明 + 自评**，是实现"自验证"的关键：
 
@@ -1345,7 +1337,7 @@ Here is your task input:
 - Emphasizes honesty: "The worst final response would provide a wrong solution but lie..."
 - Anti-cheating deterrent: "Remember! You CAN'T cheat! If you cheat, we will know, and you will be penalized!"
 
-### 5.2 Proof Verification Prompt (Complete Version)
+#### 5.2 Proof Verification Prompt (Complete Version)
 
 ```text
 ## Instruction
@@ -1381,7 +1373,7 @@ Here is your task input:
 {proof}
 ```
 
-### 5.3 Meta-Verification Prompt (Complete Version)
+#### 5.3 Meta-Verification Prompt (Complete Version)
 
 ```text
 You are given a "problem", "solution", and "solution evaluation",
@@ -1414,15 +1406,15 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## 📊 Chapter 6: Experimental Results
+### 📊 Chapter 6: Experimental Results
 
-### 6.1 Proof Capability Comparison by Category
+#### 6.1 Proof Capability Comparison by Category
 
 ![Figure 1: CNML-Level Scores by Category](images/figure1-cnml-scores.png)
 
 *DeepSeekMath-V2 outperforms GPT-5-Thinking-High and Gemini 2.5 Pro across all five categories: algebra, geometry, number theory, combinatorics, and inequality.*
 
-### 6.2 Iterative Improvement Effects & ProofBench Results
+#### 6.2 Iterative Improvement Effects & ProofBench Results
 
 ![Figure 2-3: Iterative Improvement and ProofBench](images/figure2-3-refinement-proofbench.png)
 
@@ -1431,7 +1423,7 @@ itself is actually accurate, you should still consider its analysis reasonable.
 - Best@32 (best selected by self-evaluation) is much higher than average, showing the model can accurately distinguish proof quality
 - Outperforms DeepMind's DeepThink (IMO Gold) on IMO-ProofBench Basic set
 
-### 6.3 Competition Results
+#### 6.3 Competition Results
 
 | Competition | Fully Solved | Score Rate |
 |---|---|---|
@@ -1441,9 +1433,9 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## 📐 Chapter 7: Comparison and Selection Recommendations
+### 📐 Chapter 7: Comparison and Selection Recommendations
 
-### 7.1 When to Use Rule Rewards? When to Train a Verifier?
+#### 7.1 When to Use Rule Rewards? When to Train a Verifier?
 
 | Scenario | Recommendation | Reason |
 |---|---|---|
@@ -1452,7 +1444,7 @@ itself is actually accurate, you should still consider its analysis reasonable.
 | Worried about verifier hallucination/fabrication | Add meta-verification | Improve "review text" trustworthiness |
 | Need model to iteratively improve its own output | Train self-verification | Let model "know" its reward function |
 
-### 7.2 DeepSeek-R1 vs DeepSeekMath-V2 Summary
+#### 7.2 DeepSeek-R1 vs DeepSeekMath-V2 Summary
 
 | Dimension | DeepSeek-R1 | DeepSeekMath-V2 |
 |---|---|---|
@@ -1464,7 +1456,7 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## ⚠️ Limitations
+### ⚠️ Limitations
 
 - **Training code and data not open-sourced**: Paper describes reproducible "approach", but hard to reproduce "equivalent results"
 - **Proof verifier evaluation is still probabilistic**: Needs multi-sample/voting/review strategies to reduce misjudgment
@@ -1472,9 +1464,9 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## 📚 References
+### 📚 References
 
-1. **DeepSeekMath-V2**: Shao et al., "Towards Self-Verifiable Mathematical Reasoning", 2025. [[PDF](DeepSeekMath_V2.pdf)] [[GitHub](https://github.com/deepseek-ai/DeepSeek-Math-V2)]
+1. **DeepSeekMath-V2**: Shao et al., "Towards Self-Verifiable Mathematical Reasoning", 2025. [[PDF](https://github.com/deepseek-ai/DeepSeek-Math-V2/blob/main/DeepSeekMath_V2.pdf)] [[GitHub](https://github.com/deepseek-ai/DeepSeek-Math-V2)]
 2. **DeepSeek-R1**: Guo et al., *Nature*, 2025. [[DOI](https://doi.org/10.1038/s41586-025-09422-z)]
 3. **GRPO**: Shao et al., "DeepSeekMath", 2024. [[arXiv](https://arxiv.org/abs/2402.03300)]
 
@@ -1484,11 +1476,11 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## 🔄 第八章：三种 RL 训练方法对比
+### 🔄 第八章：三种 RL 训练方法对比
 
 除了 DeepSeekMath-V2 论文的方法，还有两种主流工程方案：**Agent Lightning**（本地训练）和 **Azure RFT**（云端托管）。
 
-### 8.1 三种方法全面对比
+#### 8.1 三种方法全面对比
 
 | 维度 | DeepSeekMath-V2（论文） | Agent Lightning（本地） | Azure RFT（云端） |
 |-----------|-------------------------|------------------------|-------------------|
@@ -1502,11 +1494,11 @@ itself is actually accurate, you should still consider its analysis reasonable.
 | **开源** | Paper public, code not released | Fully open source | Managed service |
 | **适用场景** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
 
-### 8.2 奖励函数设计对比
+#### 8.2 奖励函数设计对比
 
 三种方法都需要定义什么是好答案，但实现方式不同：
 
-#### DeepSeekMath-V2: Three-Layer Verification Reward
+##### DeepSeekMath-V2: Three-Layer Verification Reward
 
 ```mermaid
 flowchart TB
@@ -1514,9 +1506,8 @@ flowchart TB
     V -->|"Worth reviewing when s is low"| MV["Meta-Verifier πη<br/>Audit if review is real<br/>Quality score ms ∈ {0, 0.5, 1}"]
     MV --> Output["Trustworthy review<br/>for training/filtering"]
 ```
-```
 
-#### Agent Lightning: Composite Rule-Based Reward
+##### Agent Lightning: Composite Rule-Based Reward
 
 ```python
 def compute_reward(response, ground_truth):
@@ -1539,7 +1530,7 @@ def compute_reward(response, ground_truth):
 # Key: Simple rules, no trained judge, only checks final answer + format
 ```
 
-#### Azure RFT: Grader Composition
+##### Azure RFT: Grader Composition
 
 ```python
 # Multigrader example: combining multiple scoring methods
@@ -1568,7 +1559,7 @@ def compute_reward(response, ground_truth):
 # Key: Flexible composition, supports LLM-as-Judge, managed execution
 ```
 
-### 8.3 核心差异：自验证 vs 外部奖励
+#### 8.3 核心差异：自验证 vs 外部奖励
 
 | 特性 | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
 |---------|-----------------|----------------------------|
@@ -1586,29 +1577,28 @@ DeepSeekMath-V2's "self-verification" means **teaching the model verification ab
 
 Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't know "why this answer is good", only that "this answer got a high score".
 
-### 8.4 训练复杂度对比
+#### 8.4 训练复杂度对比
+
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
-```text
 ─────────────────────────────────────────────────────
-```
-```
 Stage 1: Train Verifier (needs human-labeled proof quality)
    │
+```
 
 ---
 
-# IV. 实操训练
+## IV. 实操训练
 
-# Part 7: SFT + GRPO 实操（代码与训练日志）
+## Part 7: SFT + GRPO 实操（代码与训练日志）
 
-## 选择 SFT 还是 RL
+### 选择 SFT 还是 RL
 
 在绝大多数情况下，最安全且最高效的流程是 **“先 SFT，后 RL”** —— 尤其是对于容量较小的模型，或需要严格输出格式的任务。
 此原则并非绝对，下列速查可帮助你判断。
 
-### 1. 为什么 “SFT → RL” 通常更好
+#### 1. 为什么 “SFT → RL” 通常更好
 
 1. 训练稳定性
    - 直接做 RL（小模型尤甚）很容易触发 KL 激增、梯度爆炸，甚至整体崩溃。
@@ -1619,7 +1609,7 @@ Stage 1: Train Verifier (needs human-labeled proof quality)
 3. 人工标注成本
    - SFT 可以复制少量高质量标注（或合成标注）；RL 只需奖励信号即可放大效果。二者结合能节省标注工作。
 
-### 2. 何时直上 RL 更合适
+#### 2. 何时直上 RL 更合适
 
 1. 几乎没有标注数据，但奖励可自动计算
    例：解数独、玩 Atari——得分由环境直接给出。
@@ -1628,7 +1618,7 @@ Stage 1: Train Verifier (needs human-labeled proof quality)
 3. 任务鼓励高多样性且没有单一“标准答案”
    例：创意写作、对话风格调优——仅凭偏好得分即可。
 
-### 3. 速查表
+#### 3. 速查表
 
 | 场景                  | 建议策略           | 备注                          |
 | --------------------- | ------------------ | ----------------------------- |
@@ -1650,7 +1640,7 @@ Stage 1: Train Verifier (needs human-labeled proof quality)
 “先 SFT 后 RL” 并非强制，但对大多数标签充足且输出结构化的任务，它是最省心、最稳妥的路径。
 只有在标签稀缺或任务本身可直接计算奖励时，才考虑 “只做 RL”。
 
-## 常见 RL 坑点
+### 常见 RL 坑点
 
 前文提到的 KL 激增、梯度爆炸与模型坍塌详解如下。
 
@@ -1670,7 +1660,7 @@ Stage 1: Train Verifier (needs human-labeled proof quality)
    模型坍塌（单一且低质输出）
 ```
 
-### ① KL 激增
+#### ① KL 激增
 
 KL divergence（Kullback–Leibler Divergence）度量两分布距离——此处为参考模型与策略模型。
 
@@ -1703,7 +1693,7 @@ TotalLoss = -reward + β × KL
 
 调大 β（如 0.01 → 0.1）限制策略跳跃。
 
-### ② 梯度爆炸
+#### ② 梯度爆炸
 
 常见原因
 - 学习率过高（1e-2 而不是 1e-5）
@@ -1713,7 +1703,7 @@ TotalLoss = -reward + β × KL
 
 结果：梯度范数 → ∞ 或 NaN；loss → ∞/NaN。
 
-### ③ 模型坍塌
+#### ③ 模型坍塌
 
 含义
 - 参数过度优化到单一或少数模式（mode collapse）。
@@ -1726,12 +1716,12 @@ TotalLoss = -reward + β × KL
 
 主要原因：奖励过简单、KL 问题长期未解、梯度反复爆炸、数据质量差等。
 
-## TRL 中的 GRPO
+### TRL 中的 GRPO
 
 `GRPOTrainer` 已集成在 TRL：
 https://huggingface.co/docs/trl/main/grpo_trainer
 
-### 什么是 “Group Advantage”？
+#### 什么是 “Group Advantage”？
 
 “Group Advantage” 只是一个 **后处理步骤**：在组内对 *已有* 奖励做中心化 / 裁剪，降低梯度方差。
 你仍需一个真正的 **奖励来源**：
@@ -1746,21 +1736,19 @@ https://huggingface.co/docs/trl/main/grpo_trainer
 流程：
 
 ```
-```text
 生成 N 个候选 ─→ 评分 ─→ 组内均值 ─→ Advantage
 ```
-```
 
-## Example
+### Example
 
 - 你让模型回答一次，它生成四个候选答案。
 - 你给分：80、60、90、70。
 - 平均值 = 75 → 这是 *baseline*。
 - 对每个答案算 (score – mean)；正的强化，负的抑制。
 
-## 用 TRL 训练 Qwen（SFT + GRPO）
+### 用 TRL 训练 Qwen（SFT + GRPO）
 
-### SFT 阶段
+#### SFT 阶段
 
 数据集
 - HF Hub: `unsloth/OpenMathReasoning-mini`
@@ -1786,7 +1774,7 @@ assistant : <start_working_out>{thoughts}<end_working_out>
 `thoughts` = `generated_solution` 去掉 `<think>` 标签。
 训练目标 = 常规 causal-LM loss（此阶段无奖励）。
 
-### GRPO 阶段
+#### GRPO 阶段
 
 数据集
 - HF Hub: `open-r1/DAPO-Math-17k-Processed`
@@ -1815,7 +1803,7 @@ stop        = ["</SOLUTION>", tok.eos_token]
 num_generations = 4
 ```
 
-#### 奖励函数
+##### 奖励函数
 
 `reward_format_exact`（格式奖励）
 
@@ -1847,9 +1835,9 @@ num_generations = 4
 | 中期 (200–800)  | 标签学会，仍偏负 | **出现 +4，奖励升高**     |
 | 后期 (>1000)    | 少量 +8，多为负  | **奖励保持 ≥0，轻松超 2** |
 
-## Code Example
+### Code Example
 
-### Environment Setup
+#### Environment Setup
 
 ```
 python3 -m venv grpo-env
@@ -2222,7 +2210,7 @@ Run code:
 python qwen3_grpo_train3.py --do_sft --sft_epochs 2 --sft_sample_frac 0.3        --grpo_steps 1500 --print_every 1 --debug_every 1
 ```
 
-### Training log
+#### Training log
 
 SFT part:
 
@@ -2259,14 +2247,14 @@ Unsloth: Will smartly offload gradients to save VRAM!
 {'loss': 4.0856, 'grad_norm': 4.682467937469482, 'learning_rate': 5.928853754940711e-07, 'epoch': 0.99}
 ```
 
-### SFT Log Analysis
+#### SFT Log Analysis
 
 Start ≈ 5.05 → End ≈ 4.03
 - 单位：token 级交叉熵（log loss）
 - 换算为困惑度：exp(5.05)=156 → exp(4.03)=56，约下降 64%
 - 仅用 280 个训练步、2.2k 条样本，而且 LoRA 只更新 0.8% 的参数，这样的 loss 下降属于“正常”范围。
 
-### GRPO Section
+#### GRPO Section
 
 对同一个提示，模型生成了四个候选答案，随后我们计算了它们的组优势得分。
 
@@ -2419,7 +2407,7 @@ Parsed answer: 19
 
 The answer is correct and the <SOLUTION> tag is present.
 
-##### **Notes: How to Read Training Metrics**
+###### **Notes: How to Read Training Metrics**
 
 SFTTrainer 日志字段
 
@@ -2462,7 +2450,7 @@ GRPOTrainer-specific fields
 
 ---
 
-## Embedded C++ Code Generation: SFT + GRPO
+### Embedded C++ Code Generation: SFT + GRPO
 
 > *Scripts: `scripts/embedded_grpo_train.py`, `scripts/embedded_infer.py`, `scripts/run_train.sh`*
 
@@ -2472,13 +2460,13 @@ GRPOTrainer-specific fields
 
 ---
 
-# Part 8: Phi-4 GRPO 训练代码
+## Part 8: Phi-4 GRPO 训练代码
 
-## 📖 附录：SFT 调参最佳实践
+### 📖 附录：SFT 调参最佳实践
 
 > 本节总结了通过 **7 轮参数优化** 将模型准确率从 0% 提升到 100% 的经验。
 
-### 常见问题诊断
+#### 常见问题诊断
 
 | 症状 | 原因 | 解决方案 |
 |------|------|----------|
@@ -2487,7 +2475,7 @@ GRPOTrainer-specific fields
 | 训练正常但答案错误 | 模型没学到知识 | 添加 CoT、改用英文语料 |
 | 同一问题答案不一致 | 采样随机性 | 推理时设 `temperature=0` |
 
-### 7 轮调参经验
+#### 7 轮调参经验
 
 | 轮次 | 调整内容 | 效果 |
 |------|----------|------|
@@ -2499,7 +2487,7 @@ GRPOTrainer-specific fields
 | 6 | LoRA → **Full Fine-tuning** | ⚠️ 大幅提升，但答案不稳定 |
 | 7 | `learning_rate=5e-4`, 推理 `temperature=0` | ✅ 100% 准确率 |
 
-### 关键参数设置
+#### 关键参数设置
 
 ```python
 # 训练参数
@@ -2522,7 +2510,7 @@ output = model.generate(
 )
 ```
 
-### 数据增强技巧
+#### 数据增强技巧
 
 为单条知识生成多条训练数据：
 
@@ -2533,7 +2521,7 @@ output = model.generate(
 | **随机删除** | 删除非关键词 | "请初始化一个 GPIO 引脚" → "初始化 GPIO 引脚" |
 | **回译** | 中→英→中 | "初始化串口" → "Initialize serial" → "初始化串行端口" |
 
-### CoT (Chain of Thought) 示例
+#### CoT (Chain of Thought) 示例
 
 ```
 Prompt: How to initialize UART for .NET Framework?
@@ -2552,7 +2540,7 @@ void UART_Init() {
 }
 ```
 
-### 核心教训
+#### 核心教训
 
 1. **数据量 > 参数调优**：从 30 条扩到 3000 条是关键转折点
 2. **CoT 对代码生成有效**：让模型先分析再写代码
@@ -2561,12 +2549,12 @@ void UART_Init() {
 
 ---
 
-## GRPO Phi-4 实战训练 (Unsloth)
+### GRPO Phi-4 实战训练 (Unsloth)
 
 ***Please click below pictures to see my demo video on Youtube about GRPO of Microsoft/phi-4:***
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/WXjJdsV2cbU)
 
-## Phi-4 GRPO 训练代码
+### Phi-4 GRPO 训练代码
 
 ```
 from unsloth import FastLanguageModel, PatchFastRL
@@ -2864,9 +2852,9 @@ No no no, this is my real answer: The exact number of pandas in China is determi
 
 ---
 
-# Part 9: GSPO — Dense 模型 vs MoE 模型的 RL 训练
+## Part 9: GSPO — Dense 模型 vs MoE 模型的 RL 训练
 
-## 1. 背景
+### 1. 背景
 
 在大语言模型（LLM）的训练后期，强化学习（RLHF / RLAIF）起到至关重要的作用。
 常用的 RL 优化方法 PPO（Proximal Policy Optimization）在工业界存在多种改进版本，其中 **GRPO（Group Relative Policy Optimization）** 是 DeepSeek 等团队推行的工程化方案。
@@ -2883,9 +2871,9 @@ Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
 ✅ 改进点：从 **token-level** 转为 **sequence-level** 优化
 ✅ 目标：减少 MoE 路由带来的训练不稳定性，提升效率与可扩展性
 
-## 2. Dense 模型 vs MoE 模型
+### 2. Dense 模型 vs MoE 模型
 
-### Dense 模型
+#### Dense 模型
 
 - 每次前向计算都用全量参数
 - 训练信号稳定
@@ -2894,7 +2882,7 @@ Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_dense_model.png)
 
-### MoE 模型
+#### MoE 模型
 
 - 部分层替换为多个"专家网络"（Experts）
 - 每个 token 仅激活少数专家
@@ -2911,7 +2899,7 @@ Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
 | Dense    | 100%       | 无       | 高     |
 | MoE      | 部分       | 有       | 低     |
 
-## 3. GRPO 与 GSPO 核心差异
+### 3. GRPO 与 GSPO 核心差异
 
 | 类别           | GRPO                | GSPO             |
 | -------------- | ------------------- | ---------------- |
@@ -2925,9 +2913,9 @@ Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_comparison.png)
 
-## 4. GSPO 原理
+### 4. GSPO 原理
 
-### Importance Ratio（重要性比）
+#### Importance Ratio（重要性比）
 
 ```
 ratio = P_cur / P_ref
@@ -2938,14 +2926,14 @@ ratio = P_cur / P_ref
 - GRPO：逐 token 比例
 - GSPO：整段序列比例
 
-### Clipping（剪切）
+#### Clipping（剪切）
 
 - 限制 ratio 在 [1-ε, 1+ε]
 - 防止一次更新过大导致不稳定
 - GRPO：token 级 clip
 - GSPO：序列级 clip
 
-## 5. "Hello world" 计算示例
+### 5. "Hello world" 计算示例
 
 假设：
 
@@ -2973,11 +2961,11 @@ ratio_seq = 3.75 → clip=1.2
 整句一次更新
 ```
 
-## 6. 实验结果（Qwen 团队）
+### 6. 实验结果（Qwen 团队）
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_experiment_results.png)
 
-### MoE 模型：
+#### MoE 模型：
 
 - GSPO 收敛更快
 - 奖励优化更高
@@ -2985,11 +2973,11 @@ ratio_seq = 3.75 → clip=1.2
 - Clip 比例更高也能稳定训练
 - 长序列和算力扩展时性能平稳提升
 
-### Dense 模型：
+#### Dense 模型：
 
 - 无明显提升
 
-## 7. 训练时使用的模型结构
+### 7. 训练时使用的模型结构
 
 无论 GRPO 还是 GSPO，都至少需要：
 
@@ -3004,7 +2992,7 @@ ratio_seq = 3.75 → clip=1.2
 - 固定不更新，或定期更新
 - 不能直接用当前策略的即时参数作参考（ratio 永远=1 无意义）
 
-## 8. 适用场景
+### 8. 适用场景
 
 **适合：**
 
@@ -3018,7 +3006,7 @@ ratio_seq = 3.75 → clip=1.2
 - 奖励信号噪声高、分辨率低的任务
 - 对单 token 精度极高的场景（token优化粒度更粗）
 
-## 9. 优缺点总结
+### 9. 优缺点总结
 
 **优势**：
 
@@ -3034,7 +3022,7 @@ ratio_seq = 3.75 → clip=1.2
 - 对奖励函数依赖高
 - Token 级可解释性下降
 
-## 10. 常见误区
+### 10. 常见误区
 
 - **GSPO 是推理算法？** ❌
   → 只在训练时使用，推理不执行 ratio/clip 逻辑
@@ -3043,7 +3031,7 @@ ratio_seq = 3.75 → clip=1.2
 - **GSPO 推理直接计算整句概率？** ❌
   → 推理依然是逐 token（或并行批量）生成
 
-## 11. Hugging Face TRL 接入
+### 11. Hugging Face TRL 接入
 
 ```
 SFTConfig(
@@ -3054,7 +3042,7 @@ SFTConfig(
 - 需要 `TRL >= 0.20`
 - Unsloth 截至 2025-07-30 仅支持 `TRL 0.19.1`
 
-## 12. 总结
+### 12. 总结
 
 - **GRPO**：token-level 优化信号，适用于 Dense & MoE，但在 MoE 稳定性差
 - **GSPO**：sequence-level 优化信号，显著优化 MoE 稳定性与效率
@@ -3066,9 +3054,9 @@ SFTConfig(
 
 ---
 
-# V. 推理阶段扩展
+## V. 推理阶段扩展
 
-# Part 10: Test-time Compute Scaling — SLM 如何击败大模型
+## Part 10: Test-time Compute Scaling — SLM 如何击败大模型
 
 欢迎关注我的repo：
 
@@ -3120,7 +3108,7 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
 | **适用场景**   | - 需要快速生成单一答案的简单任务。 - 对结果质量要求不高的情况。 | - 需要在质量和计算成本之间平衡的任务。 - 适用于一般复杂度的任务。 | - 复杂或需要深入推理的任务。 - 有较大计算预算，可用于提升性能。 | - 希望提高答案稳定性和一致性的任务。 - 需要减少随机性影响的情况下。 |
 | **计算复杂度** | 低。                                                         | 中等（取决于束宽度）。                                       | 高（由于使用了验证器和更多的搜索路径）。                     | 中等到高（取决于生成的答案数量）。                           |
 
-### 1. 贪婪解码（Greedy Decoding）
+#### 1. 贪婪解码（Greedy Decoding）
 
  
 **怎么工作：**
@@ -3138,7 +3126,7 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
   - **局部最优**：只关注当前步骤的最优选择，可能错过全局更优的解决方案。
   - **缺乏多样性**：生成的序列缺少变化，可能导致重复或不自然的输出。
 
-### 2. 束搜索（Beam Search）
+#### 2. 束搜索（Beam Search）
 
  
 **怎么工作：**
@@ -3162,7 +3150,7 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
   - **计算量增加**：束宽度越大，计算成本越高。
   - **可能仍受限于束宽度**：无法保证找到全局最优解。
 
-### 3. 多样化验证器树搜索（DVTS）
+#### 3. 多样化验证器树搜索（DVTS）
 
  
 **怎么工作：**
@@ -3190,7 +3178,7 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
 
  
 
-### 4. 多数投票（Majority Voting）
+#### 4. 多数投票（Majority Voting）
 
  
 **怎么工作：**
@@ -3215,7 +3203,7 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
   - **计算成本增加**：需要多次生成答案，增加了计算开销。
   - **多样性可能不足**：如果生成的答案过于多样，可能没有明确的多数答案。
 
-## Running on Azure
+### Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
 
@@ -3225,11 +3213,11 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **GPU** | NVIDIA H100 80GB |
 | **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
 
-## 它们之间的区别与联系
+### 它们之间的区别与联系
 
  
 
-### 搜索空间的大小
+#### 搜索空间的大小
 
  
 
@@ -3242,7 +3230,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **多数投票**：
   - **扩展搜索空间**：通过多次独立生成，获得不同的候选答案，但每次生成仍是一条路径。
 
-### 多样性
+#### 多样性
 
  
 
@@ -3255,7 +3243,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **多数投票**：
   - **中等多样性**：依赖于生成次数和随机采样的程度，可能获得多个不同的候选答案。
 
-### 计算成本
+#### 计算成本
 
  
 
@@ -3268,7 +3256,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **多数投票**：
   - **中等到高的计算成本**：取决于生成的次数 *N*，生成次数越多，计算成本越高。
 
-### 适用的场景和任务
+#### 适用的场景和任务
 
  
 
@@ -3285,7 +3273,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
   - **提高答案稳定性**：适用于需要减少随机性影响、希望获得一致性答案的任务。
   - **示例**：知识问答、关键事实的确认。
 
-## 简单类比
+### 简单类比
 
  
 
@@ -3298,7 +3286,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **多数投票**：
   - **类比**：像询问多个人同一个问题，然后选择大多数人都同意的答案。
 
-## 总结
+### 总结
 
  
 通过将**多数投票**加入讨论，我们可以更全面地了解不同的解码和生成策略的特点、优点和适用场景。每种方法都有其独特的优势和局限性，选择适当的方法需要根据具体任务的需求、可用的计算资源以及对结果质量的要求来决定。
@@ -3333,7 +3321,7 @@ DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 
-## 三、test-time compute scaling的策略
+### 三、test-time compute scaling的策略
 
  
 扩展测试时间计算有两种主要策略：
@@ -3364,7 +3352,7 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png" width="800">
 
-## 实验设置
+### 实验设置
 
  
 如上图所示，我们的实验设置涉及以下步骤的流程：
@@ -3387,7 +3375,7 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 
 为了热身，我们将从一个简单的基线开始，并逐步加入其他技术来提高性能。
 
-## 多数投票：一个简单的基线
+### 多数投票：一个简单的基线
 
  
 多数投票——或者如果你想用更高端的说法，可以称为自一致性解码（self-consistency decoding）——是聚合大型语言模型输出的最直接方法。顾名思义，对于给定的数学问题，我们生成 N 个候选解并选择最频繁的答案。在我们所有的实验中，我们以温度 T = 0.8 采样了最多 N = 256 个候选解，每个问题生成最多 2048 个标记。
@@ -3440,7 +3428,7 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 
 基于多数投票的局限性，让我们看看引入奖励模型如何提升性能。
 
-## Best-of-N
+### Best-of-N
 
  
 Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模型来确定最可能的答案。该方法有两种主要变体：
@@ -3475,7 +3463,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
 然而，尽管有这些改进，我们仍然无法达到 Llama 8B 模型的性能，而且 Best-of-N 方法在 N = 256 代时开始趋于平稳。我们能否通过逐步监督搜索过程来进一步突破边界？
 
-## 使用过程奖励模型的束搜索
+### 使用过程奖励模型的束搜索
 
  
 束搜索（Beam search）是一种系统地探索解空间的结构化搜索方法，使其成为在测试时间改进模型输出的强大工具。当与过程奖励模型（PRM）结合使用时，束搜索可以同时优化问题解决中间步骤的生成和评估。其工作方式如下：
@@ -3501,7 +3489,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 - 以温度 T = 0.8 进行采样
 - 最多 40 次迭代，即最大深度为 40 步的树如下面所示，结果非常惊人：在测试时间预算为 N = 4 时，束搜索实现了与 Best-of-N 在 N = 16 时相同的准确率，即计算效率提高了 4 倍！此外，束搜索仅用每个问题 N = 32 个解就匹配了 Llama 3.1 8B 的性能。计算机科学博士生在 MATH 上的平均表现约为 40%，所以对于一个 10 亿参数的模型达到近 55% 并不算太差。
 
-## 束搜索最擅长解决哪些问题？
+### 束搜索最擅长解决哪些问题？
 
  
 虽然总体来看，束搜索显然是比 Best-of-N 或多数投票更好的搜索策略，但 DeepMind 的论文表明，每种策略都有取舍，取决于问题难度和测试时间计算预算。
@@ -3527,7 +3515,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
   通过查看束搜索生成的结果树，我们意识到，如果一个步骤被赋予高奖励，那么整个树就会收敛到该路径，从而影响多样性。这促使我们探索一种扩展束搜索的方法，以最大化多样性——让我们来看看！
 
-## DVTS：通过多样性提升性能
+### DVTS：通过多样性提升性能
 
  
 正如我们上面所见，束搜索在 Best-of-N 上表现出色，但在较简单的问题和较大的测试时间计算预算下往往表现不佳。为了解决这个问题，我们开发了一种扩展，称为多样化验证器树搜索（Diverse Verifier Tree Search，DVTS），旨在在较大的 N 值下最大化多样性。
@@ -3668,9 +3656,9 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ---
 
-# Part 11: Mind Evolution 与遗传算法
+## Part 11: Mind Evolution 与遗传算法
 
-## 什么是遗传算法？
+### 什么是遗传算法？
 
 **遗传算法（Genetic Algorithm）** 是一种用于解决优化和搜索问题的自适应启发式算法，模拟了自然选择和遗传变异的过程。它的核心思想是"适者生存"，通过选择、交叉和变异等操作，让优秀的个体（解）在种群中得以保留，并生成新的更优的解。
 
@@ -3722,7 +3710,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - **循环**：将新生成的候选方案加入种群，重复评估和选择的过程。
 
-### 遗传算法在 Mind Evolution 中的应用
+#### 遗传算法在 Mind Evolution 中的应用
 
  
 **示例任务**：为用户规划一个满足特定要求的旅行计划。
@@ -3736,9 +3724,9 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 5. **变异引入新元素**：在新方案中，随机调整一些细节，例如更改用餐地点或增加新的景点。
 6. **评估新方案并重复**：对新生成的方案再次评估适应度，继续选择和生成，迭代多次，直到找到最优的旅行计划。 
 
-###  
+####  
 
-### 遗传算法的优势、
+#### 遗传算法的优势、
 
 - **全球优化能力强**：能够在广阔的解空间中寻找最优解。
 
@@ -3760,7 +3748,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png" width="800">
 
-### Mind Evolution 的七个主要步骤
+#### Mind Evolution 的七个主要步骤
 
 1. **候选方案的生成（初始化）**
 
@@ -3779,7 +3767,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
    
    下面，我将逐一解释每个步骤，以及其中涉及的算法和概念，并举例说明。
 
-### 步骤 1：候选方案的生成（初始化）
+#### 步骤 1：候选方案的生成（初始化）
 
  
 **由谁完成**：大型语言模型（LLM）
@@ -3830,7 +3818,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
   - 第四天：上海，游览东方明珠，住宿上海。
   - 第五天：上海 -> 北京，结束行程。
 
-### 步骤 2：方案的评估（Fitness Evaluation）
+#### 步骤 2：方案的评估（Fitness Evaluation）
 
  
 **由谁完成**：**评估函数（程序化的评价器）**
@@ -3897,7 +3885,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - 对于方案 3：建议调整行程，使得第一天在上海。
 
-### 步骤 3：批判性对话下的改进（Refinement through Critical Conversation，RCC）
+#### 步骤 3：批判性对话下的改进（Refinement through Critical Conversation，RCC）
 
  
 **由谁完成**：大型语言模型（LLM）
@@ -3950,7 +3938,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - 
 
-### 步骤 4：选择（Selection）
+#### 步骤 4：选择（Selection）
 
  
 **由谁完成**：算法流程（程序控制）
@@ -3977,7 +3965,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - 可能最终选出方案 1 和方案 2 作为父代。
 
-### 步骤 5：交叉和变异（Crossover and Mutation）
+#### 步骤 5：交叉和变异（Crossover and Mutation）
 
 **由谁完成**：大型语言模型（LLM）与算法流程（程序控制）
 
@@ -4025,7 +4013,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 - **举例**：
   - 在子代方案中，随机将第四天的行程从杭州改为再次返回上海，或者增加新的景点。
 
-### 步骤 6：迭代与进化（Iteration and Evolution）
+#### 步骤 6：迭代与进化（Iteration and Evolution）
 
  
 **由谁完成**：算法流程（程序控制）
@@ -4052,7 +4040,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - **迭代终止条件**：找到满足所有要求的方案，或者达到预设的最大迭代次数。
 
-### 步骤 7：岛屿模型的应用（Island Model - Migration and Reset）
+#### 步骤 7：岛屿模型的应用（Island Model - Migration and Reset）
 
  
 
@@ -4083,9 +4071,9 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
   - 如果 Island 4 在连续多代中方案质量较差，决定对其进行重置。
   - 从全局最优的方案中选取一些，替换 Island 4 的种群。
 
-### 
+#### 
 
-### 总结
+#### 总结
 
  
 **Mind Evolution 方法**通过以上七个步骤，结合了大型语言模型（LLM）的生成和理解能力，以及进化算法（包括遗传算法和岛屿模型）的全局优化策略，成功地在自然语言规划任务中实现了高效的方案优化。
@@ -4106,11 +4094,11 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ---
 
-# VI. SLM 实验与对比
+## VI. SLM 实验与对比
 
-# Part 12: SLM 微调实验
+## Part 12: SLM 微调实验
 
-## Phi-4 仿 DeepSeek-R1 思考
+### Phi-4 仿 DeepSeek-R1 思考
 
 ﻿
 
@@ -4119,7 +4107,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 ***请点击下方图片观看 YouTube 演示视频***：
 [![SLM-DS-R1-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/9CVKR0YcdKU)
 
-### 使用的数据集
+#### 使用的数据集
 
 **为什么选择该数据集？**
 
@@ -4136,7 +4124,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 - **合并字段**：将数据集中的 `reasoning` 和 `answer` 字段合并为新的 `assistant_message`，并添加到 `messages` 列中。这样模型可以学习完整的问答和推理过程。
 - **处理特殊 Token**：由于数据使用了 `<think>` 标签，我们需要将这些特殊 Token 添加到 tokenizer 中，以便模型能正确理解和生成它们。
 
-### 微调 Phi-4 模型
+#### 微调 Phi-4 模型
 
 在微调过程中，我选择了 **LoRA（Low-Rank Adaptation）** 方法。这是一种参数高效的微调技术，可以在不显著增加参数量的情况下让模型学习新能力。
 
@@ -4157,7 +4145,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ![images](images/deepseek_r1_gpu.png)
 
-### Full code
+#### Full code
 
 Training code：
 
@@ -4433,11 +4421,11 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
 ---
 
-## Gemma 3 270M 小模型能力上限探测
+### Gemma 3 270M 小模型能力上限探测
 
 ﻿## **Gemma 3 270M小模型能力上限探测**
 
-#### 结论
+##### 结论
 
 1. **模型选型上**：对于纯任务型（翻译、抽取等），270M Base > 270M Instruct，因为 Instruct 会保留安全规避和对话习惯，不利于目标任务收敛。
 2. **训练轮次**：验证集 BLEU 和 Loss 在第 3 轮左右是最佳点 → 应用早停策略，避免第 4 轮开始的性能回落（过拟合）。
@@ -4459,7 +4447,7 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
 ![images](images/gemma3_summary.png)
 
-### Training Loss分析
+#### Training Loss分析
 
 ![images](images/gemma3_bleu.png)
 
@@ -4471,19 +4459,19 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
   - 黄色：Instruct（法→英）
   - 绿色：Base（法→英）
 
-#### 现象
+##### 现象
 
 1. **英→法任务**里，Base 模型（红线）BLEU 全程高于 Instruct（蓝线），并在第 3 轮达到峰值（≈11），之后略有回落；Instruct 模型峰值略低（≈9.5）。
 2. **法→英任务**几乎没提升（绿线、黄线）——BLEU 全程低且在第 1 轮后反而下降，说明训练数据或任务定义对该方向支持不足。
 3. 两个方向都在第 3 轮出现峰值，**第 4 轮开始出现下降** → 典型的过拟合信号（训练集拟合更好，但泛化能力变差）。
 
-#### 含义
+##### 含义
 
 - Base 模型在翻译任务学习速度和质量上明显优于 Instruct，这是因为 Instruct 的安全/助手调优干扰了直接翻译目标。
 - 最佳训练 Epoch ≈ 3，再往后会损失效果，要早停。
 - 数据和任务方向的匹配度差时（法→英）即使反复训练也无显著提高。
 
-#### Validation Loss 分析
+##### Validation Loss 分析
 
 ![images](images/gemma3_val_loss.png)
 
@@ -4491,13 +4479,13 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 - **纵轴**：验证集 Loss（越低越好）
 - **红线 = Base 模型，蓝线 = Instruct 模型**
 
-#### 现象
+##### 现象
 
 1. Base 模型（红线）从头到尾验证集 Loss 都更低，并且下降更平稳。
 2. Instruct 模型（蓝线）收敛到一个更高的 Loss 水平，中间波动小，但没再持续下降。
 3. 训练后半程两条曲线趋于平稳 → 模型学习接近饱和。
 
-#### 含义
+##### 含义
 
 - Base 模型在泛化能力上确实优于 Instruct，与 BLEU 结论一致。
 
@@ -4505,7 +4493,7 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
   
 
-#### 效果评估
+##### 效果评估
 
 ![images](images/gemma3_evaluation.png)
 
@@ -4553,7 +4541,7 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 - BLEU 在训练过程中不仅用于“看涨”，也可以用于**发现性能损失和过拟合拐点**
 - 最佳停训点通常在 **验证集 BLEU 峰值出现的 epoch**（这里是第 3 轮）
 
-#### 示例代码
+##### 示例代码
 
 ```
 pip install unsloth
@@ -4675,13 +4663,13 @@ FT("google/gemma-3-270m", "en-fr")
 
 ---
 
-# Part 13: 三种 RL 训练方法对比
+## Part 13: 三种 RL 训练方法对比
 
-## 🔄 第八章：三种 RL 训练方法对比
+### 🔄 第八章：三种 RL 训练方法对比
 
 除了 DeepSeekMath-V2 论文的方法，还有两种主流工程方案：**Agent Lightning**（本地训练）和 **Azure RFT**（云端托管）。
 
-### 8.1 三种方法全面对比
+#### 8.1 三种方法全面对比
 
 | 维度 | DeepSeekMath-V2（论文） | Agent Lightning（本地） | Azure RFT（云端） |
 |-----------|-------------------------|------------------------|-------------------|
@@ -4695,13 +4683,12 @@ FT("google/gemma-3-270m", "en-fr")
 | **开源** | Paper public, code not released | Fully open source | Managed service |
 | **适用场景** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
 
-### 8.2 奖励函数设计对比
+#### 8.2 奖励函数设计对比
 
 三种方法都需要定义什么是好答案，但实现方式不同：
 
-#### DeepSeekMath-V2: Three-Layer Verification Reward
+##### DeepSeekMath-V2: Three-Layer Verification Reward
 
-```text
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                  DeepSeekMath-V2 Reward Architecture             │
@@ -4727,10 +4714,8 @@ FT("google/gemma-3-270m", "en-fr")
 │  Key: Reward model itself needs training, can evaluate reasoning│
 └─────────────────────────────────────────────────────────────────┘
 ```
-```
-```
 
-#### Agent Lightning: Composite Rule-Based Reward
+##### Agent Lightning: Composite Rule-Based Reward
 
 ```python
 def compute_reward(response, ground_truth):
@@ -4753,7 +4738,7 @@ def compute_reward(response, ground_truth):
 # Key: Simple rules, no trained judge, only checks final answer + format
 ```
 
-#### Azure RFT: Grader Composition
+##### Azure RFT: Grader Composition
 
 ```python
 # Multigrader example: combining multiple scoring methods
@@ -4782,7 +4767,7 @@ def compute_reward(response, ground_truth):
 # Key: Flexible composition, supports LLM-as-Judge, managed execution
 ```
 
-### 8.3 核心差异：自验证 vs 外部奖励
+#### 8.3 核心差异：自验证 vs 外部奖励
 
 | 特性 | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
 |---------|-----------------|----------------------------|
@@ -4800,51 +4785,33 @@ DeepSeekMath-V2's "self-verification" means **teaching the model verification ab
 
 Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't know "why this answer is good", only that "this answer got a high score".
 
-### 8.4 训练复杂度对比
+#### 8.4 训练复杂度对比
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
 ─────────────────────────────────────────────────────
-```
 Stage 1: Train Verifier (needs human-labeled proof quality)
-```text
    │
    ▼
-```
 Stage 2: Train Meta-Verifier (prevents Verifier hallucination)
-```text
    │
    ▼
-```
 Stage 3: Train Generator (using Verifier as Reward Model)
-```text
    │
    ▼
-```
 Stage 4: Co-evolution (Generator↔Verifier mutually improve)
----
 
 Agent Lightning Training Pipeline (Simple):
----
-```
+
 Stage 1: Define reward function (rule code)
    │
    ▼
 Stage 2: GRPO training (single stage)
-```text
-```text
 ─────────────────────────────────────────────────────
-```
-```
 
 Azure RFT Training Pipeline (Simplest):
 ─────────────────────────────────────────────────────
-```
 Step 1: Prepare JSONL data
 Step 2: Define Grader (JSON config)
 Step 3: Submit training job (Azure Portal / API)
----
-```
-
-
 ```

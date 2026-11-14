@@ -1,5 +1,11 @@
 # AI Agent 训练飞轮
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 > **"AI 的 DevOps"** — 一个完整、可复现的训练流程，展示如何通过 **SFT → GRPO → DPO** 阶段逐步改进领域专用 AI Agent。
 
 
@@ -457,4 +463,4 @@ GRPO 在偏好学习之前建立**质量基线**：
 
 ---
 
-*作者: 魏新宇 (Microsoft AI and Apps GBB Architect) | 验证日期: 2026-01-02*
+*作者: 魏新宇 (Microsoft AI Lead Senior System Engineer) | 验证日期: 2026-01-02*

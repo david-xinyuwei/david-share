@@ -1,6 +1,11 @@
 # Pi Agent 与 OpenClaw 架构：极简主义编码代理设计
 
-> **作者**: 魏新宇 (Xinyu Wei)
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 >
 > **日期**: 2026 年 4 月
 >

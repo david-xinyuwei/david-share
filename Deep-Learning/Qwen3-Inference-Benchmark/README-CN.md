@@ -1,6 +1,11 @@
 # Qwen3 Inference Benchmark（推理基准测试）(Azure H100)
 
-> **作者**: 魏新宇 (Xinyu Wei)  
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer  
+
+[English](README.md) | **中文**
+
 > **日期**: 2026-02-06 (32B), 2026-02-11 (235B SGLang)  
 > **模型**: Qwen3-32B-FP8 (Dense) | Qwen3-235B-A22B-FP8 (MoE)  
 > **硬件**: Azure NC40ads H100 v5 (1×H100 NVL) | NC80adis H100 v5 (每节点 2×H100 NVL)

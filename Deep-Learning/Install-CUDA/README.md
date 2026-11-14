@@ -1,18 +1,10 @@
 # A step-by-step guide to install NVIDIA Drivers and Cuda Toolkit
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 https://medium.com/virtual-force-inc/a-step-by-step-guide-to-install-nvidia-drivers-and-cuda-toolkit-855c75efcdb6
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 A complete guide to setup GPU for ML development.
@@ -31,7 +23,7 @@ This article doesn’t go into much detail of what are these NVIDIA drivers and 
 >
 > **CUDA (Compute Unified Device Architecture) Toolkit** is a software development platform created by NVIDIA specifically for parallel computing using NVIDIA GPUs. The [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) from NVIDIA provides everything you need to develop GPU-accelerated applications. The CUDA Toolkit includes GPU-accelerated libraries, a compiler, development tools and the CUDA runtime.
 
-# **How to install NVIDIA Drivers and Cuda Toolkit?**
+## **How to install NVIDIA Drivers and Cuda Toolkit?**
 
 This guide is for Linux based machines with Ubuntu 22.04.
 An NVIDIA card with Cuda compatibility is required as well.
@@ -42,14 +34,14 @@ An NVIDIA card with Cuda compatibility is required as well.
 
 If both of these or either of them not installed, follow the below steps to install.
 
-# **1- Upgrade the Ubuntu**
+## **1- Upgrade the Ubuntu**
 
 ```
 1- sudo apt update
 2- sudo apt upgrade
 ```
 
-# 2- NVIDIA Drivers Installation
+## 2- NVIDIA Drivers Installation
 
 **Install compatible NVIDIA Driver**
 
@@ -80,7 +72,7 @@ Output of nvidia-smi commng
 
 This show that compatible Nvidia driver is successfully installed.
 
-# 3- Cuda Toolkit Installation
+## 3- Cuda Toolkit Installation
 
 > To install the cuda toolkit, first check if `gcc` is already installed.
 > `gcc -v.` If `gcc` is not installed, command `sudo apt install gcc` to install it.

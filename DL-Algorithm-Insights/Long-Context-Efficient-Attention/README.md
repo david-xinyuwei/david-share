@@ -1,6 +1,6 @@
 # Long-Context Efficient Attention: CSA + HCA from DeepSeek-V4
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [中文版](README-CN.md) | English
 

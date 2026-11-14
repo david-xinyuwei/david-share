@@ -1,4 +1,7 @@
 # Azure OpenAI Model Migration Benchmark & PTU Traffic Management
+
+> **Author**: Xinyu Wei (魏新宇), Microsoft AI Lead Senior System Engineer | **Date**: 2026-03-28
+
 ## gpt-4o-mini → gpt-5.4-nano | Web Search Grounding + PTU Traffic Management
 
 ![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-Model%20Migration-0078D4)
@@ -8,8 +11,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)
 
 Production-grade benchmark and traffic-management toolkit for migrating a low-latency AI assistant from gpt-4o-mini to newer Azure OpenAI / OpenAI model families. Every web-grounded path is measured with both the built-in search option and a WebIQ explicit-retrieval counterpart.
-
-> **Author**: Xinyu Wei (魏新宇), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer | **Date**: 2026-03-28
 
 [中文版](README-CN.md) | English
 

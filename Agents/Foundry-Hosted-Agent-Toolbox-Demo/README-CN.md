@@ -1,5 +1,9 @@
 # Microsoft Foundry Hosted Agent + Toolbox + Memory + Skills Demo
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
 **录屏演示（1.8x）**：下面是 Web App 的实际运行效果，包括创建 Toolbox、绑定 Hosted Agent、测试/评估/追踪请求，以及查看 Fleet governance 面板。
 
 https://github.com/user-attachments/assets/5dea1cb5-d113-4f35-ad56-0fec0fa22ea8
@@ -7,8 +11,6 @@ https://github.com/user-attachments/assets/5dea1cb5-d113-4f35-ad56-0fec0fa22ea8
 ## Running on Azure
 
 这是一个端到端的 **Azure AI Foundry 企业级 Agent 平台 Demo**。它把 Microsoft Agent Framework、Foundry Hosted Agents、Foundry Toolbox、Foundry Memory、选定的 Microsoft `SKILL.md`、Evaluation、Tracing、Fleet governance、语音转写和图像生成放到同一个 lifecycle 控制台里。
-
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB Senior System Engineer
 
 [English](README.md)
 

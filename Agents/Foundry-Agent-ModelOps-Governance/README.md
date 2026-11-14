@@ -5,11 +5,11 @@
 [![Agent ModelOps](https://img.shields.io/badge/Agent_ModelOps-Training%20%7C%20Deployment%20%7C%20Operations-orange)](#executive-summary)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
+> **Author**: Xinyu Wei (魏新宇) - Microsoft AI Lead Senior System Engineer
+
 Foundry simplifies production AI model operations: teams can improve models, deploy them, call them, monitor them, and attribute cost through one operational plane, while platform engineers still use specialized APIs for training jobs, managed deployments, legacy AML endpoints, and inference calls.
 
 This repo is a public, evidence-based map of those boundaries. It focuses on **operational governance** — identity, project context, monitoring, billing, and lifecycle control — not a full compliance/audit-governance assessment.
-
-> **Author**: Xinyu Wei (魏新宇) - Microsoft AI and Apps GBB Senior System Engineer
 
 [Chinese](README-CN.md) | English | [Managed Compute Blog](https://devblogs.microsoft.com/foundry/announcing-foundry-managed-compute/) | [BRK232 Code Repo](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry)
 
@@ -246,7 +246,7 @@ Not necessarily. It remains useful for existing deployments and performance test
 | Repo | Relationship |
 |---|---|
 | [Foundry-Agent-Post-Training-Deep-Dive](../../Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive/) | Explains the BRK231/BRK232 learning loop: distillation, SFT, RFT, low-level API. |
-| [Foundry-Managed-Compute-Open-Models](../../Deep-Learning/Foundry-Managed-Compute-Open-Models/) | Explains the production serving substrate for open/custom models. |
+| [Managed-Compute-Private-Endpoint](../../Deep-Learning/Managed-Compute-Private-Endpoint/) | Verifies that an open model on Foundry Managed Compute can be reached only through a Private Endpoint (with public network access disabled, outside calls get 403 while the VNet keeps 200). |
 | [AI-Foundry-Model-Performance](../../Deep-Learning/AI-Foundry-Model-Performance/) | Shows the older AML managed online endpoint performance-testing path. |
 | [AI-Foundry-Agent-VNET-Deployment](../AI-Foundry-Agent-VNET-Deployment/) | Complements the governance story with network hardening patterns. |
 | [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/) | Shows hosted-agent operational patterns that can consume the unified endpoint story. |

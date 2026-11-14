@@ -1,8 +1,8 @@
 # On-Policy Distillation 深度剖析：DeepSeek-V4 如何融合 10+ 个专家 — 在 Azure AI 上验证
 
-> **Author: 魏新宇 (Xinyu Wei)** · Microsoft AI GBB
+> **Author: 魏新宇 (Xinyu Wei)** · Microsoft AI Lead Senior System Engineer
 
-[![Azure](https://img.shields.io/badge/Verified%20on-Azure%20AI-0078D4?logo=microsoftazure)](https://azure.microsoft.com) [![DeepSeek](https://img.shields.io/badge/Based%20on-DeepSeek--V4-blue)](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro) [![TRL](https://img.shields.io/badge/Framework-TRL%20GKDTrainer-orange)](https://huggingface.co/docs/trl/main/en/gkd_trainer) [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Azure](https://img.shields.io/badge/Verified%20on-Azure%20AI-0078D4?logo=microsoftazure)](https://azure.microsoft.com) [![DeepSeek](https://img.shields.io/badge/Based%20on-DeepSeek--V4-blue)](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro) [![TRL](https://img.shields.io/badge/Framework-TRL%20GKDTrainer-orange)](https://huggingface.co/docs/trl/main/en/gkd_trainer) [![License](https://img.shields.io/badge/License-MIT-green)](../../LICENSE)
 
 [English](README.md) | 中文版
 
@@ -298,7 +298,7 @@ SFT loss（用 one-hot label，稀疏信号）：
 
 | 维度 | SFT（one-hot） | 蒸馏（完整分布） |
 |------|---------------|----------------|
-| 每 token 信息量 | ~1 bit（"对/错"）| ~log₂(`|V|`) bits（完整排序，152K 词表下 ~17 bits） |
+| 每 token 信息量 | ~1 bit（"对/错"）| ~log₂(`\|V\|`) bits（完整排序，152K 词表下 ~17 bits） |
 | Student 学到 | "输出 X" | "X 最佳，Y 次之，Z 绝不能选，..." |
 | 样本效率 | baseline | 5-10× 更快（Hinton 2015 结果） |
 | 保留 teacher 的"性格" | 不 | 是（多个等价好答案都保留） |
@@ -1731,7 +1731,7 @@ Phase 5 沿用 Phase 4 跨域配置，**用多卡 DDP 把训练算力扩 ~14×**
 
 **Loss 走势：2.58 → 1.64（最低）→ 2.0（平均最终）** — 30%+ 降幅。按 Run 9 标准（3.0 → 2.8，7% 降幅）这是**4 倍陡**，恰好跟 14× 训练数据增加成比例。训练机制按理论预测工作。
 
-完整训练日志：[`data/run11_training.log`](data/run11_training.log)（81 KB，1107 行）。
+完整训练日志：`data/run11_training.log`（81 KB，1107 行；未在本仓库公开）。
 
 ### 端任务评测 — 三个指标，全部正向
 
@@ -1772,7 +1772,7 @@ Sampling 估计器方差比 greedy 低，对 OPD 显示**更强信号**。
 
 OPD 多解 **10 道** baseline 在 10 次尝试里全失败的题（81 → 91）。这是**最稳定的指标**，显示**最大的绝对信号**。
 
-完整结果：[`data/run11_pass10_results.json`](data/run11_pass10_results.json)，评测日志：[`data/run11_eval_pass10.log`](data/run11_eval_pass10.log)
+完整结果：[`data/run11_pass10_results.json`](data/run11_pass10_results.json)，评测日志：`data/run11_eval_pass10.log`（未在本仓库公开）
 
 ### 三角验证结论
 

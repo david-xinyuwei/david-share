@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 3). It stays here so existing links keep working; check current documentation before reusing the steps.
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## Running on Azure
 

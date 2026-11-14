@@ -302,4 +302,4 @@ pip install vllm
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI GBB) | Updated: 2026-01*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Updated: 2026-01*

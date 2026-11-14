@@ -1,20 +1,12 @@
 # ModernBERT Model
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 A new encoder-only small model has been released and has gained high download volumes. Here is the link:  https://huggingface.co/answerdotai/ModernBERT-large  I tried it out, and it performs well in simple Q&A, classification, and similarity comparison tasks. 
 
  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVZbeZF4zhUdVdhBRUiaPcReBxZhG6LEb8KcEmMKAsO7ZrpMFM9XVcxm1MCSkZrBLxbYgOGFRAyR2g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Inference task test

@@ -2,7 +2,7 @@
 
 # Phi-3.5-vision Fine tuning
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 
 ## Overview

@@ -6,6 +6,8 @@
 [![Protocol](https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6)](#put-the-same-hooks-in-your-agent)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
+> **Author:** Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 This repository contains a real Hosted Agent, caller, fault harness, and evidence. It answers one question: **when the Agent process disappears, how does the same stored response continue on a new process without losing checkpointed output?**
 
 **Four interruptions on the demonstration portal, double speed, 2:52. This is the visual walkthrough; the committed evidence follows below.**
@@ -13,8 +15,6 @@ This repository contains a real Hosted Agent, caller, fault harness, and evidenc
 https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
 [Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
-
-> **Author:** Xinyu Wei (魏新宇)
 
 [中文](README-CN.md) | English
 

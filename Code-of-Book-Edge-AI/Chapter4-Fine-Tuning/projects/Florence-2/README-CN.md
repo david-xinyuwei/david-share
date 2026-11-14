@@ -3,7 +3,7 @@
 # Florence2 applications in multiple CV scenarios and Fine Tuning
 
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 Florence-2 has 4 version released by Microsoft official:
 ```

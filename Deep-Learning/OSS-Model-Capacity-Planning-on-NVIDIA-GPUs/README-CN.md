@@ -8,7 +8,7 @@
 
 > 一次可复现的 AIConfigurator 容量评估：先定义模型、工作负载、服务目标、运行时和 NVIDIA 平台，再在 CPU 上运行官方搜索命令，保存排序后的预测结果和完整证据。
 
-> Author: 魏新宇 (Xinyu Wei)
+> Author: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 

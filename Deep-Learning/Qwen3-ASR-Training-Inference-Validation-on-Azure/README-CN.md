@@ -1,6 +1,6 @@
 # 基于 Azure 的 Qwen3-ASR 训练与推理验证
 
-> **Author**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文版
 

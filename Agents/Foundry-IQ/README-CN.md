@@ -1,5 +1,11 @@
 # Foundry IQ - Azure AI Search 知识检索指南
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 > **Foundry IQ** 是微软在 Ignite 2025 发布的下一代 RAG 方案 —— 一个**统一的智能体知识层**。它是智能体获取知识的单一端点，通过自动化的数据源路由和高级 Agentic 检索提供更好的上下文，同时尊重用户权限。
 
 **演示仓库**: [farzad528/azure-ai-search-knowledge-retrieval-demo](https://github.com/farzad528/azure-ai-search-knowledge-retrieval-demo)  

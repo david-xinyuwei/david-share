@@ -459,4 +459,4 @@ GRPO 在偏好学习之前建立**质量基线**：
 
 ---
 
-*作者: 魏新宇 (Microsoft AI and Apps GBB Architect) | 验证日期: 2026-01-02*
+*作者: 魏新宇 (Microsoft AI Lead Senior System Engineer) | 验证日期: 2026-01-02*

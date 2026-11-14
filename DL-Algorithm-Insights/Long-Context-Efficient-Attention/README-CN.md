@@ -1,6 +1,6 @@
 # 长上下文高效注意力：DeepSeek-V4 的 CSA + HCA
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB Senior System Engineer
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文版
 

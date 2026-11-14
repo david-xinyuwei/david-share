@@ -1,6 +1,8 @@
 # Fine-tuning the STT Model Whisper
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
  In this article, we will explore how to fine-tune OpenAI's Whisper speech-to-text (STT) model using a specialized medical speech recognition dataset available on Huggingface. We will demonstrate how to make Whisper better understand and transcribe medical terminology, thereby making it more useful for medical-related speech recognition. The steps outlined in this article are not intended for any form of clinical use, medical diagnosis, or patient care, nor do they provide or support any commercial use.
 
@@ -120,16 +122,6 @@ From the above figure, it can be observed that the relationship between the loss
   The experimental results are quite promising:
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVkls1zIviaJzB6ZOOgkG2tyK5JRgLuCbGnuunaF6R50icB1bVZrJWwAo04qcunMmcxqg7zFe2Ocl2Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Code

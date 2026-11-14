@@ -1,5 +1,11 @@
 # Foundry Agent Service — Inline Base64 图片大小限制
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 ## 问题
 
 Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Responses API（`/responses`）中拒绝 inline base64 图片。相同图片在 AOAI 直连端点（`*.openai.azure.com`）正常工作。这是一个已知的 regression，跟踪于 [GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305)。

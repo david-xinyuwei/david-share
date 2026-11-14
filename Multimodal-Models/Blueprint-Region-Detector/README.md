@@ -4,6 +4,10 @@
 [![SAM 2.1](https://img.shields.io/badge/SAM-2.1-orange.svg)](https://github.com/facebookresearch/sam2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 Cross-style blueprint entity detection using **SAM 2.1 + an auto-tuned connected-components white-space branch**. Validated on multiple public architectural floor plan styles.
 
 ![Detection Results](images/v13_4in1_comparison.png)

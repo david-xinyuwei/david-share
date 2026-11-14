@@ -5,9 +5,11 @@
 [![证据](https://img.shields.io/badge/结论-逐条标注来源强度-16a34a)](#证据等级)
 [![离线](https://img.shields.io/badge/离线版-单文件%20HTML-f59e0b)](./azure-voice-live-components.html)
 
-把 **Azure Voice Live** 能接的每一个组件，按语音 Agent 的三层拆开 —— **听（STT）→ 想（LLM/SLM）→ 说（TTS）**。每一行左边是可读的展示名，右边是**写 JSON 时必须填的官方 API 值**。
+> Author: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-> Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
+[English](README.md) | **中文**
+
+把 **Azure Voice Live** 能接的每一个组件，按语音 Agent 的三层拆开 —— **听（STT）→ 想（LLM/SLM）→ 说（TTS）**。每一行左边是可读的展示名，右边是**写 JSON 时必须填的官方 API 值**。
 
 [English](./README.md) &nbsp;|&nbsp; [离线 HTML 版](./azure-voice-live-components.html)（深浅色切换 + 打印样式）
 

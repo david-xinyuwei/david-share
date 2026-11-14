@@ -1,8 +1,8 @@
 # On-Policy Distillation Deep Dive: How DeepSeek-V4 Merges 10+ Experts — Verified on Azure AI
 
-> **Author: Xinyu Wei (魏新宇)** · Microsoft AI GBB
+> **Author: Xinyu Wei (魏新宇)** · Microsoft AI Lead Senior System Engineer
 
-[![Azure](https://img.shields.io/badge/Verified%20on-Azure%20AI-0078D4?logo=microsoftazure)](https://azure.microsoft.com) [![DeepSeek](https://img.shields.io/badge/Based%20on-DeepSeek--V4-blue)](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro) [![TRL](https://img.shields.io/badge/Framework-TRL%20GKDTrainer-orange)](https://huggingface.co/docs/trl/main/en/gkd_trainer) [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Azure](https://img.shields.io/badge/Verified%20on-Azure%20AI-0078D4?logo=microsoftazure)](https://azure.microsoft.com) [![DeepSeek](https://img.shields.io/badge/Based%20on-DeepSeek--V4-blue)](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro) [![TRL](https://img.shields.io/badge/Framework-TRL%20GKDTrainer-orange)](https://huggingface.co/docs/trl/main/en/gkd_trainer) [![License](https://img.shields.io/badge/License-MIT-green)](../../LICENSE)
 
 [中文版](README-CN.md) | English
 
@@ -300,7 +300,7 @@ This is also why the loss numbers reported in the experiments later in this docu
 
 | Dimension | SFT (one-hot) | Distillation (full distribution) |
 |-----------|---------------|----------------------------------|
-| Information per token | ~1 bit ("right or wrong") | ~log₂(`|V|`) bits (full ranking, ~17 bits for 152K vocab) |
+| Information per token | ~1 bit ("right or wrong") | ~log₂(`\|V\|`) bits (full ranking, ~17 bits for 152K vocab) |
 | What student learns | "Output X" | "X best, Y second-best, Z definitely-not, ..." |
 | Sample efficiency | Baseline | 5-10× faster (Hinton 2015 result) |
 | Preserves teacher's "personality" | No | Yes (multiple acceptable answers all kept) |
@@ -1736,7 +1736,7 @@ A 14× increase in training compute with no NaN, no mode collapse, no manual res
 
 **Loss trajectory: 2.58 → 1.64 (lowest) → 2.0 (avg final)** — a 30%+ reduction. By Run 9 standards (3.0 → 2.8, 7% reduction) this is **4× steeper**, exactly proportional to the 14× training data increase. Training mechanics are working as the theory predicts.
 
-Full training log: [`data/run11_training.log`](data/run11_training.log) (81 KB, 1107 lines).
+Full training log: `data/run11_training.log` (81 KB, 1107 lines; not published in this repository).
 
 ### End-task evaluation — three metrics, all positive
 
@@ -1777,7 +1777,7 @@ The sampling estimator has lower variance than greedy and shows a **stronger sig
 
 OPD solves **10 problems** that baseline fails to solve in any of 10 attempts (81 → 91). This is the **most stable metric** and shows the **largest absolute signal**.
 
-Full results: [`data/run11_pass10_results.json`](data/run11_pass10_results.json), eval log: [`data/run11_eval_pass10.log`](data/run11_eval_pass10.log)
+Full results: [`data/run11_pass10_results.json`](data/run11_pass10_results.json), eval log: `data/run11_eval_pass10.log` (not published in this repository)
 
 ### Triangulated conclusion
 

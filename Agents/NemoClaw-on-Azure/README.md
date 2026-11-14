@@ -1,5 +1,11 @@
 # NemoClaw on Azure: Deployment Guide and Technical Analysis
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 ## Executive Summary
 
 | Item | Finding |
@@ -353,5 +359,5 @@ Hello! I'm your AI assistant running inside a secure NemoClaw sandbox.
 
 ---
 
-*Author: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer*
+*Author: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer*
 *Date: April 2026*

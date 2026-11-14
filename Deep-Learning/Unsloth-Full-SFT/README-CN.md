@@ -1,6 +1,8 @@
-## 微调
+# Unsloth的全微调：从Adapter到Full Fine-tuning
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 大语言模型（LLM）最近发展得非常快，一动就是好几亿甚至上百亿的参数，让很多AI工程师在微调这些大模型时犯了难。Unsloth这个框架，原本主要是靠支持LoRA、QLoRA等Adapter微调而出名，重点就是省内存、训练快。现在它又更进一步，支持了全参数微调（Full Fine-tuning），也就是说，单卡环境就能搞定大规模模型的完整训练。接下来我想聊一聊Unsloth全微调的背景、它用到的关键技术，以及在实际工程中怎么把它用好。
 

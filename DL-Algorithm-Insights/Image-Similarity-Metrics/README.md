@@ -1,5 +1,11 @@
 # Image Similarity Metrics — MSE, SSIM, LPIPS, FID & CLIP Score
 
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 > **Five ways to compare images — pixel difference, structural matching, AI perception, statistical distribution, and semantic alignment.**
 
 ## What Is It?

@@ -1,6 +1,10 @@
-## NVFP4 Analysis and Engineering Practice
+# NVFP4 Analysis and Engineering Practice
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](readme-Chinese-Version.md)
 
 ### **Abstract and Key Points**
 
@@ -892,6 +896,7 @@ According to NVIDIA's Blackwell white paper and developer blog:
 **Key terminology interpretation**:
 - **"implements NVFP4"** → Tensor Core hardware has built-in NVFP4 support
 - **"automatically handle"**
+```python
 # 8. VRAM estimation hint (approximate):
 # NVFP4 average ~4.5 bits/param; NVFP4A16 ~4 bits/param (weights only);
 # FP16 ~16 bits/param. Can estimate GB using param_count * bits/8/1024**3.
@@ -1001,7 +1006,7 @@ W4A4:   5.62 GB   →  2.66× compression ✅
 - ⚠️  vLLM total memory savings <1% (KV cache dominates at 65GB)
 - ✅ Model file compression 2.66× (14.96GB → 5.62GB)
 
-Detailed results and analysis: **[H100_Test_Results.md](./H100_Test_Results.md)**
+Detailed results and analysis: `H100_Test_Results.md` (not included in this repository)
 
 #### 7.3 H100 vs Blackwell Comparison
 

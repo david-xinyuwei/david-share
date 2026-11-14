@@ -1,7 +1,8 @@
 # AI Inference Workshop
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 ## 在 Azure 上运行
 
@@ -14,7 +15,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **Frameworks** | Diffusers |
 
 
-## 推理
+## Inference Process
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/17.png)
 
@@ -93,7 +94,7 @@ https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Infer
 - 语言模型在 **每次迭代 (Iteration)** 中生成新的 token，`discipline` 是其中某一步的输出内容。
 - 这种逐步生成的过程体现了语言生成的**自回归特点**，并通过上下文和缓存（KV-Cache）来高效完成生成任务。
 
-## 推理
+## Inference Engine
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/2.png)
 
@@ -117,7 +118,7 @@ https://www.runpod.io/compare/l4-vs-a100sxm
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/11.png)
 
-## 性能
+## GPU VM performance
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/14.png)
 
@@ -142,11 +143,11 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Phi4
 
 https://mp.weixin.qq.com/s/6FJBsLHkKYLSMV-CHYjLmw?token=1109685727&lang=zh_CN
 
-## 推理
+## Inference Performance test
 
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Inference-performance-test
 
-## 推理
+## Estimating Memory Need in AI model Inference
 
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate-Inference-Memory
 

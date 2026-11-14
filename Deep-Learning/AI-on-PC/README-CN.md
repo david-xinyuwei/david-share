@@ -6,17 +6,7 @@
 > **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（Phi-3、Llama 3、Qwen2）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。新的相关项目：[AIPC-Decision-Model-Finetune](../AIPC-Decision-Model-Finetune/)。
 
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
-
-## 在 Azure 上运行
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
-
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 ## TL;DR
 
@@ -86,7 +76,7 @@ https://github.com/user-attachments/assets/<resource-id>
 
 
 
-## 方法
+## 1. 选择并下载模型（GGUF 格式）
 
 ### 1. 选择并下载模型（GGUF 格式）
 - 推荐模型：

@@ -6,6 +6,8 @@
 [![Protocol](https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6)](#把同样的接线放进你的-agent)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
+> **Author:** 魏新宇（Xinyu Wei） — Microsoft AI Lead Senior System Engineer
+
 本仓库包含真实的 Hosted Agent、客户端、故障运行器和证据。它只回答一个问题：**Agent 进程消失后，同一个已保存响应如何由新进程继续，而且不丢失已经写入检查点的输出？**
 
 **四种打断在演示台上的实录，双倍速，2:52。这段视频是可视化过程；可审计的证据在下文。**
@@ -13,8 +15,6 @@
 https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
 [下载仓库里的副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
-
-> **Author:** 魏新宇（Xinyu Wei）
 
 [English](README.md) | 中文
 

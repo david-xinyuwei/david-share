@@ -1,6 +1,10 @@
 # LLM Fine-Tuning and Alignment: A Complete Guide
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 本文是一份 LLM 微调与对齐的完整技术指南，涵盖从 SFT 超参调优、各种微调方法对比（SFT/ReFT/RLHF/DPO/PPO/RLAIF/TPO）、LoRA/QLoRA/GaLore 机制、DPO 理论与实践、PPO 架构详解，到大模型 DPO 分布式训练（DeepSpeed ZeRO-3 / FSDP）的全流程。
 
@@ -30,7 +34,7 @@ All experiments in this project were conducted on **Azure GPU VMs**.
 ---
 
 
-# Part 1: SFT 超参调优最佳实践
+## Part 1: SFT 超参调优最佳实践
 
 > *原文来自 LLM-Fine-Tuning-Best-Practices*
 
@@ -113,7 +117,7 @@ training_arguments = TrainingArguments(
 实验表明，即使在批量大小为32的情况下，也能获得较好的损失结果。但是，这会增加内存的使用量，在一些情况下，如16GB内存的GPU上，如果不采用如梯度累积等技术，实现这样的批量大小是不现实的。因此，而不是单纯追求更大的批量，应综合考虑硬件限制并通过实验确定最佳的批量大小。这种方法保证了在可用资源范围内，模型训练既高效又实用。
 
 
-## 二、Maximum Sequence Length, Padding, Truncating（最大序列长度、填充、截断）
+### 二、Maximum Sequence Length, Padding, Truncating（最大序列长度、填充、截断）
 
 在批处理中，需要对训练样本进行填充，以确保每一批数据中所有样本的形状或大小一致，这是并行处理数据的机器学习模型的基本要求。特别是在执行序列任务，如语言生成时，这种数据的统一性变得尤为重要。  在准备数据批次时，需要对较短的序列进行填充，增加一些无关紧要的值，以确保它们的长度与批次中最长序列相匹配。这种填充可以是在序列的前端（左填充），或者是尾端（右填充），有时还可能两端同时进行，这取决于具体的模型设计和任务需求。需要注意的是，并不是所有的技术都能适应任意一端的填充方式。例如，在使用**FlashAttention技术时，必须进行左填充。**  为了更好地控制批次大小，建议设定一个最长序列限制。例如，我们如果将这个最大长度设置为1,024个令牌，那么批次中的每个样本都会被处理到恰好有1,024个令牌。如果某个样本原本只有512个令牌，那么就会追加512个填充令牌。相反，如果某个样本的令牌数超过了1,024个，那么超出的部分就会被截断。通过这种方式，我们不仅能保证处理过程的一致性，也有助于优化内存的使用，从而提升训练的效率。
 
@@ -190,7 +194,7 @@ print(input)
 
 理想情况下，最大长度应设为与训练样例中最长序列的长度相匹配。如果GPU内存有限，这个长度也可以适当减少。通常，除了用于RAG应用和摘要任务外，超过4,096的最大长度并不常见；对于大多数的语言生成任务，最小推荐长度是512。这样的设定有助于在确保模型效能的同时，避免不必要的内存消耗。
 
-## 三、Epochs and Steps（训练轮次与步数）
+### 三、Epochs and Steps（训练轮次与步数）
 
 模型在处理完一批数据后就会进行权重更新，这个过程称为训练步骤。例如，如果数据集含有1,000个样例，且批量大小设置为100，那么在整个数据集上进行一次完整的迭代就需要10个这样的训练步骤（1,000除以100等于10）。每一步涉及到数据的前向传播（即数据通过模型），损失的计算（即模型预测与实际情况的偏差），以及通过反向传播更新权重，尝试减少损失。  当数据集中的每个样例都已恰好被模型处理一遍时，就完成了一个训练周期，也就是一个epoch。所以，每个epoch包含的步骤数量取决于数据集的大小和批量大小。延续前面的例子，如果整个数据集有1,000个样例，批量大小为100，则完成一个epoch需要10个步骤。进行多个epoch的训练意味着让模型多次见到同样的数据，期望模型通过调整权重进行更准确的预测，每经过一个epoch都可能让模型有所学习和进步。
 
@@ -217,7 +221,7 @@ print(input)
 
 即使没有观察验证损失，也可以注意到训练损失下降得异常迅速。如在下一节中所述，通过调整学习率和采用适当的预热比例，可以有效地解决这一问题。这种调整有助于模型学习得更为平稳，避免过拟合，同时保证模型在未知数据上的泛化能力。
 
-## 四、Gradient Accumulation Steps（梯度累积步骤）
+### 四、Gradient Accumulation Steps（梯度累积步骤）
 
 梯度累积技术通过分割数据为更小的子批量来实现模拟大批量训练的效果。这一技巧并不在每个子批量处理后立即更新模型的权重，而是在一定数量的步骤中积累每个子批量的梯度。权重更新只有在累积到与较大批量相当的量时才会进行。例如，若目标批量大小是1,024，但设备每次只能处理256个样本，那么可以通过累积四个步骤中每个步骤的256个样本的梯度，来模拟出一个包含1,024个样本的批量更新。
 
@@ -232,7 +236,7 @@ print(input)
 
 
 
-## 五、Gradient Checkpointing（梯度检查点）
+### 五、Gradient Checkpointing（梯度检查点）
 
 在常规的训练过程中，所有的中间激活数据都会被保留在内存里，以便在反向传播时计算梯度。但是，考虑到大多数硬件（比如GPU）的内存限制，对于特别深的网络，这种方式很快就会显得不实用。梯度检查点技术通过只在网络的特定层面上保存激活数据来应对此挑战。对于那些没有保存激活数据的层，需要计算梯度时，会在反向传播过程中重新进行计算。
 
@@ -252,7 +256,7 @@ print(input)
 model.gradient_checkpointing_enable()
 ```
 
-## 六、Learning Rate（学习率）
+### 六、Learning Rate（学习率）
 
 学习率是决定模型在训练期间如何更新其权重的关键超参数。它影响模型为最小化损失函数而在参数空间中迈出的步长大小。合理设定的学习率可以确保模型在学习过程中既能高效提升预测性能，又不会在达到最优化之前就发生过度调整或停滞不前。
 
@@ -268,7 +272,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## 七、Learning Rate Scheduler（学习率调度器）
+### 七、Learning Rate Scheduler（学习率调度器）
 
 学习率调度器的目的在于根据一个预先定义的方案，在训练过程中调整学习率。这样做有助于避免模型早期训练中陷入局部最小值，或者在接近最优解时跳过最小值。对于大型语言模型（LLM），最常见的调度器类型是含预热期的调度器。这种调度器从一个较低的学习率出发，在几个epoch或训练步骤后逐步将学习率提升到目标值。这个策略在从大规模预训练模型开始微调时特别有用，它可以有效预防早期训练中可能出现的剧烈权重更新，这种更新有碍于模型的稳定性。  在大多数场景下，我推荐使用含预热的线性调度器，因为它至少与其他类型的调度器一样有效，这一点在论文《何时、为何以及多少？通过细化自适应学习率调度》中有所展示。线性调度器在预热后会逐步降低学习率，这种逐渐减小学习率的策略有助于模型在训练后期更加稳定地收敛。
 
@@ -280,7 +284,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## 八、Warmup Steps and Warmup Ratio（热身步骤与热身比率）
+### 八、Warmup Steps and Warmup Ratio（热身步骤与热身比率）
 
 预热步骤是指在训练初期，学习率会按照设定的学习率调度计划从一个较低的初始值渐增至一个预定的目标值。例如，假设设定了1,000个预热步骤，学习率会从一个较低的起点开始，并随着每个步骤的完成逐步上升，直至第1,000步时达到既定的目标学习率。到达这个点之后，学习率可能会按照另一个计划进行调整，如保持不变或按比例衰减。
 
@@ -296,7 +300,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## 九、Weight Decay（权重衰减）
+### 九、Weight Decay（权重衰减）
 
 权重衰减是一种鼓励模型维持较小权重值的技术，通过这种方式实现对模型的正则化，以避免复杂度过高的模型。这种技术通过将权重的平方和乘以一个正则化参数后添加到模型的损失函数中来实施。其效果是轻微地推动权重向零移动，这也有助于模型不过分依赖于任何单一的输入特征，因为这种过分依赖通常会造成对应特征权重值的显著增大。
 
@@ -312,7 +316,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## 十、Optimizer（优化器）
+### 十、Optimizer（优化器）
 
 优化器的作用在于引导模型训练过程，通过最小化误差或提升准确性来进行微调。众多优化器中，AdamW（一种基于Adam的变体）是目前使用最广泛的。另外，AdaFactor是一个内存效率更高的有趣选择。
 
@@ -334,7 +338,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
 
 为了获得更好的模型，我建议将其设置为未量化的“adamw_torch”。如果内存不足，请尝试“adamw_8bit”。然后，作为最后的手段，尝试“paged_adamw_8bit”。它会比 AdamW 8 位慢，但会进一步减少内存消耗。
 
-## 十一、Float16 和 Bfloat16
+### 十一、Float16 和 Bfloat16
 
 传统上，机器学习模型使用float32数据类型进行训练，这种类型的每个参数占用4字节（32位）内存。对于参数量达到70亿（7B）的模型，仅使用float32就意味着至少需要一块具有28GB内存（7乘以4等于28）的GPU。对于更大的模型，这种内存要求难以满足。因此，半精度训练开始变得流行，它使用float16或bfloat16数据类型，将内存需求降低了一半。  float16和bfloat16之间的主要差异在于它们如何在指数和小数部分之间分配位。bfloat16的设计允许处理更广泛的数值范围，而不会显著牺牲计算精度，这使得bfloat16在执行高速且内存效率高的深度学习操作时具有优势。尽管bfloat16在性能上更佳，但它只受安培（Ampere）一代或更新版本的GPU支持。如果您的GPU支持bfloat16，请优先使用。如果不支持，您可以选择float16，但如果在训练中遇到溢出问题（例如损失突变为0.0或NaN），可能需要回退到float32。  您可以根据硬件自动设置这些参数，具体设置方法如下：[此处假设原文会提供具体代码或设置步骤]。
 
@@ -343,7 +347,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
         bf16= torch.cuda.is_bf16_supported(),
 ```
 
-## 十二、Evaluation and Save Steps（评估与保存步骤）
+### 十二、Evaluation and Save Steps（评估与保存步骤）
 
 评估是训练过程中的一个关键步骤，在此过程中，模型会定期对未曾见过的数据进行性能评估。这种评估对于确保模型没有过度拟合训练数据非常重要。如果观察到训练损失在减少，但验证损失保持不变或有所增加，这通常意味着模型出现了过拟合。
 
@@ -370,7 +374,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
 
 ---
 
-## 附录：微调 Base LLM 与 Instruct 版本的对比
+### 附录：微调 Base LLM 与 Instruct 版本的对比
 
 > *原文来自 LLM-Fine-Tuning-Best-Practices*
 
@@ -378,29 +382,29 @@ In the application of large language models (LLMs), fine-tuning is a critical st
 
 <img src="images/ext_07.png" width="600">
 
-## 什么是 Base LLM 和 Instruct LLM？
+### 什么是 Base LLM 和 Instruct LLM？
 
-### Base LLMs
+#### Base LLMs
 
 Base LLMs are models pre-trained on a large amount of text data, with the training objective of predicting the next token. These models do not have specific format constraints and can generate highly diverse text. However, base LLMs may not directly answer user prompts and may repeat or deviate from the topic during generation.
 
-### Instruct LLMs
+#### Instruct LLMs
 
 Instruct LLMs are fine-tuned versions of base LLMs, processed through a complex pipeline to better respond to user instructions. These models undergo several post-training stages, including supervised fine-tuning (SFT), reinforcement learning with human feedback (RLHF), and direct preference optimization (DPO). They are capable of generating answers that align more closely with human preferences and are commonly used in chat applications.
 
-## 微调 Base LLM 与 Instruct LLM 的区别
+### 微调 Base LLM 与 Instruct LLM 的区别
 
  
 
-### Fine-Tuning Base LLMs
+#### Fine-Tuning Base LLMs
 
 When fine-tuning base LLMs, the model updates its weights based on new data, gradually adapting to new tasks or datasets. Since base LLMs do not have specific format constraints, they can more quickly learn new features and styles.
 
-### Fine-Tuning Instruct LLMs
+#### Fine-Tuning Instruct LLMs
 
 Instruct LLMs have already undergone a complex post-training process and have specific formats and system instructions. Fine-tuning instruct LLMs may introduce conflicts with the original system instructions and templates, leading to unexpected results. Additionally, instruct LLMs may partially lose their original safety and preference alignment capabilities during fine-tuning.
 
-## 为什么不建议微调 Instruct LLM
+### 为什么不建议微调 Instruct LLM
 
 - **Disruption of Original Training**: Fine-tuning instruct LLMs can partially undo the results of their original SFT and DPO training, causing the model to generate answers that no longer fully align with human preferences.
 
@@ -410,9 +414,9 @@ Instruct LLMs have already undergone a complex post-training process and have sp
 
   In most cases, fine-tuning base LLMs is preferable to fine-tuning instruct LLMs. Base LLMs do not have specific format constraints and can more quickly adapt to new data and tasks. For applications requiring specific formats and safety, instruct LLMs can be considered, but potential conflicts and inconsistencies should be noted.
   
-## SFT 代码示例
+### SFT 代码示例
 
-### Base Model
+#### Base Model
 ```
 model_name = "meta-llama/Meta-Llama-3.1-8B"
 #Tokenizer
@@ -491,7 +495,7 @@ trainer = SFTTrainer(
 trainer.train()
 
 ```
-### Instruct Model
+#### Instruct Model
 ```
 model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 #Tokenizer
@@ -572,14 +576,14 @@ trainer.train()
 
 ---
 
-# Part 2: 各种微调方法全景对比
+## Part 2: 各种微调方法全景对比
 
 > *原文来自 Comparison-of-Various-Fine-Tuning-Methods*
 
 
 本文将会对如下微调技术进行对比：SFT、ReFT、RHLF、RLAIF、DPO、PPO、TPO。
 
-## 几种技术之间的关系
+### 几种技术之间的关系
 
 如果把复杂的问题简单理解，这些技术之间的关系大概是：
 
@@ -597,7 +601,7 @@ trainer.train()
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**人类反馈**。
 - **评估方式**：人类对模型输出进行评价，或者使用基于人类反馈训练的**奖励模型**来评估。
 
-##### DPO 方法（Direct Preference Optimization，直接偏好优化）：
+###### DPO 方法（Direct Preference Optimization，直接偏好优化）：
 
 - **组成**：DPO 方法 = SFT + **参考模型** + DPO
 - **过程**：在 SFT 的基础上，**引入参考模型**（通常是经过 SFT 的初始模型，参数固定不更新），使用 DPO（直接偏好优化）方法，利用参考模型和人类偏好数据，直接优化模型参数。
@@ -651,7 +655,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
      DPO 避免了强化学习中的试错过程，训练更稳定，效率更高，适用于有大量人类偏好数据的场景。**同时，参考模型的引入有助于保持模型生成质量的稳定性，防止模型偏离预训练分布过远。**
 
-   ## Azure OpenAI的DPO
+   ### Azure OpenAI的DPO
 
    目前AOAI支持DPO：
 
@@ -698,12 +702,12 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 ---
 
-# Part 3: 强化学习与微调的本质区别
+## Part 3: 强化学习与微调的本质区别
 
 > *原文来自 Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## 强化学习类与有监督微调类的区别
+### 强化学习类与有监督微调类的区别
 
 **一、强化学习**
 
@@ -715,43 +719,43 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 <img src="images/ext_10.png" width="600">
 
-#### **1. 关键组成部分**
+##### **1. 关键组成部分**
 
-##### **（1）状态空间（State Space，S）**
+###### **（1）状态空间（State Space，S）**
 
 - **定义**：环境可能处于的所有状态的集合。
 - **表示**：在时间步 t，环境的状态记为 **s_t**。
 
-##### **（2）动作空间（Action Space，A）**
+###### **（2）动作空间（Action Space，A）**
 
 - **定义**：智能体能够执行的所有可能动作的集合。
 - **表示**：在时间步 t，智能体采取的动作记为 **a_t**。
 
-##### **（3）策略（Policy，π）**
+###### **（3）策略（Policy，π）**
 
 - **定义**：策略是从状态到动作的映射，决定智能体在每个状态下选择哪个动作。
 - **表示**：
   - **确定性策略**：a_t = π(s_t)，即在状态 s_t 下，总是选择相同的动作。
   - **随机性策略**：根据概率分布选择动作，a_t ~ π(a | s_t)。
 
-##### **（4）奖励函数（Reward Function，R）**
+###### **（4）奖励函数（Reward Function，R）**
 
 - **定义**：定义了智能体在特定状态下采取某个动作后获得的即时奖励。
 - **表示**：R(s_t, a_t)，表示在状态 s_t 采取动作 a_t 后获得的奖励。
 
-##### **（5）状态转移概率（State Transition Probability，P）**
+###### **（5）状态转移概率（State Transition Probability，P）**
 
 - **定义**：描述了智能体在当前状态采取某个动作后，环境转移到下一个状态的概率。
 - **表示**：P(s_{t+1} | s_t, a_t)，表示在状态 s_t 采取动作 a_t 后，转移到状态 s_{t+1} 的概率。
 
-##### **（6）折扣因子（Discount Factor，γ）**
+###### **（6）折扣因子（Discount Factor，γ）**
 
 - **定义**：用于平衡即时奖励和未来奖励的重要性，取值范围 0 ≤ γ ≤ 1。
 - **特点**：
   - 当 γ 接近 0 时，更关注即时奖励。
   - 当 γ 接近 1 时，更关注长期累积奖励。
 
-##### **（7）价值函数（Value Function）**
+###### **（7）价值函数（Value Function）**
 
 - **状态价值函数（V^π(s)）**：
 
@@ -773,7 +777,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
     Q^π(s, a) = E_π [ R(s, a) + γ * Q^π(s_{t+1}, a_{t+1}) ]
     ```
 
-#### **2. 举例说明**
+##### **2. 举例说明**
 
 
 **例子：自动驾驶小车**
@@ -791,7 +795,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-#### **3. 强化学习的目标**
+##### **3. 强化学习的目标**
 
 - **目标**：学习一个最优策略 π*，使得智能体在环境中行动时，累积的期望奖励最大化。
 
@@ -805,7 +809,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-#### **4. 强化学习的关键要素总结**
+##### **4. 强化学习的关键要素总结**
 
 - **状态（s_t）**：对环境的感知，智能体当前所处的位置。
 - **动作（a_t）**：智能体可以执行的动作集合。
@@ -817,7 +821,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-#### **5. 总结**
+##### **5. 总结**
 
 
 在强化学习中，智能体通过不断与环境交互，根据奖励信号调整策略，目的是找到能使累积奖励最大化的最优策略。关键组件包括：
@@ -996,7 +1000,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
   - **直观理解**：
 
-#### **（5）加入参考策略**
+##### **（5）加入参考策略**
 
 - **参考策略 π₀**：初始的策略模型。
 
@@ -1018,14 +1022,14 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
   - **λ** 是权衡损失和正则化项的超参数，控制模型偏离初始策略的程度。
 
-#### **（6）优化策略模型**
+##### **（6）优化策略模型**
 
  
 
 - **最小化总损失函数 L_total(θ)**，更新策略模型的参数 θ。
 - **迭代训练**：重复上述过程，直到模型在验证数据上的表现达到预期。
 
-#### **（7）结果**
+##### **（7）结果**
 
 - **优化后的策略模型 πₜθ**：
   - 更倾向于为小车规划符合人类偏好的路径。
@@ -1123,9 +1127,9 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-## ReFT 简介
+### ReFT 简介
 
-### OpenAI的 ReFT
+#### OpenAI的 ReFT
 
 监督式微调 (SFT) 涉及采用预先训练的模型，并使用监督式学习技术利用额外数据对其进行调整。在实践中，当目标是使模型的输出或格式与特定数据集保持一致，或确保模型遵循某些指令时，SFT 效果最佳。
 
@@ -1203,7 +1207,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 <img src="images/12.png" width="600">
 
-### 字节的ReFT
+#### 字节的ReFT
 
 先看ReFT论文中的流程图：
 
@@ -1231,7 +1235,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
      图例说明了在GSM8K数据集上，一个问题（x）、推理链（e）和答案（y）的示例。通过多个SFT周期对训练数据进行迭代，并使用ReFT方法从SFT进行预热，然后在相同数据上进行强化学习训练。
 
-## TPO 的流程
+### TPO 的流程
 
 先看Thought Preference Optimization（TPO）的流程：
 
@@ -1285,9 +1289,9 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 - **使用 DPO 优化**：利用这些偏好对，结合 **参考模型**，使用 DPO 方法构建损失函数，直接优化模型参数。
 
-## PPO 和 DPO 的本质区别
+### PPO 和 DPO 的本质区别
 
-### 1. 强化学习的本质
+#### 1. 强化学习的本质
 
 
 强化学习就像训练一只小狗做动作。
@@ -1328,7 +1332,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
   - 学会一条最优路径，快速找到出口，获得最高的累计奖励。
 
-### 2. 偏好数据的直接优化（DPO）的本质
+#### 2. 偏好数据的直接优化（DPO）的本质
 
 **直接偏好优化（DPO）** 是一种直接利用偏好数据和参考模型来优化模型的方法。
 
@@ -1403,14 +1407,14 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
   - DPO 不涉及与环境的交互和即时奖励信号，避免了强化学习中的复杂性和不稳定性。
   - DPO 的优化过程更直接、更稳定，适合在有大量偏好数据的场景下使用。
 
-### **3. 关于 DPO 中的“交互”**
+#### **3. 关于 DPO 中的“交互”**
 
 
 在 DPO 的描述中，模型需要生成多个回答，然后人类评估者或辅助的 AI 判别模型提供偏好反馈（**注：在 TPO 的 DPO 部分，偏好数据可能来自 AI 模型**）。这似乎也涉及到一些交互。那么，DPO 不是也有交互吗？
 
 **的确，DPO 涉及到模型与人类评估者或 AI 判别模型之间的“交互”，因为需要收集偏好数据。然而，这种交互与强化学习中的交互有本质的不同。**
 
-#### **1. DPO 中的“交互”**
+##### **1. DPO 中的“交互”**
 
 - 数据收集阶段的交互：
   - 在 DPO 中，模型会为每个输入生成多个候选输出（如回答）。
@@ -1420,7 +1424,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
   - 一旦偏好数据收集完成，模型的训练过程就是基于这些偏好对，**结合参考模型**，使用监督学习的方法直接优化模型参数。
   - **训练过程中不再需要与人类评估者或环境进行交互**，参考模型的参数在训练中保持固定。
 
-#### **2. 强化学习中的交互**
+##### **2. 强化学习中的交互**
 
 
 
@@ -1431,7 +1435,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
   - 强化学习的训练是在线的、迭代的，模型需要不断地试错来学习最优策略。
   - 涉及到 **状态、动作、奖励、价值函数、策略更新** 等复杂概念。
 
-#### **3. 两者的区别**
+##### **3. 两者的区别**
 
 - 交互的性质和阶段不同：
 
@@ -1448,7 +1452,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
   - **DPO** 的训练过程相对简单、稳定，因为它是基于监督学习，参考模型的引入进一步稳定了训练过程。
 - **强化学习** 的训练过程更复杂，可能存在不稳定性，需要精心调整超参数和训练策略。
 
-#### **4. 举个例子**
+##### **4. 举个例子**
 
 
 **DPO 的例子：**
@@ -1488,7 +1492,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
   - **训练过程需要持续的、在线的交互**。
   - **模型的行为会影响后续的状态和奖励**，训练过程更加复杂，需要处理环境的不确定性。
 
-#### **5. 总结**
+##### **5. 总结**
 
 - **直接偏好优化（DPO）**：
   - **交互发生在数据收集阶段**，是离线的、静态的。偏好数据收集完成后，训练过程不再需要交互。
@@ -1503,12 +1507,12 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 ---
 
-# Part 4: 七种微调技术对比总表
+## Part 4: 七种微调技术对比总表
 
 > *原文来自 Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## 几种技术对比
+### 几种技术对比
 
 | **比较维度**   | **SFT（有监督微调）**                            | **ReFT（强化微调）**                                         | **RLHF（基于人类反馈的强化学习）**                        | **DPO（直接偏好优化）**                                      | **PPO（近端策略优化）**                            | **RLAIF（基于 AI 反馈的强化学习）**                          | **TPO（思维偏好优化）**                                      |
 | -------------- | ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1561,14 +1565,14 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 ---
 
-# Part 5: LoRA/QLoRA 微调机制与 GaLore 全量微调
+## Part 5: LoRA/QLoRA 微调机制与 GaLore 全量微调
 
 > *原文来自 Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## LoRA/QLoRA 微调机制与 Adapter 合并策略
+### LoRA/QLoRA 微调机制与 Adapter 合并策略
 
-### LoRA 的原理
+#### LoRA 的原理
 
 LoRA（Low-Rank Adaptation）的核心思想是：给预训练权重 W 增加一个低秩的增量 BA，而不是直接修改所有参数。
 
@@ -1586,7 +1590,7 @@ QLoRA 在此基础上进一步优化——将大型预训练模型先量化成�
 
 <img src="images/qlora_perf_1.png" width="600">
 
-### 低秩矩阵表示的数学示例
+#### 低秩矩阵表示的数学示例
 
 以 4×4 小矩阵为例说明 LoRA 的低秩更新原理：
 
@@ -1616,7 +1620,7 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 微调后权重 W_merged = W + BA，通过两个小矩阵的乘积完成对原始权重的修正。当 r 比 d 小很多时，B 和 A 的参数量远小于 d×d，节省大量训练开销与存储。
 
-### Adapter 合并策略与量化对精度的影响
+#### Adapter 合并策略与量化对精度的影响
 
 <img src="images/qlora_perf_2.png" width="600">
 
@@ -1635,7 +1639,7 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 - 显存充足 → 合并后直接 16-bit 推理
 - **避免**合并后再用 bitsandbytes 4-bit 量化
 
-## GaLore 全量微调实验
+### GaLore 全量微调实验
 
 GaLore（Gradient Low-Rank）支持全量微调（Full Fine-tuning），即调整模型所有参数。与 LoRA 等参数效率微调（PEFT）不同，GaLore 通过创新的梯度低秩投影技术，在内存受限条件下也能进行大型模型的全量微调。
 
@@ -1647,7 +1651,7 @@ GaLore 性能对比：
 
 GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change frequency T。
 
-### GaLore 优化器选项
+#### GaLore 优化器选项
 
 | 优化器 | 显存需求 (Mistral 7B, BS=8) | 说明 |
 |--------|:---------------------------:|------|
@@ -1655,7 +1659,7 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 | galore_adamw_8bit | ~35 GB (rank=512), ~30 GB (rank=128) | 8位量化优化器 |
 | galore_adamw_8bit_layerwise | ~22.5 GB | 分层更新，可在 24GB 消费级 GPU 运行 |
 
-### 实验记录
+#### 实验记录
 
 以下在单 H100 上对 Mistral-7B 进行全量微调（trainable parameters = 7,241,732,096），使用 openassistant-guanaco 数据集。
 
@@ -1721,7 +1725,7 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 <img src="images/ext_29.png" width="600">
 
-### GaLore 实验总结
+#### GaLore 实验总结
 
 | 实验 | BS | LR | 优化器 | Rank | 结果 |
 |:----:|:--:|:--:|--------|:----:|------|
@@ -1740,12 +1744,12 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 ---
 
-# Part 6: DPO 理论深入与对齐实践
+## Part 6: DPO 理论深入与对齐实践
 
 > *原文来自 LLM-Alignment-DPO-PPO-CPO*
 
 
-## 6.1 解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析
+### 6.1 解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
@@ -1757,7 +1761,7 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简单的目标函数使优化更加容易，收敛速度更快。对于通用的后训练任务以及预算有限的 AI 项目，DPO 仍是比复杂的强化学习方法（如 PPO 或 GRPO）更强有力的替代方案。
 
-### 详解PPO
+#### 详解PPO
 
  PPO 训练架构中，四个主要模型（Policy Model、Reference Model、Reward Model、Value Model）各自承担着不同的职责，简要说明如下：
 
@@ -1846,7 +1850,7 @@ DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简
 
 
 
-### 摘要（Abstract）
+#### 摘要（Abstract）
 
 从偏好反馈（preference feedback）中进行学习，已经成为当代大语言模型（LMs）提升生成质量与各种任务性能的关键途径。简单来说，"偏好反馈"通常让人类（或模拟系统）对两段不同的模型输出做出偏好判断，进而指导模型学习哪种回复更优。
 
@@ -1878,7 +1882,7 @@ DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简
 • "指令遵从性"与"真值性": 如果系统设定了"请先列出解题思路，再给出最终答案"的指令，一个具备较高指令遵从性与真值性的模型，会提供正确且完整的思路，并避免无根据的胡编乱造。
 
 
-### 引言（Introduction）
+#### 引言（Introduction）
 
 在现代大语言模型（LMs）的开发流程中，往往会额外添加一个阶段——**从偏好反馈中学习（有时也称 RLHF，reinforcement learning from human feedback）——再将模型投入实际使用。**先前有大量研究表明，该阶段能够显著增强模型，包括使模型在指令执行、代码生成、数学解题、文本摘要等方面都获得大幅度改善。
 
@@ -1898,7 +1902,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 若我们在同一个已训练好的（Supervised Fine-Tuned）模型基础上，分别改变上述任意一个要素，下游性能会发生什么变化？我们在实验中发现，各要素确实都会产生影响，但重要性和效果各异。
 
-### 设置（Setup）
+#### 设置（Setup）
 
 本节先简要介绍 PPO 与 DPO 的概念与原理，然后描述我们在实验与评测中的具体做法。呈现了 PPO 与 DPO 间的结构化对比。  
 
@@ -1927,7 +1931,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • AlpacaEval 1 & 2、IFEval：测试模型对指令的跟随度（instruction following）。
 
 
-### 基于偏好反馈的探索
+#### 基于偏好反馈的探索
 
 在此我们从以下四个方面展开： (1) 偏好数据；(2) 学习算法；(3) 奖励模型；(4) 策略训练提示。  
 
@@ -1959,7 +1963,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • 但混合提示对多任务综合性能改善有限。
 
 
-### 基于偏好反馈的一份"食谱"（A Recipe）
+#### 基于偏好反馈的一份"食谱"（A Recipe）
 
 综合上述分析，推荐的最佳实践：
 
@@ -1971,14 +1975,14 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 - 策略训练提示：若只需在单一域中极致提升，则可强化相应领域的提示分布。
 
 
-### 相关工作（Related Work）
+#### 相关工作（Related Work）
 
 (1) 从偏好反馈中学习：早期研究多将其视作强化学习思路，PPO 是最常用的实践方法之一。本研究系统性考察了数据、算法、奖励模型、策略提示等多维度的综合影响。
 
 (2) 近期并行研究：Xu 等关注 DPO 性能不稳、PPO 更鲁棒；Tajwar 等强调在线采样和对负样本进行显式梯度更新的重要性。
 
 
-### 结论（Conclusion）
+#### 结论（Conclusion）
 
 本研究对偏好学习的四大核心环节作了系统探究。结果显示影响次序为：
 - 偏好数据质量最先决定模型能达到的上限，
@@ -1991,9 +1995,9 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 ---
 
 
-## 6.2 DPO 深入探讨与实践
+### 6.2 DPO 深入探讨与实践
 
-### RLHF、RLAIF 与 DPO 的偏见问题
+#### RLHF、RLAIF 与 DPO 的偏见问题
 
 RLHF（Reinforcement Learning with Human Feedback）和 RLAIF（Reinforcement Learning with AI Feedback）是两种用于微调大型语言模型（LLM）的方法。它们的主要区别在于反馈的来源：RLHF 依赖于人类提供反馈，而 RLAIF 则使用另一个 LLM 生成反馈。
 
@@ -2016,7 +2020,7 @@ RLAIF 试图通过使用另一个大型语言模型（LLM）生成反馈来解�
 
 
 
-### DPO 中参考模型的深入解析
+#### DPO 中参考模型的深入解析
 
 **https://huggingface.co/docs/trl/dpo_trainer**
 
@@ -2059,7 +2063,7 @@ RLAIF 试图通过使用另一个大型语言模型（LLM）生成反馈来解�
 
 
 
-### 为什么选择 DPO 而非直接 SFT 微调？
+#### 为什么选择 DPO 而非直接 SFT 微调？
 
 使用一个 SFT 的 Mistral 作为参考模型来训练另一个 Mistral 模型确实听起来有些重复，但在 DPO 的上下文中，这样做是有其特定目的和理由的。
 
@@ -2081,7 +2085,7 @@ DPO 方法的核心在于直接优化模型以生成符合人类偏好的输出�
 
 总之，尽管 SFT 模型在很多情况下已经足够好，但 DPO 提供了一种基于人类的直接反馈进行模型微调的方法，这可以针对特定的应用场景进一步优化模型性能。这种基于人类偏好的微调方法在确保模型输出与人类评价者期望一致的同时，还可以提高模型的可适应性和泛化能力。
 
-### DPO 的应用场景
+#### DPO 的应用场景
 
 DPO 方法虽然在本质上依赖于分类问题的框架（即区分人类偏好的高质量和低质量输出），但它并不局限于传统的分类任务。实际上，DPO 是为了解决语言模型在生成任务中的优化问题而设计的。
 
@@ -2099,7 +2103,7 @@ DPO 特别适用于以下几种场景：
 
 尽管 DPO 借鉴了分类问题的一些技术，但其目标是为了改善生成任务中的模型性能，使之能够创建出高度符合人类偏好的输出。这一点使其与传统的分类任务有着本质的区别。因此，DPO 更多地被视为一种特定于生成任务的优化策略，而不仅仅是一种分类方法。
 
-### DPO 核心代码参考
+#### DPO 核心代码参考
 
 以下以 Mistral 7B 模型为例，展示 DPO 训练的完整流程。
 
@@ -2198,19 +2202,19 @@ bs=32：
 8. **Logps/rejected** 和 **Logps/chosen**：对数概率（log probabilities）值，分别对应被拒绝和被选择输出的对数概率，通常用于概率的数值稳定性处理。
 9. **Logits/rejected** 和 **Logits/chosen**：在模型的最后一个线性层输出之前的值，即 logits，是经过最后一层线性变换但尚未应用激活函数的值。
 
-### SimPO 与 CPO 实践
+#### SimPO 与 CPO 实践
 
 在本项目的 Jupyter Notebook 中，还包含了使用 SimPO（Simple Preference Optimization）和 CPO（Contrastive Preference Optimization）对 Llama 3 进行内存高效对齐训练的完整代码示例，详见 `Memory_efficient_LLM_Alignment_with_SimPO_Example_with_Llama_3_and_Comparison_with_CPO.ipynb`。
 
 
 ---
 
-# Part 7: DPO 微调代码与训练结果分析
+## Part 7: DPO 微调代码与训练结果分析
 
 > *原文来自 Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## DPO微调代码
+### DPO微调代码
 
 定义要被微调的模型
 
@@ -2309,7 +2313,7 @@ trainer.train()
 
 <img src="images/2.png" width="600">
 
-## 对DPO训练结果的解释
+### 对DPO训练结果的解释
 
 在使用 DPO（Direct Preference Optimization，直接偏好优化）方法进行模型训练时，我们涉及两个模型：
 
@@ -2322,7 +2326,7 @@ trainer.train()
 
 训练过程中的关键步骤和指标
 
-#### 训练数据
+##### 训练数据
 
 每个训练样本包含：
 
@@ -2330,7 +2334,7 @@ trainer.train()
 - Chosen（理想回复）：我们希望模型生成的正确答案。
 - Rejected（不理想回复）：我们希望模型避免生成的答案。
 
-#### 模型评价
+##### 模型评价
 
 对于每个样本，我们需要计算以下内容：
 
@@ -2338,7 +2342,7 @@ trainer.train()
 - 训练模型 对 Prompt + Rejected 的评价。
 - 参考模型 对 Prompt + Chosen 和 Prompt + Rejected 的评价（用于计算正则化项）。
 
-#### 奖励值的计算
+##### 奖励值的计算
 
 奖励函数（Reward Function）：用于评估训练模型对 Chosen 和 Rejected 的输出质量，给予数值评分（奖励值）。
 
@@ -2346,7 +2350,7 @@ trainer.train()
   - Rewards/chosen：训练模型对 Chosen 回复的奖励。
   - Rewards/rejected：训练模型对 Rejected 回复的奖励。
 
-#### 损失函数的计算
+##### 损失函数的计算
 
 损失函数的主要组成部分：
 
@@ -2364,9 +2368,9 @@ trainer.train()
 
 
 
-### 通过示例解释训练过程和指标
+#### 通过示例解释训练过程和指标
 
- #### 示例训练数据
+ ##### 示例训练数据
 
 
 Prompt：
@@ -2465,7 +2469,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 
 
 
-### 参考模型的作用
+#### 参考模型的作用
 
  
 
@@ -2473,7 +2477,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 - 计算差异：通过比较训练模型和参考模型在 Chosen 和 Rejected 上的输出差异，调整奖励值。
 - 隐式影响：虽然参考模型的输出不直接出现在训练结果中，但它在损失函数的计算中起到了关键作用，进而影响了训练模型的更新。
 
-### 训练结果中的各指标
+#### 训练结果中的各指标
 
 
 现在，我们将总结训练结果中的各个指标，以及它们是如何产生的：
@@ -2485,15 +2489,15 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 - Logps/chosen 和 Logps/rejected：训练模型在 Chosen 和 Rejected 上的对数概率之和。
 - Logits/chosen 和 Logits/rejected：训练模型在生成 Chosen 和 Rejected 时的未归一化输出值。
 
-### 总结
+#### 总结
 
 - 参考模型的作用：虽然参考模型的输出不直接显示在训练结果的指标中，但它通过损失函数中的正则化项，间接地影响了训练模型的更新。
 - 指标的产生：训练结果中的各项指标主要反映了训练模型的性能，通过对 Chosen 和 Rejected 的评价计算得到。
 - 训练目标：通过最小化损失函数，使训练模型更倾向于生成 Chosen 回复，而避免生成 Rejected 回复，同时保持模型的语言能力不被破坏。
 
-## DPO微调中的正则化与泛化
+### DPO微调中的正则化与泛化
 
-### 正则化
+#### 正则化
 
 
 简单来说，正则化是一种防止模型过度拟合的方法。
@@ -2507,7 +2511,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 
 比喻：想象你在学习如何识别苹果和橘子。过度拟合的模型可能会记住训练集中每个苹果和橘子的具体特征，比如这个苹果有一个小斑点，那个橘子有一片叶子。正则化的模型则会关注苹果和橘子的一般特征，比如形状、颜色，而不会过分关注训练数据中特定的细节。
 
-#### 在模型训练中的应用
+##### 在模型训练中的应用
 
 - **限制模型复杂度**：正则化通过限制模型的参数，使模型不会变得过于复杂。例如，在神经网络中，可以对权重施加限制，不让它们变得过大。
 - **防止参数过大**：如果模型的参数（如权重）变得过大，模型可能会过度关注训练数据的细节。正则化通过在损失函数中添加一个惩罚项，鼓励模型的参数保持较小的值。
@@ -2528,7 +2532,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
   - 利用参考模型：通过在损失函数中加入一个项，测量训练模型与参考模型之间的差异（如 KL 散度）。
   - **作用**：这项差异作为正则化，防止模型过度偏离参考模型的行为，保持语言流畅性和多样性。
 
-### 泛化
+#### 泛化
 
 
 我们实际上已经在训练数据中提供了“应该怎么回答”和“不应该怎么回答”的示例，分别是 Chosen 和 Rejected 回复。但仅仅提供正确答案并让模型模仿是不够的，我们希望模型能够理解为什么某个回答是好的，某个回答是差的，从而在新的情况下做出正确的判断。
@@ -2588,7 +2592,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
      这样，模型在面对类似但不同的问题时，也能给出正确的回答：
      例如，遇到“请解释牛顿的第二定律”时，模型能够推断出应该提供该定律的解释，而不是说“我不知道”。
 
-#### 总结
+##### 总结
 
 - **正则化**：
   是一种防止模型过度拟合的方法，确保模型在新数据上也有良好的表现。在您的训练中，参考模型用于正则化，防止训练模型过度偏离原有的语言模型分布，保持语言的质量和一致性。
@@ -2598,7 +2602,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 
 ---
 
-# Part 8: 大模型 DPO 分布式训练 (DeepSpeed & FSDP)
+## Part 8: 大模型 DPO 分布式训练 (DeepSpeed & FSDP)
 
 > *原文来自 DPO-DeepSpeed-FSDP*
 
@@ -2607,7 +2611,7 @@ Rewards/margins = (-50.5) - (-70.3) = 19.8
 
  
 
-### Technical Points
+#### Technical Points
 
 For example, suppose we want to perform DPO training on a 70 billion-parameter model on a machine with 8 H100 GPUs (totaling 640 GB of VRAM). We need to consider the following points:
 
@@ -2618,7 +2622,7 @@ For example, suppose we want to perform DPO training on a 70 billion-parameter m
   Thus, just the model parameters alone consume 280 GB of VRAM, approximately 43.75% of the total VRAM. In addition, there are optimizer states. For example, using the AdamW optimizer, each parameter has two additional state variables. If these state variables are stored in 16-bit precision, they will take up an extra 280 GB of VRAM. Adding it all up, we've used 560 GB of VRAM, leaving only 80 GB. This remaining VRAM is needed to store activations and gradients. Without special methods, it's unlikely to train on a single machine.
 
 
-## Distributed training technology 
+### Distributed training technology 
 
 To address the above challenges, we could use PyTorch's **Fully Sharded Data Parallel (FSDP)** technology, combined with parameter-efficient fine-tuning methods like LoRA and QLoRA. 
 
@@ -2688,7 +2692,7 @@ drwxr-xr-x  4 root root      4096 Dec 19 06:48 checkpoint-5
 
 
 
-## DeepSpeed Training
+### DeepSpeed Training
 
 Deepspeed Configuration file:
 
@@ -2885,7 +2889,7 @@ Launch training
 
 <img src="images/1.png" width="600">
 
-## Accelerate FSDP training
+### Accelerate FSDP training
 
  Configuration file:
 
@@ -3148,11 +3152,11 @@ Launch training
 
 
 
-## Training result analyze
+### Training result analyze
 
 In DPO training, the model is provided with a set of conversations, each containing the same **"prompt"** or **"question"**, along with corresponding **"chosen"** and **"rejected"** replies. The model needs to learn to distinguish between these replies and prefer generating high-quality **"chosen"** responses.
 
-### Training data and results
+#### Training data and results
 
 The training data includes:
 
@@ -3176,7 +3180,7 @@ The training data includes:
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 
-### DPO training process and results explanation
+#### DPO training process and results explanation
 
 
 **Core Objective of DPO**
@@ -3191,7 +3195,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-#### Training Data
+##### Training Data
 
 - **Prompt:** User input, for example: "Please explain the phase changes of water."
 
@@ -3231,7 +3235,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-#### Training Process
+##### Training Process
 
 **Step 1: Calculate Log Probabilities**
 
@@ -3305,7 +3309,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 - **Objective:** Minimize the loss function **loss** to make the model more inclined to generate the "chosen" reply over the "rejected" reply.
 
-#### Training Process Example
+##### Training Process Example
 
 
 **Assumed Values (for Illustration):**
@@ -3357,7 +3361,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 
 
-#### Explanation of Training Log Fields
+##### Explanation of Training Log Fields
 
  
 Based on the DPO training process, here's a detailed explanation of each field in the training log and their importance in evaluating training effectiveness:
@@ -3383,7 +3387,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### 1. `loss`
+##### 1. `loss`
 
 - **Meaning:**
   - Represents the loss value at the current training step, measuring the model's ability to distinguish between the "chosen" and "rejected" replies.
@@ -3394,7 +3398,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** `loss` is typically higher (around `0.6931`), indicating no preference.
   - **During Training:** Should decrease over time, showing the model is learning to prefer the "chosen" reply.
 
-#### 2. `grad_norm`
+##### 2. `grad_norm`
 
 - **Meaning:**
   - Represents the gradient norm of the model parameters, indicating the overall magnitude of parameter updates.
@@ -3407,7 +3411,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - **Too Small:** Near zero may indicate lack of learning.
     - **Too Large:** May require gradient clipping to prevent instability.
 
-#### 3. `learning_rate`
+##### 3. `learning_rate`
 
 - **Meaning:**
   - Controls the step size in parameter updates during training.
@@ -3417,7 +3421,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Slow Loss Decrease:** Consider increasing the learning rate.
   - **Unstable Training:** If loss fluctuates, decreasing the learning rate might help.
 
-#### 4. `rewards/chosen` and `rewards/rejected`
+##### 4. `rewards/chosen` and `rewards/rejected`
 
 - **Meaning:**
   - `rewards/chosen`: Reward value for the "chosen" reply (`Δ_chosen`).
@@ -3430,7 +3434,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - `rewards/chosen` should increase.
     - `rewards/rejected` should decrease.
 
-#### 5. `rewards/accuracies`
+##### 5. `rewards/accuracies`
 
 - **Meaning:**
   - The proportion of times the model correctly prefers the "chosen" reply.
@@ -3440,7 +3444,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** Around `0.5` (random guess).
   - **During Training:** Should approach `1.0`, indicating improved preference accuracy.
 
-#### 6. `rewards/margins`
+##### 6. `rewards/margins`
 
 - **Meaning:**
 
@@ -3455,7 +3459,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **Indicator Trend:**
   - Should increase during training.
 
-#### 7. `logps/chosen` and `logps/rejected`
+##### 7. `logps/chosen` and `logps/rejected`
 
 - **Meaning:**
   - Total log probabilities of generating the "chosen" and "rejected" replies.
@@ -3465,7 +3469,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Increasing `logps/chosen`** indicates higher probability for the "chosen" reply.
   - **Stable or decreasing `logps/rejected`** shows reduced preference for the "rejected" reply.
 
-#### 8. `logits/chosen` and `logits/rejected`
+##### 8. `logits/chosen` and `logits/rejected`
 
 - **Meaning:**
   - Raw output scores from the final layer before applying softmax, for both replies.
@@ -3475,7 +3479,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Ensure Valid Values:** Avoid `nan` or `inf` values.
   - **Monitor Changes:** Changes in logits reflect learning progress.
 
-#### 9. `epoch`
+##### 9. `epoch`
 
 - **Meaning:**
   - Indicates the current training epoch or iteration over the training dataset.
@@ -3484,7 +3488,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **Indicator Trend:**
   - As `epoch` increases, expect improvements in other metrics.
 
-#### Summary 
+##### Summary 
 
 - **Adjust Training Strategies Based on Indicators:**
 
@@ -3508,7 +3512,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-### DPO training process and results explanation in Chinese
+#### DPO training process and results explanation in Chinese
 
 - **目标：** 直接优化模型参数来反映人类偏好，而无需通过单独的奖励模型。DPO 利用人类偏好数据直接调整模型，使其生成的回复更符合人类期望。
 
@@ -3562,9 +3566,9 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-#### **训练过程**
+##### **训练过程**
 
-#### **步骤 1：计算对数概率**
+##### **步骤 1：计算对数概率**
 
  
 **对于被训练模型（参数为 θ）：**
@@ -3602,7 +3606,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### **步骤 2：计算偏好差值**
+##### **步骤 2：计算偏好差值**
 
  
 
@@ -3622,7 +3626,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### **步骤 3：构建损失函数**
+##### **步骤 3：构建损失函数**
 
  
 
@@ -3638,7 +3642,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-### **训练过程示例**
+#### **训练过程示例**
 
  
 **假设值（用于说明）：**
@@ -3688,7 +3692,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 - **优化模型参数：**
   - 通过反向传播，最小化损失函数 **loss**，进一步增强模型对“选择”回复的偏好。 
 
-### **训练日志字段解释**
+#### **训练日志字段解释**
 
  
 结合上述 DPO 训练过程，以下是训练日志中每个字段的详细解释，以及它们在评估训练效果时的重要性。我们还将通过实际训练中的示例，说明这些指标的变化趋势。
@@ -3714,7 +3718,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
  
 
-#### **1. `loss`**
+##### **1. `loss`**
 
 - **含义：**
   - **损失值**，衡量模型在当前训练步骤中对“选择”回复和“拒绝”回复的区分能力。
@@ -3725,7 +3729,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **初始阶段：** `loss` 值通常较高，例如约 `0.6931`，对应于模型对两种回复没有偏好。
   - **训练过程中：** 随着训练进行，`loss` 应该逐渐降低，表明模型正在学习更偏好“选择”回复。
 
-#### **2. `grad_norm`**
+##### **2. `grad_norm`**
 
 - **含义：**
   - **梯度范数**，表示模型参数更新的总体变化量。
@@ -3738,7 +3742,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
     - **过小（接近 0）：** 可能表示模型未在学习。
     - **过大：** 需要考虑梯度裁剪，防止梯度爆炸。
 
-#### **3. `learning_rate`**
+##### **3. `learning_rate`**
 
 - **含义：**
   - **学习率**，控制模型参数更新步长的大小。
@@ -3750,7 +3754,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **初始学习率：** 常见设置为 `1e-5`。
   - **调整策略：** 根据训练效果，动态调整学习率。
 
-#### **4. `rewards/chosen` 和 `rewards/rejected`**
+##### **4. `rewards/chosen` 和 `rewards/rejected`**
 
 - **含义：**
   - `rewards/chosen`：模型对“选择”回复的奖励值，即偏好差值 `Δ_chosen`。
@@ -3763,7 +3767,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
     - **`rewards/chosen` 应逐渐增大**，表示模型对“选择”回复的倾向增强。
     - **`rewards/rejected` 应逐渐减小**，表示模型对“拒绝”回复的倾向减弱。
 
-#### **5. `rewards/accuracies`**
+##### **5. `rewards/accuracies`**
 
  **含义：**
 
@@ -3774,7 +3778,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **初始阶段：** 可能接近 `0.5`，相当于随机选择。
   - **训练过程中：** 应逐渐提升，朝 `1.0` 逼近，表示模型越来越多地正确偏好“选择”回复。
 
-#### **6. `rewards/margins`**
+##### **6. `rewards/margins`**
 
 - **含义：**
 
@@ -3792,7 +3796,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **初始阶段：** 可能接近 `0.0`。
   - **训练过程中：** 应逐渐增大，表示模型更好地区分并偏好“选择”回复。
 
-#### **7. `logps/chosen` 和 `logps/rejected`**
+##### **7. `logps/chosen` 和 `logps/rejected`**
 
 - **含义：**
   - `logps/chosen`：模型生成“选择”回复的总对数概率。
@@ -3804,7 +3808,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
     - **`logps/chosen` 应逐渐增大（数值趋向于 0）**，表示模型对“选择”回复的生成概率增加。
     - **`logps/rejected` 可能保持不变或减小**，表示对“拒绝”回复的生成概率降低。
 
-#### **8. `logits/chosen` 和 `logits/rejected`**
+##### **8. `logits/chosen` 和 `logits/rejected`**
 
 - **含义：**
   - **原始输出得分**，模型在最后一层对两种回复的未归一化得分（一般是一个向量）。
@@ -3813,7 +3817,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 - **指标变化趋势：**
   - **数值正常：** 确保 `logits` 的数值没有异常（如 `nan` 或 `inf`）。
 
-#### **9. `epoch`**
+##### **9. `epoch`**
 
 - **含义：**
   - **训练轮次**，模型遍历整个训练数据的次数。
@@ -3824,7 +3828,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 
 
-### **总结**
+#### **总结**
 
 - **根据指标调整训练策略：**
   - **损失下降缓慢：** 可以适当增大学习率或检查数据质量。

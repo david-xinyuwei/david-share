@@ -5,11 +5,11 @@
 [![Agent ModelOps](https://img.shields.io/badge/Agent_ModelOps-Training%20%7C%20Deployment%20%7C%20Operations-orange)](#executive-summary)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
+> **Author**: 魏新宇 (Xinyu Wei) - Microsoft AI Lead Senior System Engineer
+
 Foundry 让生产级 AI ModelOps 更容易解释和落地：团队可以在同一个 operational plane 里改进模型、部署模型、调用模型、监控效果并归集成本；但平台工程师仍然要按不同动作选择不同 API，比如 training job、Managed Compute deployment、旧 AML endpoint 和 inference call。
 
 这是一份公开、可引用、证据驱动的边界图。这里的 governance 指 **operational governance**：identity、project context、monitoring、billing 和 lifecycle control；它不是完整的 compliance / audit governance 审计报告。
-
-> **Author**: 魏新宇 (Xinyu Wei) - Microsoft AI and Apps GBB Senior System Engineer
 
 [English](README.md) | 中文版 | [Managed Compute Blog](https://devblogs.microsoft.com/foundry/announcing-foundry-managed-compute/) | [BRK232 Code Repo](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry)
 
@@ -246,7 +246,7 @@ Governance-plane conclusion: unified_context_specialized_operations
 | Repo | 关系 |
 |---|---|
 | [Foundry-Agent-Post-Training-Deep-Dive](../../Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive/) | 解释 BRK231/BRK232 learning loop：distillation、SFT、RFT、low-level API。 |
-| [Foundry-Managed-Compute-Open-Models](../../Deep-Learning/Foundry-Managed-Compute-Open-Models/) | 解释 open/custom model 的 production serving substrate。 |
+| [Managed-Compute-Private-Endpoint](../../Deep-Learning/Managed-Compute-Private-Endpoint/) | 验证 Foundry Managed Compute 上的开源模型可以只通过 Private Endpoint 访问（关闭公网访问后外部调用返回 403，VNet 内仍为 200）。 |
 | [AI-Foundry-Model-Performance](../../Deep-Learning/AI-Foundry-Model-Performance/) | 展示旧 AML managed online endpoint performance-testing path。 |
 | [AI-Foundry-Agent-VNET-Deployment](../AI-Foundry-Agent-VNET-Deployment/) | 用网络加固模式补充治理叙事。 |
 | [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/) | 展示 hosted-agent operational pattern，可消费统一 endpoint 叙事。 |

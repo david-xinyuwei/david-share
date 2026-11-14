@@ -284,4 +284,4 @@ pip install vllm
 
 ---
 
-*作者：魏新宇 (Microsoft AI GBB) | 更新：2026-01*
+*作者：魏新宇 (Microsoft AI Lead Senior System Engineer) | 更新：2026-01*

@@ -3,10 +3,9 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4o and o1-style prompting). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-RL-Training-and-Reasoning](../../Deep-Learning/LLM-RL-Training-and-Reasoning/).
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## Overview
-
-This repository contains implementation and documentation for Reasoning-CoT.
 
 After the release of OpenAI o1, its training methods and reasoning approaches have garnered a lot of attention. I utilized the Prompt method to simulate Reasoning CoT based on 4o. Although its generalization ability and accuracy are certainly not as good as o1, it can still provide some help for everyone to understand reasoning.
 

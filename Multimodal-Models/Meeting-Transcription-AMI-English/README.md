@@ -1,5 +1,11 @@
 # English meeting transcription on far-field audio: six Azure speech paths, four AMI clips
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 2026-10-02 · one run per model · 4 clips, 282 s, 930 reference words after normalisation · corpus: AMI Meeting Corpus, test set, SDM (Array1-01) (CC BY 4.0)
 
 The clips are here so you can listen to exactly what the models heard and read the human reference next to each

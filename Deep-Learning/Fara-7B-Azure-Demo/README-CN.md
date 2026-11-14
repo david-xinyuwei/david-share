@@ -1,6 +1,10 @@
 # Fara-7B Azure H100 验证与 Streamlit Demo
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 微软首个开源 Computer Use Agent (CUA) 模型在 Azure GPU VM 上的端到端验证。
 
@@ -88,7 +92,7 @@ Fara 实现了 `computer_use` 工具，支持以下动作：
 | `history_back` | 浏览器后退 | - |
 | `wait` | 等待页面加载 | `time` (秒) |
 | `pause_and_memorize_fact` | 记忆信息 | `fact` |
-| `terminate` | 结束任务 | `status: "success" | "failure"` |
+| `terminate` | 结束任务 | `status: "success" \| "failure"` |
 
 ### 核心Agent函数
 ```

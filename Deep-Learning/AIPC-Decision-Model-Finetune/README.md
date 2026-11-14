@@ -7,7 +7,7 @@
 [![Measured](https://img.shields.io/badge/measured-2026--10--27%20to%2011--03%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
 [![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
 
-> **Author**: Xinyu Wei - Senior Systems Engineer, Microsoft AI GBB
+> **Author**: Xinyu Wei - Microsoft AI Lead Senior System Engineer
 
 [Results at a Glance](#results-at-a-glance) · [Architecture](#architecture) · [Results](#results) · [Steps](#steps)
 

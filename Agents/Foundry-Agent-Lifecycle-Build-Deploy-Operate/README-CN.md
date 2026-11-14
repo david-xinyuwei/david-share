@@ -5,9 +5,9 @@
 [![Agent Framework](https://img.shields.io/badge/Agent-Framework-green)](https://github.com/microsoft/agents)
 [![Hosted Agents](https://img.shields.io/badge/Hosted%20Agents-GA%20Soon-orange)](#第二幕deploy--从笔记本到生产环境)
 
-基于 Microsoft Build 2026 的 [BRK241](https://build.microsoft.com/en-US/sessions/BRK241) session，系统梳理 agent 全生命周期：如何在本地用任意 framework **构建** agent，如何以 sub-second cold start **部署**为 hosted agent，如何通过 tracing、evaluation、optimization 和 governance **持续运营**。演讲者为 Tina Schuchman（CVP, Microsoft Foundry）和 Jeff Hollan（Partner Director, Microsoft Foundry）。
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB
+基于 Microsoft Build 2026 的 [BRK241](https://build.microsoft.com/en-US/sessions/BRK241) session，系统梳理 agent 全生命周期：如何在本地用任意 framework **构建** agent，如何以 sub-second cold start **部署**为 hosted agent，如何通过 tracing、evaluation、optimization 和 governance **持续运营**。演讲者为 Tina Schuchman（CVP, Microsoft Foundry）和 Jeff Hollan（Partner Director, Microsoft Foundry）。
 
 [English](README.md) | 中文版
 

@@ -1,14 +1,16 @@
 # A Running System Is Not Yet a Valid Conclusion: Correctness, MTP, Online RL, and Evaluation
 
-[中文完整版](M03_correctness_training_evaluation_full_article.md) | English
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
 
-**Scope and evidence.** This complete edition separates four gates that are often collapsed into one: a setting can be present, the runtime can execute, the algorithm can preserve the requested semantics, and the evidence can support a conclusion. The four source snapshots, their normalized-body boundaries, and all 35 source-detail images are traceable through [FULL_MERGE_LEDGER.md](FULL_MERGE_LEDGER.md); the authoritative record is `FULL_MERGE_LEDGER.md`. A successful request, a completed job, or a nonempty output clears only an execution gate. It does not by itself establish numerical equivalence, causal quality improvement, convergence, linear scaling, or production readiness.
+**English** | [中文](README-CN.md)
+
+**Scope and evidence.** This complete edition separates four gates that are often collapsed into one: a setting can be present, the runtime can execute, the algorithm can preserve the requested semantics, and the evidence can support a conclusion. The four source snapshots, their normalized-body boundaries, and all 35 source-detail images are traceable through `FULL_MERGE_LEDGER.md` (not published in this repository); the authoritative record is `FULL_MERGE_LEDGER.md`. A successful request, a completed job, or a nonempty output clears only an execution gate. It does not by itself establish numerical equivalence, causal quality improvement, convergence, linear scaling, or production readiness.
 
 **Reading map.** The six overview figures establish the evidence model. Source #3 then audits four precision ledgers and three meanings of correctness; source #6 follows a silent MTP semantic fallback from commit to process environment and measured workload; source #7 separates the two reinforcement-learning axes and fixes the capability boundaries of Agent Lightning and Microsoft Foundry; source #12 closes with denominator, topology, scaling, and memory checks for cross-system benchmarks.
 
 Repository: <https://github.com/david-xinyuwei/david-share>  
 Series: `DL-Algorithm-Insights/`  
-Author: Xinyu Wei | Microsoft AI and Apps GBB Senior System Engineer
+Author: Xinyu Wei | Microsoft AI Lead Senior System Engineer
 
 ## Six Overview Figures
 
@@ -1577,4 +1579,4 @@ Conclusions may be conservative; the measurement basis must be precise.
 | #7 `07_online_offline_rl_article.md` | `1ba5832338f6694084680e18c25648e4ef4d6ed08015d84b75dc547fbb264c36` | `83471988d18ce5d974c0641081178c11ff99c1ea763e9793102b76a4908152f5` | 12 |
 | #12 `12_scaling_pitfalls_article.md` | `3dfcf06afb8fde2f44477a8bdd008b19c4ede6ee2c0037f95450daef32367b65` | `09c34e91f64557201a2db576e5896f31122399d5a2b6f6b9fe2da2df10c3f722` | 4 |
 
-The normalized hashes identify the byte-preserved Chinese source bodies recorded by [FULL_MERGE_LEDGER.md](FULL_MERGE_LEDGER.md); they are provenance identifiers, not hashes of this independently authored English prose. The ledger records the excluded publication scaffolding and the SHA-256 of every extracted image.
+The normalized hashes identify the byte-preserved Chinese source bodies recorded by `FULL_MERGE_LEDGER.md` (not published in this repository); they are provenance identifiers, not hashes of this independently authored English prose. The ledger records the excluded publication scaffolding and the SHA-256 of every extracted image.

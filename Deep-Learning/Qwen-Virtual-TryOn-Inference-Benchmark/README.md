@@ -1,9 +1,10 @@
 # Qwen-Image-Edit-2511 Virtual Try-On Inference Benchmark
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 ## Overview
-
-This repository contains implementation and documentation for Qwen-Image-Edit-2511 Virtual Try-On Inference Benchmark.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)

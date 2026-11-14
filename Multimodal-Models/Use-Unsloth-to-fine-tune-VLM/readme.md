@@ -1,22 +1,14 @@
 # Use Unsloth to fine-tune VLM
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 In this article, I will introduce the challenges of fine-tuning VLM and how to use Unsloth to fine-tune VLM. I will provide the fine-tuning code and results. 
 
 **Note:**
 
  The free version of Unsloth only supports single GPU operation. If you need multi-GPU support, you will need to upgrade Unsloth to the Pro version or the Enterprise version.
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Understanding the Challenges of Fine-tuning Visual Language Models

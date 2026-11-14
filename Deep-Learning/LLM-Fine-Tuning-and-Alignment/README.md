@@ -1,6 +1,10 @@
 # LLM Fine-Tuning and Alignment: A Complete Guide
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 This article is a comprehensive technical guide to LLM fine-tuning and alignment, covering SFT hyperparameter tuning; comparison of various fine-tuning methods (SFT/ReFT/RLHF/DPO/PPO/RLAIF/TPO); LoRA/QLoRA/GaLore mechanisms; DPO theory and practice; detailed PPO architecture; and the end-to-end workflow for large-model DPO distributed training (DeepSpeed ZeRO-3 / FSDP).
 
@@ -28,7 +32,7 @@ All experiments in this project were conducted on **Azure GPU VMs**.
 | **Frameworks** | DeepSpeed, FSDP, LoRA/PEFT |
 
 ---
-# Part 1: SFT hyperparameter tuning best practices
+## Part 1: SFT hyperparameter tuning best practices
 
 > *Originally from LLM-Fine-Tuning-Best-Practices*
 
@@ -110,7 +114,7 @@ Batch size has a significant impact on both training quality and efficiency. Lar
 Experiments show that good loss can be achieved even with a batch size of 32. However, this increases memory usage, and in some cases—for example, on GPUs with 16 GB of memory—it’s impractical to reach such batch sizes without techniques like gradient accumulation. Therefore, rather than blindly pursuing larger batches, you should factor in hardware constraints and determine the optimal batch size through experimentation. This ensures training is both efficient and practical within available resources.
 
 
-## II. Maximum Sequence Length, Padding, Truncating
+### II. Maximum Sequence Length, Padding, Truncating
 
 In batching, training samples need to be padded to ensure all samples within a batch have the same shape or size, which is a basic requirement for machine learning models that process data in parallel. This is especially important for sequence tasks such as language generation. When preparing batches, shorter sequences are padded by adding some inconsequential values so that their length matches the longest sequence in the batch. Padding can be applied to the front of the sequence (left padding), the end (right padding), or sometimes both, depending on the model design and task requirements. Note that not all techniques support padding on arbitrary sides. For example, when using the FlashAttention technique, left padding is required. To better control batch size, it’s recommended to set a maximum sequence length. For example, if we set this maximum length to 1,024 tokens, then each sample in the batch will be processed to exactly 1,024 tokens. If a sample originally has only 512 tokens, 512 padding tokens will be appended. Conversely, if a sample exceeds 1,024 tokens, the excess will be truncated. This approach not only ensures consistency during processing but also helps optimize memory usage, thereby improving training efficiency.
 
@@ -187,7 +191,7 @@ Now many “0”s appear at the beginning (left side) of the sequences; these re
 
 Ideally, the maximum length should match the longest sequence in the training examples. If GPU memory is limited, this length can be reduced accordingly. Typically, values above 4,096 are uncommon except for RAG applications and summarization tasks; for most language generation tasks, the minimum recommended length is 512. This strikes a balance between model effectiveness and avoiding unnecessary memory consumption.
 
-## III. Epochs and Steps
+### III. Epochs and Steps
 
 After processing a batch of data, the model updates its weights; this is called a training step. For example, if a dataset has 1,000 examples and the batch size is 100, then one complete pass over the dataset requires 10 such training steps (1,000 divided by 100 equals 10). Each step involves a forward pass (data through the model), loss computation (the discrepancy between predictions and ground truth), and weight updates via backpropagation to try to reduce the loss. When every example in the dataset has been processed exactly once by the model, one training cycle—an epoch—is completed. Therefore, the number of steps per epoch depends on the dataset size and batch size. Continuing the example, if the dataset has 1,000 examples and the batch size is 100, then one epoch requires 10 steps. Training for multiple epochs means the model sees the same data multiple times, with the expectation that it adjusts its weights for more accurate predictions; the model may learn and improve with each epoch.
 
@@ -214,7 +218,7 @@ Suppose we train TinyLlama on openassistant-guanaco, with a total of 9,846 steps
 
 Even without observing validation loss, you can notice the training loss decreasing unusually fast. As discussed in the next section, this can be effectively mitigated by adjusting the learning rate and adopting an appropriate warmup ratio. Such adjustments help the model learn more smoothly, avoid overfitting, and maintain generalization to unseen data.
 
-## IV. Gradient Accumulation Steps
+### IV. Gradient Accumulation Steps
 
 Gradient accumulation simulates large-batch training by splitting data into smaller micro-batches. Instead of updating model weights after each micro-batch, it accumulates gradients over a specified number of steps. A weight update only occurs once the accumulated gradients correspond to the target larger batch size. For example, if the target batch size is 1,024 but the device can only process 256 samples per step, you can accumulate the gradients from four steps of 256 samples each to simulate one update with a batch of 1,024 samples.
 
@@ -226,7 +230,7 @@ This method balances the need for large batches under limited memory, enabling m
         gradient_accumulation_steps=2,
 [...]
 ```
-## V. Gradient Checkpointing
+### V. Gradient Checkpointing
 
 In standard training, all intermediate activations are kept in memory to compute gradients during backpropagation. However, given the memory limits of most hardware (e.g., GPUs), this quickly becomes impractical for very deep networks. Gradient checkpointing addresses this by saving activations only at selected layers in the network. For layers whose activations are not saved, they are recomputed during backpropagation when gradients are needed.
 
@@ -246,7 +250,7 @@ Or
 model.gradient_checkpointing_enable()
 ```
 
-## VI. Learning Rate
+### VI. Learning Rate
 
 The learning rate is a key hyperparameter that determines how the model updates its weights during training. It affects the step size the model takes in parameter space to minimize the loss function. A properly set learning rate ensures that the model improves predictive performance efficiently without overshooting or stalling before reaching optimality.
 
@@ -262,7 +266,7 @@ Set the learning rate in TrainingArguments as follows:
 [...]
 ```
 
-## VII. Learning Rate Scheduler
+### VII. Learning Rate Scheduler
 
 The purpose of a learning rate scheduler is to adjust the learning rate during training according to a predefined schedule. This helps avoid getting trapped in local minima early in training or skipping over minima when approaching the optimum. For large language models (LLMs), the most common type is a scheduler with a warmup phase. Such schedulers start from a low learning rate and gradually ramp up to the target value after several epochs or steps. This strategy is particularly useful when fine-tuning from large-scale pretrained models, as it helps prevent large early weight updates that can harm stability. In most scenarios, I recommend a linear scheduler with warmup, as it is at least as effective as other types, as demonstrated in the paper “When, Why, and How Much? Refining Adaptive Learning Rate Scheduling.” After warmup, the linear scheduler gradually reduces the learning rate, which helps the model converge more stably in the later stages of training.
 
@@ -274,7 +278,7 @@ This is configured in TrainingArguments as follows:
 [...]
 ```
 
-## VIII. Warmup Steps and Warmup Ratio
+### VIII. Warmup Steps and Warmup Ratio
 
 Warmup steps refer to the initial phase of training during which the learning rate increases from a lower starting value to a predefined target according to the learning rate schedule. For example, if 1,000 warmup steps are set, the learning rate starts low and increases step by step, reaching the target at step 1,000. After that point, the learning rate may be adjusted according to another schedule, such as remaining constant or decaying proportionally.
 
@@ -290,7 +294,7 @@ Set the warmup ratio in TrainingArguments as follows:
 [...]
 ```
 
-## IX. Weight Decay
+### IX. Weight Decay
 
 Weight decay is a technique that encourages the model to maintain smaller weight values, thereby regularizing the model to avoid excessive complexity. It is implemented by adding the squared sum of the weights multiplied by a regularization parameter to the loss function. The effect is to gently push weights toward zero, helping the model avoid over-reliance on any single input feature, which would typically manifest as a large weight for that feature.
 
@@ -306,7 +310,7 @@ Set weight decay in TrainingArguments as follows:
 [...]
 ```
 
-## X. Optimizer
+### X. Optimizer
 
 The optimizer guides the training process by minimizing error or improving accuracy during fine-tuning. Among many optimizers, AdamW (a variant of Adam) is currently the most widely used. Additionally, AdaFactor is an interesting option that is more memory-efficient.
 
@@ -328,7 +332,7 @@ Set the optimizer in TrainingArguments as follows:
 
 For better models, I recommend setting it to the non-quantized "adamw_torch". If you run out of memory, try "adamw_8bit". Then, as a last resort, try "paged_adamw_8bit". It will be slower than 8-bit AdamW but will further reduce memory usage.
 
-## XI. Float16 and Bfloat16
+### XI. Float16 and Bfloat16
 
 Traditionally, machine learning models are trained with the float32 data type, where each parameter occupies 4 bytes (32 bits) of memory. For a model with 7 billion (7B) parameters, using float32 alone requires at least a GPU with 28 GB of memory (7 times 4 equals 28). For larger models, this memory requirement becomes prohibitive. As a result, half-precision training has become popular, using float16 or bfloat16 to halve memory usage. The main difference between float16 and bfloat16 lies in how bits are allocated between exponent and mantissa. bfloat16 is designed to handle a wider numeric range without significantly sacrificing computational precision, giving it an advantage for fast and memory-efficient deep learning operations. Although bfloat16 is generally superior in performance, it is only supported on Ampere or newer GPUs. If your GPU supports bfloat16, prefer it. If not, choose float16; however, if you encounter overflow issues during training (e.g., loss suddenly becomes 0.0 or NaN), you may need to fall back to float32. You can automatically set these parameters based on your hardware, configured as follows: [Assuming the original provides specific code or configuration steps].
 
@@ -337,7 +341,7 @@ Traditionally, machine learning models are trained with the float32 data type, w
         bf16= torch.cuda.is_bf16_supported(),
 ```
 
-## XII. Evaluation and Save Steps
+### XII. Evaluation and Save Steps
 
 Evaluation is a key part of the training process in which the model is periodically assessed on unseen data. This is crucial for ensuring the model is not overfitting the training data. If training loss decreases but validation loss remains unchanged or increases, it usually indicates overfitting.
 
@@ -364,7 +368,7 @@ In such cases, while checkpoints are critical to enable resuming training from i
 
 ---
 
-## Appendix: Fine-tuning Base LLMs vs Instruct Version
+### Appendix: Fine-tuning Base LLMs vs Instruct Version
 
 > *Originally from LLM-Fine-Tuning-Best-Practices*
 
@@ -372,29 +376,29 @@ In the application of large language models (LLMs), fine-tuning is a critical st
 
 <img src="images/ext_07.png" width="600">
 
-## What are Base LLMs and Instruct LLMs?
+### What are Base LLMs and Instruct LLMs?
 
-### Base LLMs
+#### Base LLMs
 
 Base LLMs are models pre-trained on a large amount of text data, with the training objective of predicting the next token. These models do not have specific format constraints and can generate highly diverse text. However, base LLMs may not directly answer user prompts and may repeat or deviate from the topic during generation.
 
-### Instruct LLMs
+#### Instruct LLMs
 
 Instruct LLMs are fine-tuned versions of base LLMs, processed through a complex pipeline to better respond to user instructions. These models undergo several post-training stages, including supervised fine-tuning (SFT), reinforcement learning with human feedback (RLHF), and direct preference optimization (DPO). They are capable of generating answers that align more closely with human preferences and are commonly used in chat applications.
 
-## Differences Between Fine-Tuning Base LLMs and Instruct LLMs
+### Differences Between Fine-Tuning Base LLMs and Instruct LLMs
 
  
 
-### Fine-Tuning Base LLMs
+#### Fine-Tuning Base LLMs
 
 When fine-tuning base LLMs, the model updates its weights based on new data, gradually adapting to new tasks or datasets. Since base LLMs do not have specific format constraints, they can more quickly learn new features and styles.
 
-### Fine-Tuning Instruct LLMs
+#### Fine-Tuning Instruct LLMs
 
 Instruct LLMs have already undergone a complex post-training process and have specific formats and system instructions. Fine-tuning instruct LLMs may introduce conflicts with the original system instructions and templates, leading to unexpected results. Additionally, instruct LLMs may partially lose their original safety and preference alignment capabilities during fine-tuning.
 
-## Why Fine-Tuning Instruct LLMs is Not Recommended
+### Why Fine-Tuning Instruct LLMs is Not Recommended
 
 - **Disruption of Original Training**: Fine-tuning instruct LLMs can partially undo the results of their original SFT and DPO training, causing the model to generate answers that no longer fully align with human preferences.
 
@@ -404,9 +408,9 @@ Instruct LLMs have already undergone a complex post-training process and have sp
 
   In most cases, fine-tuning base LLMs is preferable to fine-tuning instruct LLMs. Base LLMs do not have specific format constraints and can more quickly adapt to new data and tasks. For applications requiring specific formats and safety, instruct LLMs can be considered, but potential conflicts and inconsistencies should be noted.
   
-## SFT code
+### SFT code
 
-### Base Model
+#### Base Model
 ```
 model_name = "meta-llama/Meta-Llama-3.1-8B"
 #Tokenizer
@@ -485,7 +489,7 @@ trainer = SFTTrainer(
 trainer.train()
 
 ```
-### Instruct Model
+#### Instruct Model
 ```
 model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 #Tokenizer
@@ -565,14 +569,14 @@ trainer.train()
 ```
 ---
 
-# Part 2: A Panoramic Comparison of Various Fine-Tuning Methods
+## Part 2: A Panoramic Comparison of Various Fine-Tuning Methods
 
 > *Originally from Comparison-of-Various-Fine-Tuning-Methods*
 
 
 This article compares the following fine-tuning techniques: SFT, ReFT, RHLF, RLAIF, DPO, PPO, TPO.
 
-## Relationships among the techniques
+### Relationships among the techniques
 
 If we take a simplified view of a complex topic, the relationships between these techniques are roughly as follows:
 
@@ -590,7 +594,7 @@ If we take a simplified view of a complex topic, the relationships between these
 - **Process**: Based on SFT, apply PPO for reinforcement learning, with reward signals derived from **human feedback**.
 - **Evaluation method**: Humans evaluate model outputs, or a **reward model** trained from human feedback is used for evaluation.
 
-##### DPO method (Direct Preference Optimization):
+###### DPO method (Direct Preference Optimization):
 
 - **Components**: DPO method = SFT + **reference model** + DPO
 - **Process**: On top of SFT, a **reference model** is introduced (typically the initial SFT model with parameters frozen), and the DPO method uses the reference model and human preference data to directly optimize model parameters.
@@ -644,7 +648,7 @@ ReFT, RLHF, DPO, and RLAIF are all built on top of supervised fine-tuning (SFT) 
 
      DPO avoids the trial-and-error process of reinforcement learning, making training more stable and efficient. It is well-suited to scenarios with abundant human preference data. **Meanwhile, the introduction of a reference model helps maintain generation quality stability and prevents the model from drifting too far from the pretrained distribution.**
 
-   ## DPO in Azure OpenAI
+   ### DPO in Azure OpenAI
 
    Currently AOAI supports DPO:
 
@@ -690,12 +694,12 @@ Basis for choosing a method: If the task has clear, objective evaluation criteri
 
 
 ---
-# Part 3: The essential difference between Reinforcement Learning and fine-tuning
+## Part 3: The essential difference between Reinforcement Learning and fine-tuning
 
 > *Originally from Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## Differences between Reinforcement Learning methods and supervised fine-tuning methods
+### Differences between Reinforcement Learning methods and supervised fine-tuning methods
 
 **I. Reinforcement Learning**
 
@@ -707,43 +711,43 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
 <img src="images/ext_10.png" width="600">
 
-#### **1. Key components**
+##### **1. Key components**
 
-##### **(1) State space (S)**
+###### **(1) State space (S)**
 
 - **Definition**: The set of all possible states the environment can be in.
 - **Notation**: At time step t, the environment’s state is denoted as **s_t**.
 
-##### **(2) Action space (A)**
+###### **(2) Action space (A)**
 
 - **Definition**: The set of all possible actions the agent can take.
 - **Notation**: At time step t, the agent’s action is denoted as **a_t**.
 
-##### **(3) Policy (π)**
+###### **(3) Policy (π)**
 
 - **Definition**: A mapping from states to actions that determines which action the agent chooses in each state.
 - **Notation**:
   - **Deterministic policy**: a_t = π(s_t), i.e., in state s_t, it always chooses the same action.
   - **Stochastic policy**: actions are sampled from a probability distribution, a_t ~ π(a | s_t).
 
-##### **(4) Reward function (R)**
+###### **(4) Reward function (R)**
 
 - **Definition**: Specifies the immediate reward obtained after taking an action in a given state.
 - **Notation**: R(s_t, a_t) denotes the reward after taking action a_t in state s_t.
 
-##### **(5) State transition probability (P)**
+###### **(5) State transition probability (P)**
 
 - **Definition**: Describes the probability that the environment transitions to the next state after the agent takes an action in the current state.
 - **Notation**: P(s_{t+1} | s_t, a_t) denotes the probability of transitioning to state s_{t+1} after taking action a_t in state s_t.
 
-##### **(6) Discount factor (γ)**
+###### **(6) Discount factor (γ)**
 
 - **Definition**: Balances the importance of immediate rewards versus future rewards, with 0 ≤ γ ≤ 1.
 - **Characteristics**:
   - When γ is close to 0, the focus is on immediate rewards.
   - When γ is close to 1, the focus is on long-term cumulative rewards.
 
-##### **(7) Value function**
+###### **(7) Value function**
 
 - **State-value function (V^π(s))**:
 
@@ -765,7 +769,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
     Q^π(s, a) = E_π [ R(s, a) + γ * Q^π(s_{t+1}, a_{t+1}) ]
     ```
 
-#### **2. Example**
+##### **2. Example**
 
 
 **Example: Self-driving car**
@@ -783,7 +787,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
 
 
-#### **3. Objective of Reinforcement Learning**
+##### **3. Objective of Reinforcement Learning**
 
 - **Goal**: Learn an optimal policy π* such that the agent’s expected cumulative reward in the environment is maximized.
 
@@ -797,7 +801,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
 
 
-#### **4. Summary of key RL elements**
+##### **4. Summary of key RL elements**
 
 - **State (s_t)**: Perception of the environment; where the agent currently is.
 - **Action (a_t)**: The set of actions the agent can execute.
@@ -809,7 +813,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
 
 
-#### **5. Summary**
+##### **5. Summary**
 
 
 In Reinforcement Learning, the agent continuously interacts with the environment and adjusts its policy based on reward signals, aiming to find the optimal policy that maximizes cumulative reward. Key components include:
@@ -985,7 +989,7 @@ Background:
 
   - Intuition:
 
-#### **(5) Incorporate the Reference Policy**
+##### **(5) Incorporate the Reference Policy**
 
 - Reference policy π₀: The initial policy model.
 
@@ -1007,14 +1011,14 @@ Background:
 
   - λ is a hyperparameter that balances the loss and the regularization term, controlling how far the model deviates from the initial policy.
 
-#### **(6) Optimize the Policy Model**
+##### **(6) Optimize the Policy Model**
 
  
 
 - Minimize the total loss L_total(θ) to update the policy model parameters θ.
 - Iterative training: Repeat the above process until the model’s performance on validation data meets expectations.
 
-#### **(7) Results**
+##### **(7) Results**
 
 - Optimized policy model πₜθ:
   - More inclined to plan routes that align with human preferences.
@@ -1111,9 +1115,9 @@ Background:
 
 
 
-## Introduction to ReFT
+### Introduction to ReFT
 
-### OpenAI's ReFT
+#### OpenAI's ReFT
 
 监督式微调 (SFT) involves taking a pre-trained model and adapting it using supervised learning techniques with additional data. In practice, SFT works best when the goal is to align the model’s outputs or format with a specific dataset or to ensure the model follows certain instructions.
 
@@ -1191,7 +1195,7 @@ Training results:
 
 <img src="images/12.png" width="600">
 
-### ByteDance's ReFT
+#### ByteDance's ReFT
 
 First, see the flowchart from the ReFT paper:
 
@@ -1219,7 +1223,7 @@ As shown above, ReFT combines Supervised Fine-Tuning (SFT) and Reinforced Fine-T
 
      The legend illustrates an example of a question (x), chain-of-thought (e), and answer (y) on the GSM8K dataset. The training data is iterated over multiple SFT epochs, and ReFT is used with warm-up from SFT, followed by reinforcement learning on the same data.
 
-## TPO Workflow
+### TPO Workflow
 
 First, look at the Thought Preference Optimization (TPO) process:
 
@@ -1269,9 +1273,9 @@ It is important to note that the DPO method (Direct Preference Optimization) typ
 - **Construct preference pairs:** Based on evaluation results, select the best and worst answers to form preference pairs (Chosen and Rejected).
 - **Optimize with DPO:** Use these preference pairs together with the reference model to construct a loss via DPO and directly optimize model parameters.
 
-## Essential Differences Between PPO and DPO
+### Essential Differences Between PPO and DPO
 
-### 1. The essence of reinforcement learning
+#### 1. The essence of reinforcement learning
 
 
 Reinforcement learning is like training a puppy to perform actions.
@@ -1311,7 +1315,7 @@ For example:
 
   - Learn an optimal path to quickly find the exit and achieve the highest cumulative reward.
 
-### 2. The essence of Direct Preference Optimization (DPO) on preference data
+#### 2. The essence of Direct Preference Optimization (DPO) on preference data
 
 **Direct Preference Optimization (DPO)** is a method that directly uses preference data and a reference model to optimize the model.
 
@@ -1386,14 +1390,14 @@ For example:
   - DPO does not involve interaction with an environment or immediate reward signals, avoiding the complexity and instability of reinforcement learning.
   - DPO’s optimization process is more direct and stable, making it suitable for scenarios with abundant preference data.
 
-### **3. About the “interaction” in DPO**
+#### **3. About the “interaction” in DPO**
 
 
 In the description of DPO, the model needs to generate multiple answers, and then human evaluators or an auxiliary AI discriminator model provides preference feedback (**Note: In the DPO part of TPO, preference data may come from an AI model**). This seems to also involve some interaction. So, doesn’t DPO also have interaction?
 
 **Indeed, DPO involves “interaction” between the model and human evaluators or an AI discriminator model, because preference data must be collected. However, this interaction is fundamentally different from the interaction in reinforcement learning.**
 
-#### **1. “Interaction” in DPO**
+##### **1. “Interaction” in DPO**
 
 - Interaction in the data collection stage:
   - In DPO, the model generates multiple candidate outputs (such as answers) for each input.
@@ -1403,7 +1407,7 @@ In the description of DPO, the model needs to generate multiple answers, and the
   - Once preference data collection is complete, the model is trained on these preference pairs, **together with the reference model**, using supervised learning to directly optimize the model parameters.
   - **No further interaction with human evaluators or the environment is required during training**, and the reference model’s parameters remain fixed during training.
 
-#### **2. Interaction in reinforcement learning**
+##### **2. Interaction in reinforcement learning**
 
 
 
@@ -1414,7 +1418,7 @@ In the description of DPO, the model needs to generate multiple answers, and the
   - Reinforcement learning training is online and iterative; the model must continually learn via trial and error to find the optimal policy.
   - It involves complex concepts such as **state, action, reward, value function, and policy updates**.
 
-#### **3. Differences between the two**
+##### **3. Differences between the two**
 
 - The nature and phase of interaction differ:
 
@@ -1431,7 +1435,7 @@ In the description of DPO, the model needs to generate multiple answers, and the
   - **DPO** training is relatively simple and stable because it is based on supervised learning; the introduction of a reference model further stabilizes training.
 - **Reinforcement learning** training is more complex and may be unstable, requiring careful tuning of hyperparameters and training strategies.
 
-#### **4. An example**
+##### **4. An example**
 
 
 **Example of DPO:**
@@ -1471,7 +1475,7 @@ In the description of DPO, the model needs to generate multiple answers, and the
   - **The training process requires continuous, online interaction**.
   - **The model’s behavior affects subsequent states and rewards**, making training more complex and requiring handling of environmental uncertainty.
 
-#### **5. Summary**
+##### **5. Summary**
 
 - **Direct Preference Optimization (DPO)**:
   - **Interaction occurs during data collection**, which is offline and static. After preference data collection is complete, the training process no longer needs interaction.
@@ -1485,12 +1489,12 @@ In the description of DPO, the model needs to generate multiple answers, and the
 
 
 ---
-# Part 4: Comparison table of seven fine-tuning techniques
+## Part 4: Comparison table of seven fine-tuning techniques
 
 > *Originally from Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## Comparison of several techniques
+### Comparison of several techniques
 
 | **Comparison dimension** | **SFT (Supervised Fine-Tuning)**           | **ReFT (Reinforced Fine-Tuning)**                           | **RLHF (Reinforcement Learning from Human Feedback)**       | **DPO (Direct Preference Optimization)**                     | **PPO (Proximal Policy Optimization)**            | **RLAIF (Reinforcement Learning from AI Feedback)**          | **TPO (Thought Preference Optimization)**                    |
 | -------------- | ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1542,14 +1546,14 @@ In the description of DPO, the model needs to generate multiple answers, and the
 
 
 ---
-# Part 5: LoRA/QLoRA Fine-tuning Mechanisms and GaLore Full Fine-tuning
+## Part 5: LoRA/QLoRA Fine-tuning Mechanisms and GaLore Full Fine-tuning
 
 > *Originally from Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## LoRA/QLoRA Fine-tuning Mechanisms and Adapter Merge Strategies
+### LoRA/QLoRA Fine-tuning Mechanisms and Adapter Merge Strategies
 
-### Principle of LoRA
+#### Principle of LoRA
 
 The core idea of LoRA (Low-Rank Adaptation) is to add a low-rank increment BA to the pretrained weights W, rather than directly modifying all parameters.
 
@@ -1567,7 +1571,7 @@ Key components include:
 
 <img src="images/qlora_perf_1.png" width="600">
 
-### Mathematical example of low-rank matrix representation
+#### Mathematical example of low-rank matrix representation
 
 Use a 4×4 small matrix to illustrate LoRA's low-rank update principle:
 
@@ -1597,7 +1601,7 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 After fine-tuning, the weights are W_merged = W + BA, correcting the original weights via the product of two small matrices. When r is much smaller than d, the parameter counts of B and A are far less than d×d, saving substantial training cost and storage.
 
-### Adapter merge strategies and the impact of quantization on accuracy
+#### Adapter merge strategies and the impact of quantization on accuracy
 
 <img src="images/qlora_perf_2.png" width="600">
 
@@ -1616,7 +1620,7 @@ Below are four different adapter deployment strategies and their comparative eff
 - If memory is ample → merge and run inference in 16-bit
 - **Avoid** merging then quantizing with bitsandbytes 4-bit
 
-## GaLore Full Fine-tuning Experiments
+### GaLore Full Fine-tuning Experiments
 
 GaLore (Gradient Low-Rank) supports full fine-tuning, i.e., updating all model parameters. Unlike parameter-efficient fine-tuning (PEFT) methods such as LoRA, GaLore uses a novel low-rank projection of gradients to enable full fine-tuning of large models under memory constraints.
 
@@ -1628,7 +1632,7 @@ GaLore performance comparison:
 
 GaLore introduces additional hyperparameters: rank r, scale factor α, and subspace change frequency T.
 
-### GaLore optimizer options
+#### GaLore optimizer options
 
 | Optimizer | VRAM requirement (Mistral 7B, BS=8) | Notes |
 |--------|:---------------------------:|------|
@@ -1636,7 +1640,7 @@ GaLore introduces additional hyperparameters: rank r, scale factor α, and subsp
 | galore_adamw_8bit | ~35 GB (rank=512), ~30 GB (rank=128) | 8-bit quantized optimizer |
 | galore_adamw_8bit_layerwise | ~22.5 GB | Layer-wise updates; can run on 24 GB consumer GPUs |
 
-### Experimental logs
+#### Experimental logs
 
 Below are full fine-tuning runs of Mistral-7B on a single H100 (trainable parameters = 7,241,732,096), using the openassistant-guanaco dataset.
 
@@ -1702,7 +1706,7 @@ Looking at the training results, the overfitting issue is resolved:
 
 <img src="images/ext_29.png" width="600">
 
-### Summary of GaLore experiments
+#### Summary of GaLore experiments
 
 | Experiment | BS | LR | Optimizer | Rank | Result |
 |:----:|:--:|:--:|--------|:----:|------|
@@ -1720,12 +1724,12 @@ Key findings:
 
 
 ---
-# Part 6: In-depth DPO Theory and Alignment Practice
+## Part 6: In-depth DPO Theory and Alignment Practice
 
 > *Originally from LLM-Alignment-DPO-PPO-CPO*
 
 
-## 6.1 Interpreting DPO and PPO: Best Practices for Learning from Preference Feedback
+### 6.1 Interpreting DPO and PPO: Best Practices for Learning from Preference Feedback
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
@@ -1737,7 +1741,7 @@ In short, the study finds that synthetic, diverse datasets and detailed aspect-l
 
 DPO’s operational cost is significantly lower than PPO because it does not require a reward model. Its simpler objective makes optimization easier and convergence faster. For general post-training tasks and budget-constrained AI projects, DPO remains a stronger alternative than more complex reinforcement learning methods such as PPO or GRPO.
 
-### Detailed Explanation of PPO
+#### Detailed Explanation of PPO
 
  In the PPO training architecture, the four main models（Policy Model, Reference Model, Reward Model, Value Model）each play different roles, briefly described below:
 
@@ -1826,7 +1830,7 @@ Finally, these signals are "jointly integrated" by our training logic (PPO), for
 
 
 
-### Abstract
+#### Abstract
 
 Learning from preference feedback has become a key approach for modern large language models (LMs) to improve generation quality and performance across tasks. Simply put, "preference feedback" typically has humans (or simulated systems) compare two different model outputs and choose which one they prefer, thereby guiding the model toward better responses.
 
@@ -1858,7 +1862,7 @@ We open-sourced all training and evaluation code, as well as the corresponding m
 • "Instruction following" and "truthfulness": If the system specifies "first list the solution steps, then give the final answer," a model with strong instruction following and truthfulness will provide correct and complete reasoning and avoid unfounded fabrication.
 
 
-### Introduction
+#### Introduction
 
 In modern large language model (LM) development pipelines, an additional stage—**learning from preference feedback (sometimes called RLHF, reinforcement learning from human feedback)—is often added before deployment.** Prior work has shown that this stage can significantly enhance models, including substantial improvements in instruction following, code generation, math problem solving, and summarization.
 
@@ -1878,7 +1882,7 @@ Therefore, we decompose this preference learning pipeline into four parts:
 
 If we take the same trained (Supervised Fine-Tuned) model and vary any one of the above components, what happens to downstream performance? In our experiments, each component indeed has an effect, but their importance and impact differ.
 
-### Setup
+#### Setup
 
 This section first briefly introduces the concepts and principles of PPO and DPO, then describes our experimental and evaluation procedures. It presents a structured comparison between PPO and DPO.  
 
@@ -1907,7 +1911,7 @@ We base our study on the publicly released TÜLU 2 13B model series. The evaluat
 • AlpacaEval 1 & 2, IFEval: evaluates instruction following.
 
 
-### Exploration Based on Preference Feedback
+#### Exploration Based on Preference Feedback
 
 Here we expand along four aspects: (1) preference data; (2) learning algorithms; (3) reward models; (4) policy training prompts.  
 
@@ -1938,7 +1942,7 @@ Under the conditions of identical preference data and model size (13B):
 • But mixed prompts offer limited improvements to overall multi-task performance.
 
 
-### A "Recipe" Based on Preference Feedback (A Recipe)
+#### A "Recipe" Based on Preference Feedback (A Recipe)
 
 Combining the above analysis, recommended best practices:
 
@@ -1950,14 +1954,14 @@ Combining the above analysis, recommended best practices:
 - Policy training prompts: If you only need extreme gains in a single domain, intensify the prompt distribution for that domain.
 
 
-### Related Work
+#### Related Work
 
 (1) Learning from preference feedback: Early studies often framed it as reinforcement learning; PPO is one of the most commonly used practical methods. This work systematically examines the combined impacts across multiple dimensions including data, algorithms, reward models, and policy prompts.
 
 (2) Recent parallel research: Xu et al. focus on DPO’s unstable performance and PPO’s greater robustness; Tajwar et al. stress the importance of online sampling and explicit gradient updates on negative samples.
 
 
-### Conclusion
+#### Conclusion
 
 This study systematically investigates the four core components of preference learning. The order of influence is:
 - Preference data quality first determines the achievable ceiling,
@@ -1970,9 +1974,9 @@ Overall, with a stronger reward model and effective online sampling, PPO trainin
 ---
 
 
-## 6.2 DPO Deep Dive and Practice
+### 6.2 DPO Deep Dive and Practice
 
-### Bias Issues in RLHF, RLAIF, and DPO
+#### Bias Issues in RLHF, RLAIF, and DPO
 
 RLHF (Reinforcement Learning with Human Feedback) and RLAIF (Reinforcement Learning with AI Feedback) are two methods used to fine-tune large language models (LLMs). Their primary difference lies in the source of feedback: RLHF relies on human-provided feedback, while RLAIF uses feedback generated by another LLM.
 
@@ -1995,7 +1999,7 @@ Overall, all three methods require careful handling of bias. This typically invo
 
 
 
-### In-depth Analysis of the Reference Model in DPO
+#### In-depth Analysis of the Reference Model in DPO
 
 **https://huggingface.co/docs/trl/dpo_trainer**
 
@@ -2033,7 +2037,7 @@ Overall, the reference model provides a stable comparative baseline in DPO, givi
 
 
 
-### Why Choose DPO Instead of Direct SFT Fine-tuning?
+#### Why Choose DPO Instead of Direct SFT Fine-tuning?
 
 Using an SFT Mistral as the reference model to train another Mistral model may sound redundant, but in the context of DPO it has specific purposes and justification.
 
@@ -2053,7 +2057,7 @@ In short, while SFT models are often strong enough, DPO offers a way to fine-tun
 
 
 
-### Application Scenarios for DPO
+#### Application Scenarios for DPO
 
 Although DPO relies on a classification-style framework (distinguishing higher- vs. lower-quality outputs per human preference), it is not limited to traditional classification tasks. DPO is designed to solve optimization for generative tasks in language models.
 
@@ -2070,7 +2074,7 @@ While DPO borrows techniques from classification, its goal is to improve perform
 
 
 
-### Core DPO Code Reference
+#### Core DPO Code Reference
 
 Below, using the Mistral 7B model as an example, we show the full DPO training pipeline.
 
@@ -2166,18 +2170,18 @@ Meanings of the metrics recorded in the training logs:
 8. **Logps/rejected** 和 **Logps/chosen**：Log probability values corresponding to the rejected and chosen outputs, respectively, commonly used for numerical stability when handling probabilities.
 9. **Logits/rejected** 和 **Logits/chosen**：Values before the output of the model’s final linear layer, i.e., logits—values after the last linear transformation but before applying an activation function.
 
-### SimPO and CPO practice
+#### SimPO and CPO practice
 
 在本项目的 Jupyter Notebook 中，还包含了使用 SimPO（Simple Preference Optimization）和 CPO（Contrastive Preference Optimization）对 Llama 3 进行内存高效对齐训练的完整代码示例，详见 `Memory_efficient_LLM_Alignment_with_SimPO_Example_with_Llama_3_and_Comparison_with_CPO.ipynb`。
 
 
 ---
-# Part 7: DPO fine-tuning code and training results analysis
+## Part 7: DPO fine-tuning code and training results analysis
 
 > *Originally from Comparison-of-Various-Fine-Tuning-Methods*
 
 
-## DPO fine-tuning code
+### DPO fine-tuning code
 
 Define the model to be fine-tuned
 
@@ -2276,7 +2280,7 @@ View the training results:
 
 <img src="images/2.png" width="600">
 
-## Interpreting DPO training results
+### Interpreting DPO training results
 
 When using DPO (Direct Preference Optimization) for model training, we involve two models:
 
@@ -2289,7 +2293,7 @@ Training objective: the policy should, given a Prompt (input), prefer to generat
 
 Key steps and metrics during training
 
-#### Training data
+##### Training data
 
 Each training sample contains:
 
@@ -2297,7 +2301,7 @@ Each training sample contains:
 - Chosen (ideal response): the correct answer we want the model to produce.
 - Rejected (undesired response): the answer we want the model to avoid producing.
 
-#### Model evaluation
+##### Model evaluation
 
 For each sample, we compute the following:
 
@@ -2305,7 +2309,7 @@ For each sample, we compute the following:
 - The policy model’s evaluation of Prompt + Rejected.
 - The reference model’s evaluation of Prompt + Chosen and Prompt + Rejected (used to compute the regularization term).
 
-#### Reward computation
+##### Reward computation
 
 Reward function: used to assess the quality of the policy model’s outputs for Chosen and Rejected, assigning numerical scores (rewards).
 
@@ -2313,7 +2317,7 @@ Reward function: used to assess the quality of the policy model’s outputs for 
   - Rewards/chosen: the reward for the policy model on the chosen response.
   - Rewards/rejected: the reward for the policy model on the rejected response.
 
-#### Loss computation
+##### Loss computation
 
 Main components of the loss:
 
@@ -2331,9 +2335,9 @@ Here, β is a hyperparameter controlling the weight of the regularization term.
 
 
 
-### Explaining the training process and metrics via an example
+#### Explaining the training process and metrics via an example
 
- #### Example training data
+ ##### Example training data
 
 
 Prompt:
@@ -2431,7 +2435,7 @@ The model updates its parameters based on this loss value with the goal of minim
 
 
 
-### Role of the reference model
+#### Role of the reference model
 
  
 
@@ -2439,7 +2443,7 @@ The model updates its parameters based on this loss value with the goal of minim
 - Compute differences: By comparing the outputs of the training and reference models on Chosen and Rejected, adjust the reward values.
 - Implicit influence: Although the reference model’s outputs do not appear directly in the training results, it plays a key role in the loss computation and thereby affects the training model’s updates.
 
-### Metrics in the training results
+#### Metrics in the training results
 
 
 Now, we summarize the metrics in the training results and how they are produced:
@@ -2451,15 +2455,15 @@ Now, we summarize the metrics in the training results and how they are produced:
 - Logps/chosen and Logps/rejected: The sum of log probabilities of the training model on Chosen and Rejected.
 - Logits/chosen and Logits/rejected: The unnormalized outputs of the training model when generating Chosen and Rejected.
 
-### Summary
+#### Summary
 
 - Role of the reference model: Although the reference model’s outputs do not appear directly in the training metrics, it indirectly influences the training model’s updates via the regularization term in the loss function.
 - How the metrics are produced: The training metrics mainly reflect the training model’s performance and are computed by evaluating Chosen and Rejected.
 - Training objective: By minimizing the loss function, the training model is encouraged to generate Chosen responses and avoid Rejected responses, while preserving its language capabilities.
 
-## Regularization and Generalization in DPO fine-tuning
+### Regularization and Generalization in DPO fine-tuning
 
-### Regularization
+#### Regularization
 
 
 Simply put, regularization is a way to prevent overfitting.
@@ -2473,7 +2477,7 @@ Regularization is a technique to address overfitting. Its role is: during traini
 
 Analogy: Imagine you are learning to recognize apples and oranges. An overfit model might memorize specific features of each apple and orange in the training set, such as a small spot on this apple or a leaf on that orange. A regularized model would focus on general features of apples and oranges, like shape and color, rather than overemphasizing idiosyncratic details in the training data.
 
-#### Application in model training
+##### Application in model training
 
 - Limit model complexity: Regularization constrains model parameters so the model does not become overly complex. For example, in neural networks you can constrain weights to prevent them from becoming too large.
 - Prevent excessively large parameters: If parameters (e.g., weights) become too large, the model may overfit to details in the training data. Regularization adds a penalty term to the loss, encouraging parameters to remain small.
@@ -2494,7 +2498,7 @@ In the training above
   - Use a reference model: Add a term to the loss to measure the divergence between the training model and the reference model (e.g., KL divergence).
   - Effect: This difference serves as regularization to prevent the model from drifting too far from the reference model’s behavior, preserving fluency and diversity.
 
-### Generalization
+#### Generalization
 
 
 We have actually provided examples in the training data of “how to answer” and “how not to answer,” namely Chosen and Rejected responses. But merely providing correct answers and having the model imitate them is not enough; we want the model to understand why a response is good or bad, so it can make correct decisions in new situations.
@@ -2554,7 +2558,7 @@ We have actually provided examples in the training data of “how to answer” a
      In this way, when the model faces similar but different questions, it can still give correct responses:
      For example, when encountering “Please explain Newton’s second law,” the model can infer it should provide an explanation of that law rather than say “I don’t know.”
 
-#### Summary
+##### Summary
 
 - Regularization:
   A method to prevent overfitting and ensure good performance on new data. In your training, the reference model is used for regularization to prevent the training model from deviating too far from the original language model distribution, preserving language quality and consistency.
@@ -2563,7 +2567,7 @@ We have actually provided examples in the training data of “how to answer” a
 
 
 ---
-# Part 8: Large Model DPO Distributed Training (DeepSpeed & FSDP)
+## Part 8: Large Model DPO Distributed Training (DeepSpeed & FSDP)
 
 > *Originally from DPO-DeepSpeed-FSDP*
 
@@ -2572,7 +2576,7 @@ We have actually provided examples in the training data of “how to answer” a
 
  
 
-### Technical Points
+#### Technical Points
 
 For example, suppose we want to perform DPO training on a 70 billion-parameter model on a machine with 8 H100 GPUs (totaling 640 GB of VRAM). We need to consider the following points:
 
@@ -2583,7 +2587,7 @@ For example, suppose we want to perform DPO training on a 70 billion-parameter m
   Thus, just the model parameters alone consume 280 GB of VRAM, approximately 43.75% of the total VRAM. In addition, there are optimizer states. For example, using the AdamW optimizer, each parameter has two additional state variables. If these state variables are stored in 16-bit precision, they will take up an extra 280 GB of VRAM. Adding it all up, we've used 560 GB of VRAM, leaving only 80 GB. This remaining VRAM is needed to store activations and gradients. Without special methods, it's unlikely to train on a single machine.
 
 
-## Distributed training technology 
+### Distributed training technology 
 
 To address the above challenges, we could use PyTorch's **Fully Sharded Data Parallel (FSDP)** technology, combined with parameter-efficient fine-tuning methods like LoRA and QLoRA. 
 
@@ -2653,7 +2657,7 @@ drwxr-xr-x  4 root root      4096 Dec 19 06:48 checkpoint-5
 
 
 
-## DeepSpeed Training
+### DeepSpeed Training
 
 Deepspeed Configuration file:
 
@@ -2849,7 +2853,7 @@ Launch training
 
 <img src="images/1.png" width="600">
 
-## Accelerate FSDP training
+### Accelerate FSDP training
 
  Configuration file:
 
@@ -3112,11 +3116,11 @@ Launch training
 
 
 
-## Training result analyze
+### Training result analyze
 
 In DPO training, the model is provided with a set of conversations, each containing the same "prompt" or "question", along with corresponding "chosen" and "rejected" replies. The model needs to learn to distinguish between these replies and prefer generating high-quality "chosen" responses.
 
-### Training data and results
+#### Training data and results
 
 The training data includes:
 
@@ -3140,7 +3144,7 @@ The training data includes:
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 
-### DPO training process and results explanation
+#### DPO training process and results explanation
 
 
 **Core Objective of DPO**
@@ -3155,7 +3159,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-#### Training Data
+##### Training Data
 
 - **Prompt:** User input, for example: "Please explain the phase changes of water."
 
@@ -3195,7 +3199,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-#### Training Process
+##### Training Process
 
 **Step 1: Calculate Log Probabilities**
 
@@ -3269,7 +3273,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 - **Objective:** Minimize the loss function loss to make the model more inclined to generate the "chosen" reply over the "rejected" reply.
 
-#### Training Process Example
+##### Training Process Example
 
 
 **Assumed Values (for Illustration):**
@@ -3320,7 +3324,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 
 
-#### Explanation of Training Log Fields
+##### Explanation of Training Log Fields
 
 
 Based on the DPO training process, here's a detailed explanation of each field in the training log and their importance in evaluating training effectiveness:
@@ -3346,7 +3350,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### 1. `loss`
+##### 1. `loss`
 
 - **Meaning:**
   - Represents the loss value at the current training step, measuring the model's ability to distinguish between the "chosen" and "rejected" replies.
@@ -3357,7 +3361,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** `loss` is typically higher (around `0.6931`), indicating no preference.
   - **During Training:** Should decrease over time, showing the model is learning to prefer the "chosen" reply.
 
-#### 2. `grad_norm`
+##### 2. `grad_norm`
 
 - **Meaning:**
   - Represents the gradient norm of the model parameters, indicating the overall magnitude of parameter updates.
@@ -3370,7 +3374,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - **Too Small:** Near zero may indicate lack of learning.
     - **Too Large:** May require gradient clipping to prevent instability.
 
-#### 3. `learning_rate`
+##### 3. `learning_rate`
 
 - **Meaning:**
   - Controls the step size in parameter updates during training.
@@ -3380,7 +3384,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Slow Loss Decrease:** Consider increasing the learning rate.
   - **Unstable Training:** If loss fluctuates, decreasing the learning rate might help.
 
-#### 4. `rewards/chosen` and `rewards/rejected`
+##### 4. `rewards/chosen` and `rewards/rejected`
 
 - **Meaning:**
   - `rewards/chosen`: Reward value for the "chosen" reply (`Δ_chosen`).
@@ -3393,7 +3397,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - `rewards/chosen` should increase.
     - `rewards/rejected` should decrease.
 
-#### 5. `rewards/accuracies`
+##### 5. `rewards/accuracies`
 
 - **Meaning:**
   - The proportion of times the model correctly prefers the "chosen" reply.
@@ -3403,7 +3407,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** Around `0.5` (random guess).
   - **During Training:** Should approach `1.0`, indicating improved preference accuracy.
 
-#### 6. `rewards/margins`
+##### 6. `rewards/margins`
 
 - **Meaning:**
 
@@ -3418,7 +3422,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **Indicator Trend:**
   - Should increase during training.
 
-#### 7. `logps/chosen` and `logps/rejected`
+##### 7. `logps/chosen` and `logps/rejected`
 
 - **Meaning:**
   - Total log probabilities of generating the "chosen" and "rejected" replies.
@@ -3428,7 +3432,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Increasing `logps/chosen`** indicates higher probability for the "chosen" reply.
   - **Stable or decreasing `logps/rejected`** shows reduced preference for the "rejected" reply.
 
-#### 8. `logits/chosen` and `logits/rejected`
+##### 8. `logits/chosen` and `logits/rejected`
 
 - **Meaning:**
   - Raw output scores from the final layer before applying softmax, for both replies.
@@ -3438,7 +3442,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Ensure Valid Values:** Avoid `nan` or `inf` values.
   - **Monitor Changes:** Changes in logits reflect learning progress.
 
-#### 9. `epoch`
+##### 9. `epoch`
 
 - **Meaning:**
   - Indicates the current training epoch or iteration over the training dataset.
@@ -3447,7 +3451,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **Indicator Trend:**
   - As `epoch` increases, expect improvements in other metrics.
 
-#### Summary 
+##### Summary 
 
 - **Adjust Training Strategies Based on Indicators:**
 
@@ -3471,7 +3475,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-### DPO training process and results explanation in Chinese
+#### DPO training process and results explanation in Chinese
 
 - **Objective:** Directly optimize model parameters to reflect human preferences without a separate reward model. DPO leverages human preference data to directly adjust the model, making its generated replies better aligned with human expectations.
 
@@ -3524,9 +3528,9 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-#### **Training process**
+##### **Training process**
 
-#### **Step 1: Compute log probabilities**
+##### **Step 1: Compute log probabilities**
 
 
 **For the model being trained (parameters θ):**
@@ -3564,7 +3568,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### **Step 2: Compute preference deltas**
+##### **Step 2: Compute preference deltas**
 
  
 
@@ -3584,7 +3588,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-#### **Step 3: Construct the loss function**
+##### **Step 3: Construct the loss function**
 
  
 
@@ -3600,7 +3604,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-### **Training process example**
+#### **Training process example**
 
 
 **Assumed values (for illustration):**
@@ -3650,7 +3654,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 - **Optimize model parameters:**
   - Through backpropagation, minimize the **loss** to further strengthen the model’s preference for the “chosen” response. 
 
-### **Explanation of training log fields**
+#### **Explanation of training log fields**
 
 
 In conjunction with the above DPO training process, below is a detailed explanation of each field in the training logs and their importance in evaluating training effectiveness. We also illustrate the trends of these metrics using examples from actual training.
@@ -3676,7 +3680,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
 
  
 
-#### **1. `loss`**
+##### **1. `loss`**
 
 - **Meaning:**
   - **Loss value**, measuring the model’s ability at the current training step to distinguish between the “chosen” and “rejected” responses.
@@ -3687,7 +3691,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
   - **Initial phase:** `loss` is typically higher, e.g., around `0.6931`, corresponding to no preference between the two responses.
   - **During training:** As training progresses, `loss` should gradually decrease, indicating the model is learning to prefer the “chosen” response.
 
-#### **2. `grad_norm`**
+##### **2. `grad_norm`**
 
 - **Meaning:**
   - **Gradient norm**, representing the overall magnitude of parameter updates.
@@ -3699,7 +3703,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
   - **Abnormal cases:**
     - **Too small (near 0):** May indicate the model is not learning.
     - **Too large:** Consider gradient clipping to prevent gradient explosion.
-#### **3. `learning_rate`**
+##### **3. `learning_rate`**
 
 - **Meaning:**
   - The learning rate, which controls the step size of model parameter updates.
@@ -3711,7 +3715,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
   - **Initial learning rate:** Commonly set to `1e-5`.
   - **Adjustment strategy:** Dynamically adjust the learning rate based on training performance.
 
-#### **4. `rewards/chosen` and `rewards/rejected`**
+##### **4. `rewards/chosen` and `rewards/rejected`**
 
 - **Meaning:**
   - `rewards/chosen`: The reward value for the “chosen” response, i.e., the preference difference `Δ_chosen`.
@@ -3724,7 +3728,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
     - **`rewards/chosen` should gradually increase**, indicating the model’s inclination toward the “chosen” response strengthens.
     - **`rewards/rejected` should gradually decrease**, indicating the model’s inclination toward the “rejected” response weakens.
 
-#### **5. `rewards/accuracies`**
+##### **5. `rewards/accuracies`**
 
  **Meaning:**
 
@@ -3735,7 +3739,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
   - **Initial stage:** May be close to `0.5`, equivalent to random choice.
   - **During training:** Should gradually improve, approaching `1.0`, indicating the model increasingly prefers the “chosen” response correctly.
 
-#### **6. `rewards/margins`**
+##### **6. `rewards/margins`**
 
 - **Meaning:**
 
@@ -3753,7 +3757,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
   - **Initial stage:** May be close to `0.0`.
   - **During training:** Should gradually increase, indicating the model better distinguishes and prefers the “chosen” response.
 
-#### **7. `logps/chosen` and `logps/rejected`**
+##### **7. `logps/chosen` and `logps/rejected`**
 
 - **Meaning:**
   - `logps/chosen`: The total log probability of generating the “chosen” response.
@@ -3765,7 +3769,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
     - **`logps/chosen` should gradually increase (value tends toward 0)**, indicating the generation probability for the “chosen” response increases.
     - **`logps/rejected` may remain unchanged or decrease**, indicating the generation probability for the “rejected” response decreases.
 
-#### **8. `logits/chosen` and `logits/rejected`**
+##### **8. `logits/chosen` and `logits/rejected`**
 
 - **Meaning:**
   - **Raw output scores**, the unnormalized scores at the model’s final layer for the two responses (typically a vector).
@@ -3774,7 +3778,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
 - **Metric trend:**
   - **Normal values:** Ensure `logits` have no anomalies (e.g., `nan` or `inf`).
 
-#### **9. `epoch`**
+##### **9. `epoch`**
 
 - **Meaning:**
   - **Training epochs**, the number of times the model traverses the entire training dataset.
@@ -3785,7 +3789,7 @@ In conjunction with the above DPO training process, below is a detailed explanat
 
 
 
-### **Summary**
+#### **Summary**
 
 - **Adjust training strategy based on metrics:**
   - **Loss decreases slowly:** You can appropriately increase the learning rate or check data quality.

@@ -2,7 +2,7 @@
 
 English | [中文](README-CN.md)
 
-> **Author**: Xinyu Wei (魏新宇) — Senior AI System Engineer, Microsoft AI GBB  
+> **Author**: Xinyu Wei (魏新宇) — Senior AI System Engineer, Microsoft AI Lead Senior System Engineer  
 > **Publisher**: China Machine Press (机械工业出版社), 2026
 
 This folder collects every code listing that appears in the book《边缘侧AI小模型训练、优化与部署》, plus snapshots of the full david-share projects the book cites, organised by chapter for readers to download alongside the book.

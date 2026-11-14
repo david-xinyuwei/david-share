@@ -1,10 +1,10 @@
 # Agent Skills In Action: Azure as the Live Test Bed
 
-> **Author**: Xinyu Wei (魏新宇) · Microsoft AI GBB
+> **Author**: Xinyu Wei (魏新宇) · Microsoft AI Lead Senior System Engineer
 
 [中文版](README-CN.md) | English
 
-[![Skills](https://img.shields.io/badge/Skills%20Verified-61-blue)](skill-demos/) [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-63-teal)](evaluation/results/) [![APM](https://img.shields.io/badge/APM-Lifecycle-purple)](https://microsoft.github.io/apm/) [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Skills](https://img.shields.io/badge/Skills%20Verified-61-blue)](skill-demos/) [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-63-teal)](evaluation/results/) [![APM](https://img.shields.io/badge/APM-Lifecycle-purple)](https://microsoft.github.io/apm/) [![License](https://img.shields.io/badge/License-MIT-green)](../../LICENSE)
 
 > An evidence-first review of Microsoft's Agent Skills ecosystem. **An Agent Skill is a `SKILL.md` file that teaches a coding agent how to do a specific task** — with descriptions for routing, instructions for execution, and references for grounding. Azure is the live test bed because it exposes real MCP tools, real deployment guardrails, and measurable workflows; the larger lesson is how skills turn generic coding agents into task-specific operators.
 

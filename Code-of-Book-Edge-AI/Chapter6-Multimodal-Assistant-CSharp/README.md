@@ -1,8 +1,10 @@
 # Chapter 6: Building a Multimodal AI Assistant on the AI PC
 
+[![Area: Code of Book: Edge AI](https://img.shields.io/badge/Area-Code%20of%20Book%3A%20Edge%20AI-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 English | [中文](README-CN.md)
 
-> **Author**: Xinyu Wei (魏新宇)
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## Code listings from the book
 

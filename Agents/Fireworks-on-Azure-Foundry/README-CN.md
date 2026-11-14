@@ -1,6 +1,6 @@
 # Fireworks AI on Microsoft Foundry — 深度研究与 BYOW 实战验证
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文文档
 

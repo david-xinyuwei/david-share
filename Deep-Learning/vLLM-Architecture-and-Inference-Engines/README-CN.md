@@ -1,5 +1,11 @@
 # vLLM 注意力架构与性能对比
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 > vLLM 注意力优化技术栈全面指南 — PagedAttention、FlashAttention、FlashInfer、CUDAGraph 和连续批处理 — 附多 GPU 实测数据。
 
 
@@ -567,16 +573,14 @@ vLLM-Architecture-and-Inference-Engines/
 
 ---
 
-*作者: 魏新宇 (Microsoft AI GBB) | 测试时间: 2026-01-02/03*
+*作者: 魏新宇 (Microsoft AI Lead Senior System Engineer) | 测试时间: 2026-01-02/03*
 
 
 ---
 
-# Part 2: vLLM 高性能的原因
+## Part 2: vLLM 高性能的原因
 
 > *合并自原 The-reason-vLLM-High-Performance 项目。*
-
-# The-reason-vLLM-High-Performance
 
 ### 1. vLLM
 

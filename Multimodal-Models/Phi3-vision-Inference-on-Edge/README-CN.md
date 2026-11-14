@@ -1,5 +1,9 @@
 # Phi3-Vision 边缘端推理
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
 [English](README.MD) | 中文
 
 **说明：**
@@ -282,4 +286,4 @@ pip install vllm
 
 ---
 
-*作者：魏新宇 (Microsoft AI GBB) | 更新：2026-01*
+*作者：魏新宇 (Microsoft AI Lead Senior System Engineer) | 更新：2026-01*

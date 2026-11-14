@@ -1,6 +1,8 @@
 # Agent Design Best Practice
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 想让Agent 既 **跑得快、花得少、还不翻车**，光有“大模型能力”远远不够，更关键的是：你如何给它喂上下文、喂工具、喂反馈。
  这就是所谓 **Context Engineering**。

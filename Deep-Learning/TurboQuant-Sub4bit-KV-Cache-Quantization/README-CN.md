@@ -1,6 +1,6 @@
 # TurboQuant：Sub-4-bit KV Cache 量化 — 近零精度损失
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB Senior System Engineer
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 中文版 | [English](README.md)
 

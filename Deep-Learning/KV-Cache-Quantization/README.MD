@@ -1,5 +1,8 @@
 # KV-Cache-Quantization
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 The memory required for inference mainly consists of three parts: loading the model, activations, and KV-cache.
 
@@ -8,16 +11,6 @@ Under normal circumstances, the memory occupation of activations during inferenc
 As for the KV-cache, its size will rapidly increase as the context seq lengthens and batch size . This is particularly prominent for systems that handle long contexts, such as RAG systems.
 
 Reference Link: https://kaitchup.substack.com/p/kv-cache-quantization-for-memory
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
-
 
 ##  Models support
 The models that support KV cache are for now as following:

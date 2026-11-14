@@ -1,5 +1,11 @@
 # vLLM Attention Architecture and Benchmark
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 > Comprehensive guide to vLLM's attention optimization stack — PagedAttention, FlashAttention, FlashInfer, CUDAGraph, and Continuous Batching — with real-world benchmarks across multiple GPUs.
 
 
@@ -568,16 +574,14 @@ vLLM-Architecture-and-Inference-Engines/
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI GBB) | Tested: 2026-01-02/03*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Tested: 2026-01-02/03*
 
 
 ---
 
-# Part 2: Why vLLM Achieves High Performance
+## Part 2: Why vLLM Achieves High Performance
 
 > *Merged from the original The-reason-vLLM-High-Performance project.*
-
-# The-reason-vLLM-High-Performance
 
 ### 1. vLLM
 

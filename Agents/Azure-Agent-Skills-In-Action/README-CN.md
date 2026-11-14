@@ -1,10 +1,10 @@
 # Agent Skills 全面实测：以 Azure 为验证平台
 
-> **Author**: 魏新宇 (Xinyu Wei) · Microsoft AI GBB
+> **Author**: 魏新宇 (Xinyu Wei) · Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文版
 
-[![Skills](https://img.shields.io/badge/Skills%20Verified-61-blue)](skill-demos/) [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-63-teal)](evaluation/results/) [![APM](https://img.shields.io/badge/APM-Lifecycle-purple)](https://microsoft.github.io/apm/) [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Skills](https://img.shields.io/badge/Skills%20Verified-61-blue)](skill-demos/) [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-63-teal)](evaluation/results/) [![APM](https://img.shields.io/badge/APM-Lifecycle-purple)](https://microsoft.github.io/apm/) [![License](https://img.shields.io/badge/License-MIT-green)](../../LICENSE)
 
 > **Agent Skill 的核心就是一个 `SKILL.md` 文件**。`description` 告诉 Agent 什么场景该加载这个 skill，`instructions` 写清楚具体怎么做、有哪些约束，`references` 给出可引用的权威来源。三者配合，Agent 就能从"泛泛而谈"变成"按规矩办事"。
 >

@@ -1,5 +1,11 @@
 # vLLM Multi-LoRA Serving for EXAONE (LG Electronics) on Azure
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
+
 This repository provides a **complete validation** of running LG AI Research's **EXAONE 3.5** model with **Multi-LoRA adapter serving** on Azure GPU VMs using vLLM. It covers model loading, LoRA adapter creation, multi-adapter concurrent serving, and performance benchmarking.
 
 

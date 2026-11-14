@@ -1,6 +1,8 @@
 # MI300X vs H200：Dense 模型与 MoE 模型推理性能对比
 
-> **作者**：魏新宇 (Xinyu Wei)  
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer  
 > **日期**：2026-04-27  
 > **定位**：基于公开数据的客观对比，聚焦大规模 MoE 模型和长上下文推理场景。
 
@@ -302,4 +304,4 @@ H100:   8 × 80GB  =   640 GB
 
 ---
 
-*Running on Azure. 作者：魏新宇 (Xinyu Wei)，Microsoft AI GBB.*
+*Running on Azure. 作者：魏新宇 (Xinyu Wei)，Microsoft AI Lead Senior System Engineer.*

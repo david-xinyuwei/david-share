@@ -5,9 +5,11 @@
 [![Windows 11](https://img.shields.io/badge/Windows_11-24H2+-0078D4?logo=windows11&logoColor=white)](https://learn.microsoft.com/windows/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-基于 Build 2026 [BRK262](https://build.microsoft.com/en-US/sessions/BRK262) session，梳理 Windows Agent 信任平台的四大支柱，附带 Hyperlight 和 MXC 的真机冒烟测试。
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB
+[English](README.md) | **中文**
+
+基于 Build 2026 [BRK262](https://build.microsoft.com/en-US/sessions/BRK262) session，梳理 Windows Agent 信任平台的四大支柱，附带 Hyperlight 和 MXC 的真机冒烟测试。
 
 English | [中文版](README-CN.md)
 

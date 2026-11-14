@@ -1,6 +1,10 @@
 # 解析 Gemma 3n 与 MatFormer同心圆架构
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+> **Note:** This article is written mainly in Chinese; an English version is not available yet.
 
 Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即可支撑从小型设备到服务器端部署的能力，而无需额外微调训练，展现了良好的工程前景。就是类似「同心圆」技术＝一份权重、多个体型：
 
@@ -9,16 +13,6 @@ Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即
 - 视觉、音频分支可整段跳过，巨型 PLE 放 SSD 流式读，显存再省一半。
 
 一句话：一份 Gemma 3n 权重，从手机到云端都能按需“变身”。
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## 1 模型与背景

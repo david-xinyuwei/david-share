@@ -1,8 +1,10 @@
 # 第7章 边缘端视觉语言模型与计算机视觉应用
 
+[![Area: Code of Book: Edge AI](https://img.shields.io/badge/Area-Code%20of%20Book%3A%20Edge%20AI-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 [English](README.md) | 中文
 
-> **作者**: 魏新宇 (Xinyu Wei)
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 ## 书中代码清单
 

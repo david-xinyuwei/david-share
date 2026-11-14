@@ -4,7 +4,7 @@
 > **Environment**: Azure A100 80GB VM (`Standard_NC24ads_A100_v4`)
 > **Base Model**: `meta-llama/Llama-3.2-3B-Instruct` (3.2B parameters)
 > **Evaluator**: GPT-5.2 via Azure OpenAI (APIM proxy)
-> **Author**: Xinyu Wei (Microsoft AI and Apps GBB Architect)
+> **Author**: Xinyu Wei (Microsoft AI Lead Senior System Engineer)
 
 ---
 
@@ -223,4 +223,4 @@ python l5_hybrid_pipeline.py
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Date: 2026-03-13*
+*Author: Xinyu Wei (Microsoft AI Lead Senior System Engineer) | Date: 2026-03-13*

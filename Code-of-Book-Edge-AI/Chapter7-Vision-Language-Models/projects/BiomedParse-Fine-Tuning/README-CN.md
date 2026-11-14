@@ -4,7 +4,7 @@
 
 微软 BiomedParse 医学图像分割模型的微调实战指南。
 
-**作者**: 魏新宇 (Microsoft AI and Apps GBB)  
+**作者**: 魏新宇 (Microsoft AI Lead Senior System Engineer)  
 **模型**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
 **论文**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
 **测试环境**: NVIDIA A10 24GB GPU

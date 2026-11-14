@@ -1,5 +1,9 @@
 # Microsoft Foundry Hosted Agent + Toolbox + Memory + Skills Demo
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 **Recorded walkthrough (1.8x)**: the video below shows the actual web app flow — build a Toolbox, bind it to a Hosted Agent, test/evaluate/trace requests, and review fleet governance.
 
 https://github.com/user-attachments/assets/5dea1cb5-d113-4f35-ad56-0fec0fa22ea8
@@ -7,8 +11,6 @@ https://github.com/user-attachments/assets/5dea1cb5-d113-4f35-ad56-0fec0fa22ea8
 ## Running on Azure
 
 This repo is an end-to-end **Azure AI Foundry enterprise agent platform demo**. It combines Microsoft Agent Framework, Foundry Hosted Agents, Foundry Toolbox, Foundry Memory, selected Microsoft `SKILL.md` files, evaluation, tracing, fleet governance, voice transcription, and image generation into one lifecycle UI.
-
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 [中文版](README-CN.md)
 

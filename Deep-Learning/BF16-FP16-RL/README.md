@@ -1,11 +1,13 @@
 # BF16 vs FP16 for Reinforcement Learning: Where Are We?
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-Chinese.md)
 
 > **Based on arXiv:2510.26788** — *Defeating the Training-Inference Mismatch via FP16*
 
 [![arXiv](https://img.shields.io/badge/arXiv-2510.26788-b31b1b.svg)](https://arxiv.org/abs/2510.26788)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
 ---
 
@@ -797,18 +799,19 @@ Even with identical dtypes, different engines handle rounding/accumulation diffe
 ```bibtex
 @article{fp16_defeats_mismatch_2024,
   title   = {Defeating the Training-Inference Mismatch via FP16},
-  author  = {[Author Names]},
+  author  = {Qi, Penghui and Liu, Zichen and Zhou, Xiangxin and Pang, Tianyu and Du, Chao and Lee, Wee Sun and Lin, Min},
   journal = {arXiv preprint arXiv:2510.26788},
-  year    = {2024},
+  year    = {2025},
   month   = {October},
   url     = {https://arxiv.org/abs/2510.26788}
 }
+```
 
 ---
 
 ## License
 
-MIT License — See [LICENSE](LICENSE) for details.
+MIT License — See [LICENSE](../../LICENSE) for details.
 
 ---
 

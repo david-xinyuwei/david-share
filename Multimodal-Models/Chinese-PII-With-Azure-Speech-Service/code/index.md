@@ -32,5 +32,4 @@ AZURE_OPENAI_DEPLOYMENT=text-davinci-003
 ALLOW_OTHER_MODELS=true #true if the user could download new models
 ```
 ## Output
-Output should be similar to this screenshot:
-![image](https://github.com/microsoft/presidio/assets/3776619/<resource-id>)
+The original page showed a screenshot of the Presidio demo output here; that image is no longer available.

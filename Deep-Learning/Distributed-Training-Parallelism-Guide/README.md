@@ -1,6 +1,10 @@
 # Distributed Training Parallelism: DP, TP, PP, ZeRO & NCCL Internals
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 > **A comprehensive guide to distributed parallelism strategies for Large Language Model training and inference, covering theory, implementation, and GPU communication internals.**
 
@@ -62,11 +66,11 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ---
 
-# Part I: Parallelism Strategies
+## Part I: Parallelism Strategies
 
 ---
 
-## The Big Picture
+### The Big Picture
 
 All parallelism strategies solve the same fundamental problem: **a single GPU doesn't have enough memory or compute power to handle a large model**. But they approach it from different angles:
 
@@ -93,11 +97,11 @@ The relationship between data parallelism and model parallelism can be visualize
 
 ---
 
-## Data Parallelism (DP)
+### Data Parallelism (DP)
 
 **Core Idea**: Replicate the entire model on every GPU. Each GPU processes a different slice of the training data.
 
-### How It Works
+#### How It Works
 
 ```
 Global Batch = [B0, B1, B2, B3]   (e.g., 1024 samples)
@@ -113,14 +117,14 @@ GPU 3: Full Model Copy → processes B3 (256 samples) → local gradients G3
            All GPUs update parameters with G_avg
 ```
 
-### Communication Pattern
+#### Communication Pattern
 
 - **When**: Once after backward pass (per training step)
 - **What**: AllReduce on gradients
 - **Volume**: 2M per step (M = model size, ring AllReduce)
 - **Bandwidth need**: Medium
 
-### Pros and Cons
+#### Pros and Cons
 
 | Pros | Cons |
 |------|------|
@@ -129,7 +133,7 @@ GPU 3: Full Model Copy → processes B3 (256 samples) → local gradients G3
 | Linear speedup with more GPUs | Limited by single-GPU memory |
 | Works well with any model | Gradient sync can be bottleneck |
 
-### Variants
+#### Variants
 
 - **DP** (PyTorch DataParallel): Uses python threads, GPU0 as master → load imbalance
 - **DDP** (DistributedDataParallel): Multi-process, each GPU independent → preferred
@@ -139,7 +143,7 @@ GPU 3: Full Model Copy → processes B3 (256 samples) → local gradients G3
 
 PyTorch provides built-in support for data parallelism through `torch.nn.DataParallel` and `torch.nn.parallel.DistributedDataParallel` (DDP). DDP is preferred for its better scalability and efficiency in multi-node setups.
 
-### PyTorch Implementation
+#### PyTorch Implementation
 
 ```python
 import torch
@@ -174,11 +178,11 @@ optimizer.step()
 
 ---
 
-## Tensor Parallelism (TP)
+### Tensor Parallelism (TP)
 
 **Core Idea**: Split each layer's weight matrix across GPUs. Each GPU computes a **partial result** and they synchronize to get the full output.
 
-### How It Works — MLP Layer Example
+#### How It Works — MLP Layer Example
 
 For a linear layer `Y = XW + b` with weight matrix `W ∈ R^{d_in × d_out}`:
 
@@ -206,20 +210,20 @@ GPU 1: Heads 16-31 → partial attention output
        Full attention output
 ```
 
-### Communication Pattern
+#### Communication Pattern
 
 - **When**: Every layer (both forward and backward)
 - **What**: AllReduce on activations (per-layer intermediate results)
 - **Volume**: Very high (communication at every layer)
 - **Bandwidth need**: Very high → **requires NVLink** (300-900 GB/s)
 
-### Why TP Needs NVLink
+#### Why TP Needs NVLink
 
 A typical Transformer layer requires **2 AllReduce operations** (one for MLP, one for attention). For a 94-layer model, that's **188 AllReduce operations per forward pass**, and the same for backward. If using Ethernet (~25 Gbps), the communication overhead would dominate compute time.
 
 **Rule of thumb**: TP should only be used **within a single node** connected by NVLink.
 
-### Pros and Cons
+#### Pros and Cons
 
 | Pros | Cons |
 |------|------|
@@ -228,7 +232,7 @@ A typical Transformer layer requires **2 AllReduce operations** (one for MLP, on
 | Natural fit for attention heads | Must modify model architecture |
 | Reduces activation memory | TP degree limited by number of attention heads |
 
-### Why TP Does Not Split Input Data
+#### Why TP Does Not Split Input Data
 
 ![Tensor Parallelism Diagram](images/pytorch_tp_diagram.png)
 
@@ -263,7 +267,7 @@ If we **split input** instead (`x_left [Batch, N/2]`, `x_right [Batch, N/2]`):
 - GPUs are divided into DP groups; within each group, TP is used.
 - Input data is split across DP groups (not within TP groups).
 
-### PyTorch Implementation
+#### PyTorch Implementation
 
 ```python
 import torch
@@ -290,11 +294,11 @@ Frameworks like [Megatron-LM](https://github.com/NVIDIA/Megatron-LM) and [DeepSp
 
 ---
 
-## Pipeline Parallelism (PP)
+### Pipeline Parallelism (PP)
 
 **Core Idea**: Assign different **groups of complete layers** to different GPUs. Data flows through the pipeline from first stage to last stage.
 
-### How It Works
+#### How It Works
 
 ```
 94-layer model with PP=2:
@@ -306,7 +310,7 @@ Forward: Input → GPU0 computes layers 0-46 → send activations → GPU1 compu
 Backward: Same path in reverse, send gradients of activations
 ```
 
-### The Pipeline Bubble Problem
+#### The Pipeline Bubble Problem
 
 With naive PP, only one GPU is active at a time (huge waste):
 
@@ -328,14 +332,14 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
               ↑ smaller bubble ↑
 ```
 
-### Communication Pattern
+#### Communication Pattern
 
 - **When**: Only at stage boundaries (between layer groups)
 - **What**: Point-to-point (P2P) send/recv of activations
 - **Volume**: Low (only activations at boundary layers)
 - **Bandwidth need**: Low → **Ethernet is sufficient**
 
-### Pros and Cons
+#### Pros and Cons
 
 | Pros | Cons |
 |------|------|
@@ -344,7 +348,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | Each GPU holds complete layers | Load balancing across stages |
 | No model architecture changes | Micro-batching adds complexity |
 
-### PP for Training vs Inference
+#### PP for Training vs Inference
 
 | Aspect | Training | Inference |
 |--------|----------|-----------|
@@ -352,7 +356,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | **Bubble impact** | Reduced by 1F1B schedule | Unavoidable for single-request latency |
 | **When to use** | When nodes can't hold full model | When single GPU can't hold model |
 
-### Gradient Synchronization in PP
+#### Gradient Synchronization in PP
 
 | Scenario | AllReduce Needed? | Notes |
 |----------|-------------------|-------|
@@ -360,7 +364,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | PP + DP (replicas within stage) | Yes | Same-layer replicas must sync gradients; same as traditional DDP |
 | PP + ZeRO/FSDP hybrid | Yes | Additional Reduce-Scatter / All-Gather on top of replica sync |
 
-### Diagrams
+#### Diagrams
 
 **Pure Pipeline Parallelism:**
 
@@ -370,7 +374,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 
 ![PP + DP Diagram](images/pytorch_pp_dp_diagram.png)
 
-### PyTorch Implementation
+#### PyTorch Implementation
 
 ```python
 import torch.nn as nn
@@ -400,7 +404,7 @@ outputs = model(inputs)
 
 ---
 
-## ZeRO (Zero Redundancy Optimizer)
+### ZeRO (Zero Redundancy Optimizer)
 
 **Core Idea**: In standard DP, every GPU redundantly stores a full copy of model parameters (W), gradients (G), and optimizer states (OS). ZeRO **partitions** these across GPUs to save memory, while **reconstructing** them on-the-fly when needed for computation.
 
@@ -408,7 +412,7 @@ outputs = model(inputs)
 
 ![ZeRO Stages](images/zero_stages.png)
 
-### Memory Breakdown (FP16 model with Adam optimizer)
+#### Memory Breakdown (FP16 model with Adam optimizer)
 
 For a model with M parameters:
 
@@ -423,7 +427,7 @@ With standard DP on N GPUs: **each GPU stores 16M** → total memory = 16M × N 
 
 ![Memory in Training](images/deepspeed_memory_training.webp)
 
-### ZeRO Stage 1: Optimizer State Partitioning
+#### ZeRO Stage 1: Optimizer State Partitioning
 
 **What's partitioned**: Only optimizer states (OS)
 
@@ -442,7 +446,7 @@ vs. Standard DP: 16M per GPU → Stage 1 saves ~56% memory
 
 Behind the scenes, ZeRO partitions optimizer states into N parts. Each device is responsible for updating 1/N of the optimizer states and the corresponding 1/N of parameters. At the end of each training step, parameters are synchronized via all-gather. For mixed precision training, memory requirement becomes `4P + 12P/N`, which approaches `4P` for large N — a 4× reduction vs. standard DP's `16P`.
 
-### ZeRO Stage 2: + Gradient Partitioning
+#### ZeRO Stage 2: + Gradient Partitioning
 
 **What's partitioned**: Optimizer states + Gradients
 
@@ -459,7 +463,7 @@ vs. Standard DP: 16M per GPU → Stage 2 saves ~66% memory
 
 Each device only needs 1/N of the gradients during backpropagation. Furthermore, once a gradient partition is consumed, it can be released. Memory becomes `2P + (2P + 12P)/N`, approaching `2P` for large N — an 8× reduction.
 
-### ZeRO Stage 3: + Parameter Partitioning
+#### ZeRO Stage 3: + Parameter Partitioning
 
 **What's partitioned**: Optimizer states + Gradients + Parameters (everything!)
 
@@ -487,7 +491,7 @@ For each layer L:
   4. Move to next layer
 ```
 
-### Why ZeRO Cannot Shard Activations
+#### Why ZeRO Cannot Shard Activations
 
 While ZeRO can partition gradients, optimizer states, and parameters, it **cannot shard activations**. This is a fundamental distinction:
 
@@ -503,7 +507,7 @@ While ZeRO can partition gradients, optimizer states, and parameters, it **canno
 
 2. **Reduced redundant storage**: By sharding and distributing gradients and optimizer states, ZeRO reduces redundant storage on each device. Each device only needs to store and compute a portion, then perform global aggregation when needed.
 
-### ZeRO Communication Volume Summary
+#### ZeRO Communication Volume Summary
 
 | Stage | Memory per GPU | Communication per Step | vs. Classic DP |
 |-------|---------------|----------------------|----------------|
@@ -514,7 +518,7 @@ While ZeRO can partition gradients, optimizer states, and parameters, it **canno
 
 DeepSpeed ZeRO remains a data-parallel paradigm but eliminates model state redundancy behind the scenes. The communication is distributed: parameters exist on a node only when needed and are discarded after use, maintaining the memory savings discussed above.
 
-### DeepSpeed Implementation
+#### DeepSpeed Implementation
 
 ```python
 import torch
@@ -559,7 +563,7 @@ model_engine.step()
 
 ---
 
-## The Critical Difference: TP vs ZeRO
+### The Critical Difference: TP vs ZeRO
 
 This is the most commonly confused point. Both TP and ZeRO-3 split weights across GPUs. But the computation model is fundamentally different:
 
@@ -575,7 +579,7 @@ This is the most commonly confused point. Both TP and ZeRO-3 split weights acros
 | **Nature** | **Model parallelism** | **Memory-optimized data parallelism** |
 | **Analogy** | Workers each build **part** of a car, then assemble | Workers each **borrow the full toolkit**, build their own car, return tools |
 
-### Why This Matters
+#### Why This Matters
 
 1. **TP reduces compute per GPU** (each does partial matrix multiply) → good for latency
 2. **ZeRO doesn't reduce compute** (each does full matrix multiply) → same latency as single GPU
@@ -584,11 +588,11 @@ This is the most commonly confused point. Both TP and ZeRO-3 split weights acros
 
 ---
 
-## Fully Sharded Data Parallel (FSDP)
+### Fully Sharded Data Parallel (FSDP)
 
 FSDP is PyTorch's native implementation of ZeRO-3 concepts. It provides maximum memory efficiency by sharding parameters, gradients, and optimizer states.
 
-### How FSDP Works
+#### How FSDP Works
 
 1. **Parameter Sharding**: Each weight tensor, gradient tensor, and optimizer state is evenly split into N shards across N GPUs. Each GPU only stores its own shard, reducing resident memory to 1/N.
 
@@ -600,7 +604,7 @@ FSDP is PyTorch's native implementation of ZeRO-3 concepts. It provides maximum 
 
 5. **Mixed Precision** (FP16/BF16 + FP32 master weights): Gradients first participate in Reduce-Scatter at low precision, then accumulate to FP32 master weights locally. If gradient normalization or clipping requiring global L2-norm is enabled, an additional All-Gather/All-Reduce is needed.
 
-### FSDP Communication Logic
+#### FSDP Communication Logic
 
 | Phase | Primary Communication | Purpose |
 |-------|----------------------|---------|
@@ -612,15 +616,15 @@ FSDP is PyTorch's native implementation of ZeRO-3 concepts. It provides maximum 
 
 ---
 
-## Expert Parallelism & MoE
+### Expert Parallelism & MoE
 
-### Background and Core Concepts
+#### Background and Core Concepts
 
 1. **Sparse Activation**: A single forward pass only routes to K experts (K ≪ M total experts), so compute is proportional to K, but the model can stack M ≫ K parameters for capacity.
 2. **Parallel Challenge**: Routing All-to-All and expert gradient synchronization demand high bandwidth; must be combined with data parallelism, tensor parallelism, and ZeRO to scale.
 3. **DeepSpeed** provides integrated MoE-Layer, Balanced-Gate, Expert-Parallel, and ZeRO-3 support.
 
-### MoE Workflow
+#### MoE Workflow
 
 | Step | Process | Primary Communication |
 |------|---------|----------------------|
@@ -632,14 +636,14 @@ FSDP is PyTorch's native implementation of ZeRO-3 concepts. It provides maximum 
 
 > The two All-to-All operations in steps ① and ③ are the **most bandwidth-intensive** part of MoE training.
 
-### Common Combinations
+#### Common Combinations
 
 1. **E + D** (most common): All-to-All ×2; expert All-Reduce; backbone DDP All-Reduce.
 2. **E + Z** (memory-constrained): Add ZeRO-3 sharding to both backbone and expert parameters.
 3. **E + D + TP** (100B+ LLMs): Backbone uses tensor parallelism; experts use expert parallelism. TP P2P/All-Gather + MoE All-to-All.
 4. **E + D + Z** (DeepSpeed recommended): Communication = E+D All-to-All & All-Reduce + ZeRO-3 Gather/Scatter.
 
-### MoE Diagrams
+#### MoE Diagrams
 
 **Expert Parallelism with Data Parallelism (EP=2, DP=2):**
 
@@ -657,7 +661,7 @@ FSDP is PyTorch's native implementation of ZeRO-3 concepts. It provides maximum 
 
 ![MoE Diagram 4](images/pytorch_moe_4.png)
 
-### DeepSpeed MoE Implementation
+#### DeepSpeed MoE Implementation
 
 ```python
 from deepspeed.moe.layer import MoE
@@ -691,7 +695,7 @@ ds_cfg = {
 engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 ```
 
-### MoE Key Takeaways
+#### MoE Key Takeaways
 
 - **MoE performance ceiling is often constrained by All-to-All bandwidth** — NVLink / 200 Gb IB is recommended hardware.
 - When expert count ≫ GPU count, proper `expert_parallel_size` and **Balanced-Gate** settings can significantly reduce load imbalance.
@@ -699,13 +703,13 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-# Part II: Combining Strategies
+## Part II: Combining Strategies
 
 ---
 
-## Parallelism Taxonomy & Hybrid Combinations
+### Parallelism Taxonomy & Hybrid Combinations
 
-### Parallelism Paradigm Comparison
+#### Parallelism Paradigm Comparison
 
 | Paradigm | Primary Problem Solved | Forward/Routing Communication | Backward/Update Communication | Typical Implementation |
 |----------|----------------------|------------------------------|------------------------------|----------------------|
@@ -716,7 +720,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 | **E – Expert Parallel** | Sparse high-capacity MoE | All-to-All (token → expert routing) | All-Reduce (same-expert gradients) | DeepSpeed-MoE |
 | **Z – ZeRO 1/2/3** | Memory optimization | Stage-3: All-Gather (parameter shards) | Reduce-Scatter (gradients) | DeepSpeed-ZeRO |
 
-### Common Hybrid Paradigms
+#### Common Hybrid Paradigms
 
 | Combination | Goal | Forward/Routing Comm | Backward/Update Comm | Typical Implementation |
 |-------------|------|---------------------|---------------------|----------------------|
@@ -730,13 +734,13 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## 3D Parallelism: TP × PP × DP
+### 3D Parallelism: TP × PP × DP
 
 For training the largest models (100B+), a single parallelism strategy isn't enough. **3D Parallelism** combines all three:
 
 ![3D Parallelism](images/3d_parallelism.png)
 
-### How They Combine
+#### How They Combine
 
 ```
 Total GPUs = TP_size × PP_size × DP_size
@@ -747,7 +751,7 @@ Example: 8 GPUs, TP=2, PP=2, DP=2
                          ↕ AllReduce gradients (DP) ↕
 ```
 
-### Communication Hierarchies
+#### Communication Hierarchies
 
 | Dimension | Bandwidth Need | Typical Interconnect | Communication |
 |-----------|---------------|---------------------|---------------|
@@ -755,7 +759,7 @@ Example: 8 GPUs, TP=2, PP=2, DP=2
 | **PP** (across nodes) | Low | Ethernet (10-100 Gbps) | P2P at stage boundaries |
 | **DP** (across replicas) | Medium | Ethernet/InfiniBand | AllReduce gradients once per step |
 
-### ZeRO + 3D Parallelism
+#### ZeRO + 3D Parallelism
 
 When combining ZeRO with PP+TP:
 - **ZeRO-1** (optimizer sharding) works well with PP+TP
@@ -764,7 +768,7 @@ When combining ZeRO with PP+TP:
 
 ---
 
-## Communication Patterns Comparison
+### Communication Patterns Comparison
 
 | Parallelism | Collective Op | When | Volume per Step | Can Overlap with Compute? |
 |-------------|--------------|------|-----------------|--------------------------|
@@ -779,7 +783,7 @@ Where: M = model size, L = number of layers.
 
 ---
 
-## Training vs Inference: Different Priorities
+### Training vs Inference: Different Priorities
 
 | Aspect | Training | Inference |
 |--------|----------|-----------|
@@ -790,13 +794,13 @@ Where: M = model size, L = number of layers.
 | **ZeRO relevance** | Very useful (saves memory for larger batches) | ZeRO-Inference exists but less common |
 | **PP trade-off** | Acceptable bubble, micro-batch helps | Adds latency (pipeline bubble per token) |
 
-### Why Training Prefers DP
+#### Why Training Prefers DP
 
 - Each GPU processes independent data → minimal communication (just gradients at end)
 - Communication can overlap with backward computation (gradient bucketing)
 - Linear throughput scaling: 2× GPUs ≈ 2× throughput
 
-### Why Inference Prefers TP
+#### Why Inference Prefers TP
 
 - Single request → can't split data (no DP benefit)
 - TP reduces per-GPU computation → lower latency
@@ -804,15 +808,15 @@ Where: M = model size, L = number of layers.
 
 ---
 
-## Decision Guide: When to Use What
+### Decision Guide: When to Use What
 
-### Model fits on single GPU
+#### Model fits on single GPU
 ```
 → Just use DDP (Data Parallel) for training
 → Single GPU for inference
 ```
 
-### Model doesn't fit on single GPU
+#### Model doesn't fit on single GPU
 
 **Single node (NVLink available)**:
 ```
@@ -832,7 +836,7 @@ Where: M = model size, L = number of layers.
 → Consider ZeRO-Offload (offload to CPU/NVMe)
 ```
 
-### Quick Decision Table
+#### Quick Decision Table
 
 | Scenario | Recommended Strategy |
 |----------|---------------------|
@@ -844,7 +848,7 @@ Where: M = model size, L = number of layers.
 
 ---
 
-## Real-World Example: Training Llama-3 405B
+### Real-World Example: Training Llama-3 405B
 
 Meta's Llama-3 405B was trained on **16,384 H100 GPUs** using 3D parallelism:
 
@@ -854,7 +858,7 @@ Meta's Llama-3 405B was trained on **16,384 H100 GPUs** using 3D parallelism:
 | **PP** | 4 (16 for context extension) | Across 4 nodes per pipeline |
 | **DP** | 512 (128 for context extension) | 16384 / (8 × 4) = 512 DP replicas |
 
-### Per-GPU View
+#### Per-GPU View
 
 ```
 Total parameters: 405B
@@ -874,11 +878,11 @@ Memory breakdown per GPU:
 
 ---
 
-# Part III: NCCL & GPU Communication Internals
+## Part III: NCCL & GPU Communication Internals
 
 ---
 
-## Deep Learning Architecture Stack
+### Deep Learning Architecture Stack
 
 The deep learning stack from bottom to top:
 
@@ -915,9 +919,9 @@ The deep learning stack from bottom to top:
 
 ---
 
-## Multi-GPU Training Challenges
+### Multi-GPU Training Challenges
 
-### Algorithm Challenges
+#### Algorithm Challenges
 
 - Data parallelism or model parallelism
 - Synchronous or asynchronous
@@ -929,7 +933,7 @@ The deep learning stack from bottom to top:
 
 ![Algorithm Challenges](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sAUbicib5yRvLMzg1nP4szPjsLHhHJs4qcPlrvTXAIWzWKHfhYwic4OcZw/640?wx_fmt=png)
 
-### Engineering Challenges
+#### Engineering Challenges
 
 - Imbalanced CPU and GPU performance scaling
 - Scale up first (NVLink), then scale out through NICs
@@ -946,15 +950,15 @@ NCCL can solve many of the communication challenges in algorithm design.
 
 ---
 
-## NCCL: Role and Architecture
+### NCCL: Role and Architecture
 
-### Single GPU Training Data Flow
+#### Single GPU Training Data Flow
 
 In single GPU training, raw data (images, audio, etc.) is stored in a database. Gradients are used to update parameters, which are then combined with the next batch for another iteration, repeating until convergence.
 
 ![Single GPU Training](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sXic5LmMOYWw0SgjdMWMNlv6xZPLE9fxUDUASibqSn6ZLS7KrfLJEX3vg/640?wx_fmt=png)
 
-### NCCL in Distributed Training
+#### NCCL in Distributed Training
 
 In data-parallel distributed training, each GPU produces its own gradients from its own data. These gradients must be merged and summed — requiring an AllReduce operation. NCCL provides efficient parallel gradient communication. After AllReduce, each GPU obtains the reduced gradient and updates its parameters.
 
@@ -962,13 +966,13 @@ In data-parallel distributed training, each GPU produces its own gradients from 
 
 NCCL buffers reside on GPU memory and support multiple network interconnects.
 
-### NCCL's Position in the DL Stack
+#### NCCL's Position in the DL Stack
 
 NCCL sits above GPU/CUDA and below training frameworks. It works alongside cuDNN and cuBLAS to provide deep learning library support.
 
 ![NCCL Position](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUn63lp6VzO4uaIl1PDBuRhl3F6Q1HmagxxbJKk8GUgHsEicgWLSJusS59mnUT6v208waQTrtMariag/640?wx_fmt=png)
 
-### NCCL API Structure
+#### NCCL API Structure
 
 NCCL APIs are organized into five categories:
 1. NCCL Communicator creation, destruction, fault tolerance
@@ -987,39 +991,39 @@ Where:
 
 ---
 
-## NCCL Collective Operations
+### NCCL Collective Operations
 
-### Reduce
+#### Reduce
 
 One rank receives the reduced result from all ranks' input values. For example, four values across four ranks are summed and sent to root rank 2.
 
 ![Reduce](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1S97tqMTeZXVpfhn42uYjK1mpBCYn7ShfLuicVBSCcia1Xp0AXsAmSGqA/640?wx_fmt=png)
 
-### Broadcast
+#### Broadcast
 
 All ranks receive data from one root rank.
 
 ![Broadcast](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1L5K9YIdSQTBMmTIzcAw63yf533YJBpvxt7s7JS7yn3RsNeXLUcl3Og/640?wx_fmt=png)
 
-### AllReduce
+#### AllReduce
 
 Each rank receives the reduced result across all ranks' input values.
 
 ![AllReduce](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1t2ia9oSdYO8tguhOsKgjibhuI6r7YF86bUPuDEkMia6ojl6XtZs1zEdTA/640?wx_fmt=png)
 
-### AllGather
+#### AllGather
 
 Each rank receives aggregated data from all ranks, in rank order.
 
 ![AllGather](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1cJUHRLj9K9kibgyibMd3ykibxDlYHQ7RwUNxlClILAvn8CL3hTC2SnsSg/640?wx_fmt=png)
 
-### ReduceScatter
+#### ReduceScatter
 
 Input values are reduced across ranks, each rank receives a portion of the reduced result.
 
 ![ReduceScatter](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1CyKCvaEKoVmxG950rUZ9vq8prlp6RiatssG1bEmuI08FLVPUcljSB4w/640?wx_fmt=png)
 
-### Point-to-Point Operations
+#### Point-to-Point Operations
 
 - **Send/Receive**: One-to-one communication
 - **Gather**: Many-to-one
@@ -1035,9 +1039,9 @@ Input values are reduced across ranks, each rank receives a portion of the reduc
 
 ---
 
-## MPI for Multi-Node Training
+### MPI for Multi-Node Training
 
-### Prerequisites for Distributed GPU Jobs
+#### Prerequisites for Distributed GPU Jobs
 
 1. Hardware: Compute servers, network
 2. Code: Parallelism division and implementation
@@ -1049,7 +1053,7 @@ Input values are reduced across ranks, each rank receives a portion of the reduc
 8. `mpicc` for code compilation
 9. Launch: `mpirun -np 16 -H node1:8,node2:8 ./application`
 
-### Two Launch Methods
+#### Two Launch Methods
 
 **Method 1: MPI**
 
@@ -1073,13 +1077,13 @@ NCCL_DEBUG=INFO python -m torch.distributed.launch --nproc_per_node=8 --nnodes=2
     --node_rank=1 --master_addr="192.168.1.1" --master_port=12355 train.py
 ```
 
-### NCCL vs MPI
+#### NCCL vs MPI
 
 NCCL (NVIDIA Collective Communication Library) handles optimized GPU-to-GPU communication within a server. MPI handles cross-server task scheduling. When NGC launches tests with MPI, the underlying communication uses NCCL. MPI only does process management and launch.
 
 ![NCCL vs MPI](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sVmqmTJHQ8cibGzpjiczGNe9Z0ICCn6WNdib4Nic7v7XNj4LMjT1nwKicgcg/640?wx_fmt=png)
 
-### GPUDirect RDMA (GDR)
+#### GPUDirect RDMA (GDR)
 
 NV_PEER_MEM is required for cross-node MPI with GDR. This module is loaded on every node. When using GDR, GPU and NIC must be under the same PCIe root complex — if too far apart, performance may actually degrade. DGX1 and DGX A100 require GPU and NIC under the same PCIe switch.
 
@@ -1087,7 +1091,7 @@ NV_PEER_MEM is required for cross-node MPI with GDR. This module is loaded on ev
 
 ---
 
-## NCCL Startup Process
+### NCCL Startup Process
 
 NCCL has two startup modes:
 
@@ -1107,11 +1111,11 @@ All ranks then exchange information to form ring or tree topologies:
 
 ![Topology Formation](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sHO6EkAmKcZH9q3YKgVRZXia4MYLyr1J975dS6Y1dibQHVG0WpGc4NYBw/640?wx_fmt=png)
 
-### NCCL Bootstrap
+#### NCCL Bootstrap
 
 NCCL Bootstrap uses TCP/IP sockets to connect ranks within a job, providing an out-of-band channel for exchanging information. Bootstrap operations remain available throughout the NCCL communicator's lifecycle, primarily used during initialization and for dynamic send/recv connections. Currently no encryption or security measures. Use `NCCL_SOCKET_IFNAME` to ensure NCCL uses a network interface private to the parallel job.
 
-### NCCL's Four Working Steps
+#### NCCL's Four Working Steps
 
 1. **Topology Detection** — Build full GPU cluster topology
 2. **Graph Search** — Find optimal communication architecture (ring or tree)
@@ -1144,7 +1148,7 @@ With GDR, cross-node buffers don't need to be allocated in host memory — devic
 
 ---
 
-## NCCL Algorithms: Ring, Tree, CollNet
+### NCCL Algorithms: Ring, Tree, CollNet
 
 NCCL has three communication algorithms:
 
@@ -1152,7 +1156,7 @@ NCCL has three communication algorithms:
 - **Tree**: Lower latency, but bandwidth may not saturate
 - **CollNet**: Enables in-network reductions, but requires specialized IB switches
 
-### Ring Algorithm
+#### Ring Algorithm
 
 Ring is easier to achieve full bandwidth. Good topology detection is critical for ring performance — it needs an optimal ring path.
 
@@ -1166,13 +1170,13 @@ Optimization: split data into messages. With sufficiently large data and many me
 
 ![Optimized Ring](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHBguqNLsBqjveCW8Hy5qVaicfkR3dGSwEtQUcyU4FE2c3z5b4ZOMrpibg/640?wx_fmt=png)
 
-### Tree (Double Binary Tree)
+#### Tree (Double Binary Tree)
 
 Trees are always used in pairs. The purpose of tree pairs is to ensure balanced send/receive per node. Two trees are offset by one position, so most nodes send and receive twice each.
 
 ![Tree](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHqhK54dpOICQK7iaFSfxRiaL3ewZYMzQQQNRWyQMR3zpDtahEaMe70sNA/640?wx_fmt=png)
 
-### CollNet (SHARP)
+#### CollNet (SHARP)
 
 CollNet uses SHARP technology — reductions happen inside the switch itself.
 
@@ -1182,7 +1186,7 @@ CollNet uses SHARP technology — reductions happen inside the switch itself.
 
 ![SHARP vs Tree](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4s4CEvZrKJITC2DOuaLLlhu2AVlEYpaLYUibMVnLzInJ1HhHB2Uk9cCxw/640?wx_fmt=png)
 
-### Ring Channel Configuration
+#### Ring Channel Configuration
 
 **Intra-node:**
 - NVLink-based systems: Always create double channels to saturate NVLink bandwidth (e.g., DGX-1V: 6×2=12; DGX A100: 12×2=24)
@@ -1193,7 +1197,7 @@ CollNet uses SHARP technology — reductions happen inside the switch itself.
 
 ![Channel Config](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1CEZSMgQg7Fs0QG12WVktAnbeiaia5JzgFt11CRyht5T6pdLnfjkklG1A/640?wx_fmt=png)
 
-### Tree Types
+#### Tree Types
 
 NCCL tree has three subtypes:
 
@@ -1207,13 +1211,13 @@ Balanced tree is the most common default; basic tree is used only when GPU count
 
 ---
 
-## Ring AllReduce Walkthrough
+### Ring AllReduce Walkthrough
 
 AllReduce is the most frequently used NCCL operation in deep learning distributed training. The goal is to efficiently reduce data across all machines and distribute the result to every machine.
 
 ![AllReduce Goal](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHEzWja9ibEzgFNS5LYdpH3p4Cciau7vWSiam13tnj86ibP9yTxxZtcqiaFtg/640?wx_fmt=png)
 
-### Step-by-Step with 4 GPUs
+#### Step-by-Step with 4 GPUs
 
 Data is split into chunks to minimize copy overhead and maximize concurrent bandwidth.
 
@@ -1255,23 +1259,23 @@ The entire process: Reduce → Scatter → Broadcast.
 
 ---
 
-## NVLink Advantages
+### NVLink Advantages
 
 Understanding ring network limitations helps explain why DGX uses NVLink for data transfer.
 
-### Single-Node NVLink GPU System (V100 Example)
+#### Single-Node NVLink GPU System (V100 Example)
 
 Two NUMA nodes with 8 GPUs total. Each GPU has 6 NVLink connections. Total unidirectional bandwidth: 150 GB/s.
 
 ![NVLink V100](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcH8p6ibOWHvuPoZ2f3dsiaMombolV2ghbiaeUeGKsibV4IlQxcxV4RDHsSFw/640?wx_fmt=png)
 
-### Best Practice
+#### Best Practice
 
 For multi-GPU communication: intra-node uses NVLink, inter-node uses RDMA.
 
 ![NVLink + RDMA](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHI2ILofaFtLch4XQLNPI4IM5IrrGk99riaYia3N7faYR1zMAqehwpTRLw/640?wx_fmt=png)
 
-### H100 NVLink Switch
+#### H100 NVLink Switch
 
 H100 introduces NVLink Switch connectivity, with AlltoAll becoming a new direction.
 
@@ -1279,7 +1283,7 @@ H100 introduces NVLink Switch connectivity, with AlltoAll becoming a new directi
 
 ---
 
-## NCCL's "3 Heads, 15 Arms"
+### NCCL's "3 Heads, 15 Arms"
 
 NCCL can be described by three dimensions and 15 implementations:
 
@@ -1295,7 +1299,7 @@ In most cases, NCCL automatically selects the optimal algorithm and protocol. Bu
 
 ---
 
-## NCCL Protocols: LL, LL128, Simple
+### NCCL Protocols: LL, LL128, Simple
 
 - **LL (Low Latency)**: Relies on 8-byte atomic stores (4B data / 4B flag). Maximum bandwidth is 50% of peak because 50% of payload is flags.
 - **LL128**: Relies on 128-byte stores being seen in order (120B data / 8B flag). Can achieve 95% of peak bandwidth.
@@ -1304,7 +1308,7 @@ In most cases, NCCL automatically selects the optimal algorithm and protocol. Bu
 > Flags indicate that a data segment's tail has been delivered and is ready for consumption in the pipeline's next stage.
 > LL128's performance depends on communication method (PCI or NVLink) and buffer location (GPU memory or system memory).
 
-### Algorithm × Protocol Combinations
+#### Algorithm × Protocol Combinations
 
 8 choices × 3 protocols = {Ring, Tree, CollNet} × {LL, LL128, Simple} (CollNet doesn't support LL128).
 
@@ -1314,7 +1318,7 @@ NCCL builds latency and bandwidth models for each algorithm based on channel cou
 
 ---
 
-## DGX Superpod Architecture
+### DGX Superpod Architecture
 
 DGX Superpod is NVIDIA's GPU cluster reference architecture. The logical architecture divides into compute servers and admin management servers.
 
@@ -1334,9 +1338,9 @@ Distributed system requirements:
 
 ---
 
-## NCCL Execution & Log Analysis
+### NCCL Execution & Log Analysis
 
-### Running NCCL Tests
+#### Running NCCL Tests
 
 ```bash
 mpirun -bind-to none -H node1:1,node2:1 \
@@ -1353,7 +1357,7 @@ mpirun -bind-to none -H node1:1,node2:1 \
 - `-g 8`: GPU count (can be 1 process per GPU or multiple GPUs per process)
 - `NCCL_SOCKET_IFNAME`: Specify Ethernet card for initialization
 
-### Reading NCCL Logs
+#### Reading NCCL Logs
 
 Channel information shows the generated ring topology. NCCL only outputs information for the first 20 ranks.
 
@@ -1371,14 +1375,14 @@ Visualization tool: https://github.com/ROCmSoftwarePlatform/rccl/tree/develop/to
 
 ![NCCL Topo Visual](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1F3jOiblvVJQavzN0p1wvco4iaQy88xb6djFia8bicaP7DF1w3KMJCJuWeQ/640?wx_fmt=png)
 
-### P2P Transport Labels
+#### P2P Transport Labels
 
 P2P transport is intra-node:
 - **PIX**: Connected to the same PCIe switch
 - **PXB**: Connected via multiple PCIe switches or NVLink
 - **PHB, NODE, SYS**: Cross NUMA nodes, uses shared memory
 
-### Performance Metrics
+#### Performance Metrics
 
 - **algbw** (algorithm bandwidth): Does not fully represent hardware performance
 - **busbw** (bus bandwidth): Better reflects actual hardware performance
@@ -1387,7 +1391,7 @@ P2P transport is intra-node:
 
 ![Performance Metrics](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1yu7iaqfcu25hRI7DC1Z4DFOqHdF6KIAP4OREC5BWp7h3Hb1LB9Gz3gA/640?wx_fmt=png)
 
-### NCCL XML Files
+#### NCCL XML Files
 
 **Graph XML** (`NCCL_GRAPH_DUMP_FILE=graph.xml`):
 - `id="0"`: Ring information
@@ -1401,14 +1405,14 @@ P2P transport is intra-node:
 
 Both files can be manually modified and force-loaded, but this is **strongly not recommended**. In the vast majority of cases, these files are only for review.
 
-### Channel Count Summary
+#### Channel Count Summary
 
 - **Without SHARP**: Ring and Tree channels = 2 × NIC count
 - **With SHARP**: Ring, Tree, and CollNet channels = 3 × NIC count
 
 ---
 
-## NCCL Environment Variables
+### NCCL Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
@@ -1423,7 +1427,7 @@ Both files can be manually modified and force-loaded, but this is **strongly not
 | **NCCL_MAX_NCHANNELS** | Limit number of channels (reduces CUDA blocks used for communication) |
 | **NCCL_DEBUG** | Debug output level (VERSION, WARN, INFO) |
 
-### NCCL_P2P_LEVEL Details
+#### NCCL_P2P_LEVEL Details
 
 | Value | Meaning |
 |-------|---------|
@@ -1434,7 +1438,7 @@ Both files can be manually modified and force-loaded, but this is **strongly not
 | PHB / 3-4 | Use P2P when GPUs in same NUMA node (traffic through CPU) |
 | SYS / 5 | Use P2P across NUMA nodes (may cross SMP interconnect e.g., QPI/UPI) |
 
-### NCCL_NET_GDR_LEVEL Details
+#### NCCL_NET_GDR_LEVEL Details
 
 | Value | Meaning |
 |-------|---------|
@@ -1447,11 +1451,11 @@ Both files can be manually modified and force-loaded, but this is **strongly not
 
 ---
 
-## NCCL Troubleshooting
+### NCCL Troubleshooting
 
 Reference: https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/troubleshooting.html
 
-### Common Error Types
+#### Common Error Types
 
 - **ncclUnhandledCudaError / ncclSystemError**: An external library call failed
 - **ncclInvalidArgument / ncclInvalidUsage**: Programming error in the application using NCCL
@@ -1460,7 +1464,7 @@ Set `NCCL_DEBUG=WARN` to get explicit warning messages before errors are returne
 
 ![Troubleshooting](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1H3qKSjXGR9vicWyvxUNqiaiaeDueia8fD6QdicynZt5tick0pzKcEFuvUgjw/640?wx_fmt=png)
 
-### Debugging Steps
+#### Debugging Steps
 
 1. **Verify intra-node GPU-GPU connectivity**:
 ```bash
@@ -1484,7 +1488,7 @@ lsmod | grep nv_peer_mem
 
 ---
 
-## References
+### References
 
 - [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054) (Rajbhandari et al., 2019)
 - [Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism](https://arxiv.org/abs/1909.08053) (Shoeybi et al., 2019)

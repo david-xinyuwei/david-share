@@ -1,6 +1,10 @@
 # Azure OpenAI 多区域负载均衡 — APIM AI Gateway
 
-**Author**: Xinyu Wei (魏新宇)
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+**Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 本指南演示如何使用 **Azure API Management (APIM) AI Gateway** 对多个 Azure OpenAI endpoint 实现负载均衡，结合 **Priority/Weight 路由**、**Circuit Breaker** 和 **Backend Pool** — 生产级 GenAI 高可用推荐架构。
 

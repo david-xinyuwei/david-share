@@ -1,6 +1,10 @@
 # 分布式训练并行策略：DP、TP、PP、ZeRO 与 NCCL 内幕
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 > **全面介绍用于大语言模型训练与推理的分布式并行策略，涵盖理论、实现与 GPU 通信内部机制。**
 
@@ -62,11 +66,11 @@
 
 ---
 
-# 第一部分：并行策略
+## 第一部分：并行策略
 
 ---
 
-## 全局概览
+### 全局概览
 
 所有并行策略解决的是同一个根本问题：**单个 GPU 没有足够的内存或算力来处理大模型**。但它们从不同角度切入：
 
@@ -93,11 +97,11 @@
 
 ---
 
-## 数据并行 (DP)
+### 数据并行 (DP)
 
 **核心思想**：在每个 GPU 上复制完整模型。每个 GPU 处理训练数据的不同切片。
 
-### 工作原理
+#### 工作原理
 
 ```
 全局批次 = [B0, B1, B2, B3]   (例如 1024 个样本)
@@ -113,14 +117,14 @@ GPU 3: 完整模型副本 → 处理 B3 (256 个样本) → 本地梯度 G3
            所有 GPU 用 G_avg 更新参数
 ```
 
-### 通信模式
+#### 通信模式
 
 - **何时**：Backward Pass（反向传播）后（每个训练步骤一次）
 - **内容**：AllReduce 梯度
 - **传输量**：每步 2M（M = 模型大小，ring AllReduce）
 - **带宽需求**：中等
 
-### 优缺点
+#### 优缺点
 
 | 优点 | 缺点 |
 |------|------|
@@ -129,7 +133,7 @@ GPU 3: 完整模型副本 → 处理 B3 (256 个样本) → 本地梯度 G3
 | GPU 数量线性加速 | 受单 GPU 内存限制 |
 | 适用于任何模型 | 梯度同步可能成为瓶颈 |
 
-### 变体
+#### 变体
 
 - **DP**（PyTorch DataParallel）：使用 Python 线程，GPU0 为主节点 → 负载不均
 - **DDP**（DistributedDataParallel）：多进程，每个 GPU 独立 → 推荐
@@ -139,7 +143,7 @@ GPU 3: 完整模型副本 → 处理 B3 (256 个样本) → 本地梯度 G3
 
 PyTorch 通过 `torch.nn.DataParallel` 和 `torch.nn.parallel.DistributedDataParallel` (DDP) 提供内建的数据并行支持。DDP 因在多节点环境中具备更好的可扩展性和效率而被推荐使用。
 
-### PyTorch 实现
+#### PyTorch 实现
 
 ```python
 import torch
@@ -174,11 +178,11 @@ optimizer.step()
 
 ---
 
-## 张量并行 (TP)
+### 张量并行 (TP)
 
 **核心思想**：将每个层的权重矩阵拆分到多个 GPU 上。每个 GPU 计算**部分结果**，然后同步得到完整输出。
 
-### 工作原理 — MLP 层示例
+#### 工作原理 — MLP 层示例
 
 对于线性层 `Y = XW + b`，权重矩阵 `W ∈ R^{d_in × d_out}`：
 
@@ -206,20 +210,20 @@ GPU 1: 头 16-31 → 部分注意力输出
        完整注意力输出
 ```
 
-### 通信模式
+#### 通信模式
 
 - **何时**：每一层（前向和反向）
 - **内容**：AllReduce 激活值（每层中间结果）
 - **传输量**：非常大（每层都要通信）
 - **带宽需求**：非常高 → **需要 NVLink**（300-900 GB/s）
 
-### 为什么 TP 需要 NVLink
+#### 为什么 TP 需要 NVLink
 
 典型 Transformer 层需要 **2 次 AllReduce**（MLP 一次，注意力一次）。对于 94 层模型，前向传播就需要 **188 次 AllReduce**，反向传播同理。如果使用以太网（~25 Gbps），通信开销将远超计算时间。
 
 **经验规则**：TP 仅应在 NVLink 连接的**单节点内**使用。
 
-### 优缺点
+#### 优缺点
 
 | 优点 | 缺点 |
 |------|------|
@@ -228,7 +232,7 @@ GPU 1: 头 16-31 → 部分注意力输出
 | 与注意力头天然匹配 | 必须修改模型架构 |
 | 减少激活值内存 | TP 度数受注意力头数量限制 |
 
-### 为什么 TP 不切分输入数据
+#### 为什么 TP 不切分输入数据
 
 ![张量并行示意图](images/pytorch_tp_diagram.png)
 
@@ -263,7 +267,7 @@ GPU 1: 头 16-31 → 部分注意力输出
 - GPU 被分为 DP 组；每组内使用 TP。
 - 输入数据在 DP 组间拆分（不在 TP 组内拆分）。
 
-### PyTorch 实现
+#### PyTorch 实现
 
 ```python
 import torch
@@ -290,11 +294,11 @@ Megatron-LM 和 DeepSpeed 等框架提供了生产级的 PyTorch 张量并行实
 
 ---
 
-## 流水线并行 (PP)
+### 流水线并行 (PP)
 
 **核心思想**：将不同的**完整层组**分配到不同 GPU 上。数据从第一个阶段流过整个流水线到最后一个阶段。
 
-### 工作原理
+#### 工作原理
 
 ```
 94 层模型，PP=2：
@@ -306,7 +310,7 @@ GPU 1（阶段 1）：第 47 ~ 93 层   ← 这些层的完整权重
 反向：反方向相同路径，发送激活值的梯度
 ```
 
-### 流水线气泡问题
+#### 流水线气泡问题
 
 朴素 PP 中，同一时间只有一个 GPU 活跃（巨大浪费）：
 
@@ -328,14 +332,14 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
               ↑ 更小的气泡 ↑
 ```
 
-### 通信模式
+#### 通信模式
 
 - **何时**：仅在阶段边界处（层组之间）
 - **内容**：点对点 (P2P) 发送/接收激活值
 - **传输量**：低（仅边界层的激活值）
 - **带宽需求**：低 → **以太网即可满足**
 
-### 优缺点
+#### 优缺点
 
 | 优点 | 缺点 |
 |------|------|
@@ -344,7 +348,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | 每个 GPU 持有完整层 | 各阶段负载均衡 |
 | 无需修改模型架构 | 微批次增加复杂度 |
 
-### PP 在训练 vs 推理中的差异
+#### PP 在训练 vs 推理中的差异
 
 | 方面 | 训练 | 推理 |
 |------|------|------|
@@ -352,7 +356,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | **气泡影响** | 通过 1F1B 调度缓解 | 对单请求延迟不可避免 |
 | **何时使用** | 节点无法容纳完整模型时 | 单 GPU 无法容纳模型时 |
 
-### PP 中的梯度同步
+#### PP 中的梯度同步
 
 | 场景 | 是否需要 AllReduce？ | 说明 |
 |------|---------------------|------|
@@ -360,7 +364,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 | PP + DP（阶段内有副本） | 是 | 同层副本必须同步梯度；与传统 DDP 相同 |
 | PP + ZeRO/FSDP 混合 | 是 | 在副本同步基础上额外 Reduce-Scatter / All-Gather |
 
-### 示意图
+#### 示意图
 
 **纯流水线并行：**
 
@@ -370,7 +374,7 @@ GPU1:     [F0][F1][F2][F3][B0][B1][B2][B3]
 
 ![PP + DP 示意图](images/pytorch_pp_dp_diagram.png)
 
-### PyTorch 实现
+#### PyTorch 实现
 
 ```python
 import torch.nn as nn
@@ -400,7 +404,7 @@ outputs = model(inputs)
 
 ---
 
-## ZeRO (零冗余优化器)
+### ZeRO (零冗余优化器)
 
 **核心思想**：在标准 DP 中，每个 GPU 冗余存储完整的模型参数 (W)、梯度 (G) 和优化器状态 (OS)。ZeRO 将这些**分区**到各 GPU 上以节省内存，同时在需要计算时**按需重建**。
 
@@ -408,7 +412,7 @@ outputs = model(inputs)
 
 ![ZeRO 阶段](images/zero_stages.png)
 
-### 内存分解（FP16 模型 + Adam 优化器）
+#### 内存分解（FP16 模型 + Adam 优化器）
 
 对于具有 M 个参数的模型：
 
@@ -423,7 +427,7 @@ outputs = model(inputs)
 
 ![训练内存](images/deepspeed_memory_training.webp)
 
-### ZeRO Stage 1：优化器状态分区
+#### ZeRO Stage 1：优化器状态分区
 
 **分区对象**：仅优化器状态 (OS)
 
@@ -442,7 +446,7 @@ vs. 标准 DP：每 GPU 16M → Stage 1 节省约 56% 内存
 
 在幕后，ZeRO 将优化器状态分为 N 份。每个设备只负责更新 1/N 的优化器状态和对应的 1/N 参数。每个训练步结束时，通过 all-gather 同步参数。对于 Mixed Precision（混合精度）训练，内存需求变为 `4P + 12P/N`，当 N 很大时趋近于 `4P` — 相比标准 DP 的 `16P` 减少了 4 倍。
 
-### ZeRO Stage 2：+ 梯度分区
+#### ZeRO Stage 2：+ 梯度分区
 
 **分区对象**：优化器状态 + 梯度
 
@@ -459,7 +463,7 @@ vs. 标准 DP：每 GPU 16M → Stage 2 节省约 66% 内存
 
 每个设备在反向传播时只需要 1/N 的梯度。此外，梯度分区一旦被消费就可以释放。内存变为 `2P + (2P + 12P)/N`，当 N 很大时趋近于 `2P` — 减少了 8 倍。
 
-### ZeRO Stage 3：+ 参数分区
+#### ZeRO Stage 3：+ 参数分区
 
 **分区对象**：优化器状态 + 梯度 + 参数（所有东西！）
 
@@ -487,7 +491,7 @@ vs. 标准 DP：每 GPU 16M → Stage 3 节省约 75% 内存
   4. 移至下一层
 ```
 
-### 为什么 ZeRO 不能分片 Activation（激活值）
+#### 为什么 ZeRO 不能分片 Activation（激活值）
 
 虽然 ZeRO 可以分区梯度、优化器状态和参数，但它**不能分片激活值**。这是一个根本区别：
 
@@ -503,7 +507,7 @@ vs. 标准 DP：每 GPU 16M → Stage 3 节省约 75% 内存
 
 2. **减少冗余存储**：通过分片和分布梯度与优化器状态，ZeRO 减少了每个设备上的冗余存储。每个设备只需存储和计算一部分，需要时进行全局聚合。
 
-### ZeRO 通信量总结
+#### ZeRO 通信量总结
 
 | 阶段 | 每 GPU 内存 | 每步通信量 | vs. 经典 DP |
 |------|-----------|-----------|------------|
@@ -514,7 +518,7 @@ vs. 标准 DP：每 GPU 16M → Stage 3 节省约 75% 内存
 
 DeepSpeed ZeRO 仍然是数据并行范式，但在后台消除了模型状态冗余。通信是分布式的：参数仅在需要时才存在于节点上，使用后即丢弃，保持了上述的内存节省。
 
-### DeepSpeed 实现
+#### DeepSpeed 实现
 
 ```python
 import torch
@@ -559,7 +563,7 @@ model_engine.step()
 
 ---
 
-## 核心区别：TP vs ZeRO
+### 核心区别：TP vs ZeRO
 
 这是最容易混淆的点。TP 和 ZeRO-3 都将权重拆分到多个 GPU 上。但计算模型有本质不同：
 
@@ -575,7 +579,7 @@ model_engine.step()
 | **本质** | **模型并行** | **内存优化的数据并行** |
 | **类比** | 工人各造汽车的**一部分**，然后组装 | 工人各**借用全套工具**，造自己的车，归还工具 |
 
-### 为什么这很重要
+#### 为什么这很重要
 
 1. **TP 减少每 GPU 的计算量**（各做部分矩阵乘法）→ 有利于延迟
 2. **ZeRO 不减少计算量**（各做完整矩阵乘法）→ 与单 GPU 延迟相同
@@ -584,11 +588,11 @@ model_engine.step()
 
 ---
 
-## 全分片数据并行 (FSDP)
+### 全分片数据并行 (FSDP)
 
 FSDP 是 PyTorch 对 ZeRO-3 概念的原生实现。它通过分片参数、梯度和优化器状态提供最大的内存效率。
 
-### FSDP 工作原理
+#### FSDP 工作原理
 
 1. **参数分片**：每个权重张量、梯度张量和优化器状态均匀分为 N 个分片，分布到 N 个 GPU 上。每个 GPU 只存储自己的分片，常驻内存降低到 1/N。
 
@@ -600,7 +604,7 @@ FSDP 是 PyTorch 对 ZeRO-3 概念的原生实现。它通过分片参数、梯�
 
 5. **混合精度**（FP16/BF16 + FP32 主权重）：梯度先以低精度参与 Reduce-Scatter，然后在本地累积到 FP32 主权重。如果启用了需要全局 L2 范数的梯度归一化或裁剪，则需要额外的 All-Gather/All-Reduce。
 
-### FSDP 通信逻辑
+#### FSDP 通信逻辑
 
 | 阶段 | 主要通信 | 目的 |
 |------|---------|------|
@@ -612,15 +616,15 @@ FSDP 是 PyTorch 对 ZeRO-3 概念的原生实现。它通过分片参数、梯�
 
 ---
 
-## 专家并行与 MoE
+### 专家并行与 MoE
 
-### 背景与核心概念
+#### 背景与核心概念
 
 1. **稀疏激活**：单次前向传播只路由到 K 个专家（K ≪ M 总专家数），因此计算量与 K 成正比，但模型可以堆叠 M ≫ K 个参数获得更大容量。
 2. **并行挑战**：路由 All-to-All 和专家梯度同步需要高带宽；必须与数据并行、张量并行和 ZeRO 结合使用才能扩展。
 3. **DeepSpeed** 提供集成的 MoE-Layer、Balanced-Gate、Expert-Parallel 和 ZeRO-3 支持。
 
-### MoE 工作流
+#### MoE 工作流
 
 | 步骤 | 过程 | 主要通信 |
 |------|------|---------|
@@ -632,14 +636,14 @@ FSDP 是 PyTorch 对 ZeRO-3 概念的原生实现。它通过分片参数、梯�
 
 > 步骤①和③中的两次 All-to-All 操作是 MoE 训练中**带宽需求最大**的部分。
 
-### 常见组合
+#### 常见组合
 
 1. **E + D**（最常见）：All-to-All ×2；专家 All-Reduce；骨干 DDP All-Reduce。
 2. **E + Z**（内存受限）：对骨干和专家参数都添加 ZeRO-3 分片。
 3. **E + D + TP**（100B+ LLM）：骨干使用张量并行；专家使用专家并行。TP P2P/All-Gather + MoE All-to-All。
 4. **E + D + Z**（DeepSpeed 推荐）：通信 = E+D All-to-All & All-Reduce + ZeRO-3 Gather/Scatter。
 
-### MoE 示意图
+#### MoE 示意图
 
 **专家并行结合数据并行 (EP=2, DP=2)：**
 
@@ -657,7 +661,7 @@ FSDP 是 PyTorch 对 ZeRO-3 概念的原生实现。它通过分片参数、梯�
 
 ![MoE 示意图 4](images/pytorch_moe_4.png)
 
-### DeepSpeed MoE 实现
+#### DeepSpeed MoE 实现
 
 ```python
 from deepspeed.moe.layer import MoE
@@ -691,7 +695,7 @@ ds_cfg = {
 engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 ```
 
-### MoE 关键要点
+#### MoE 关键要点
 
 - **MoE 性能瓶颈通常在 All-to-All 带宽** — 推荐 NVLink / 200 Gb IB 硬件。
 - 当专家数量 ≫ GPU 数量时，合理的 `expert_parallel_size` 和 **Balanced-Gate** 设置可以显著减少负载不均。
@@ -699,13 +703,13 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-# 第二部分：策略组合
+## 第二部分：策略组合
 
 ---
 
-## 并行范式分类与混合组合
+### 并行范式分类与混合组合
 
-### 并行范式对比
+#### 并行范式对比
 
 | 范式 | 主要解决的问题 | 前向/路由通信 | 反向/更新通信 | 典型实现 |
 |------|-------------|-------------|-------------|---------|
@@ -716,7 +720,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 | **E – 专家并行** | 稀疏高容量 MoE | All-to-All（token → 专家路由） | All-Reduce（同专家梯度） | DeepSpeed-MoE |
 | **Z – ZeRO 1/2/3** | 内存优化 | Stage-3：All-Gather（参数分片） | Reduce-Scatter（梯度） | DeepSpeed-ZeRO |
 
-### 常见混合范式
+#### 常见混合范式
 
 | 组合 | 目标 | 前向/路由通信 | 反向/更新通信 | 典型实现 |
 |------|------|-------------|-------------|---------|
@@ -730,13 +734,13 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## 3D 并行：TP × PP × DP
+### 3D 并行：TP × PP × DP
 
 训练最大的模型（100B+）时，单一并行策略不够。**3D 并行**组合了三种：
 
 ![3D 并行](images/3d_parallelism.png)
 
-### 如何组合
+#### 如何组合
 
 ```
 总 GPU 数 = TP_size × PP_size × DP_size
@@ -747,7 +751,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
                          ↕ AllReduce 梯度 (DP) ↕
 ```
 
-### 通信层次
+#### 通信层次
 
 | 维度 | 带宽需求 | 典型互联 | 通信方式 |
 |------|---------|---------|---------|
@@ -755,7 +759,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 | **PP**（跨节点） | 低 | 以太网 (10-100 Gbps) | 阶段边界 P2P |
 | **DP**（跨副本） | 中等 | 以太网/InfiniBand | 每步一次 AllReduce 梯度 |
 
-### ZeRO + 3D 并行
+#### ZeRO + 3D 并行
 
 将 ZeRO 与 PP+TP 结合时：
 - **ZeRO-1**（优化器分片）与 PP+TP 配合良好
@@ -764,7 +768,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## 通信模式对比
+### 通信模式对比
 
 | 并行方式 | 集合操作 | 何时 | 每步传输量 | 可与计算重叠？ |
 |---------|---------|------|-----------|-------------|
@@ -779,7 +783,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## Training vs Inference（训练 vs 推理）：不同的优先级
+### Training vs Inference（训练 vs 推理）：不同的优先级
 
 | 方面 | 训练 | 推理 |
 |------|------|------|
@@ -790,13 +794,13 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 | **ZeRO 相关性** | 非常有用（节省内存用于更大批次） | ZeRO-Inference 存在但不常用 |
 | **PP 权衡** | 可接受的气泡，微批次有帮助 | 增加延迟（每个 token 的流水线气泡） |
 
-### 为什么训练首选 DP
+#### 为什么训练首选 DP
 
 - 每个 GPU 处理独立数据 → 最小通信（仅在结束时同步梯度）
 - 通信可与反向计算重叠（梯度分桶）
 - 线性吞吐量扩展：2× GPU ≈ 2× 吞吐量
 
-### 为什么推理首选 TP
+#### 为什么推理首选 TP
 
 - 单个请求 → 无法拆分数据（DP 无收益）
 - TP 减少每 GPU 计算量 → 更低延迟
@@ -804,15 +808,15 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## 决策指南：何时使用什么
+### 决策指南：何时使用什么
 
-### 模型可放入单个 GPU
+#### 模型可放入单个 GPU
 ```
 → 训练用 DDP（数据并行）
 → 推理用单 GPU
 ```
 
-### 模型无法放入单个 GPU
+#### 模型无法放入单个 GPU
 
 **单节点（有 NVLink）**：
 ```
@@ -832,7 +836,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 → 考虑 ZeRO-Offload（卸载到 CPU/NVMe）
 ```
 
-### 快速决策表
+#### 快速决策表
 
 | 场景 | 推荐策略 |
 |------|---------|
@@ -844,7 +848,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 
 ---
 
-## 实际案例：训练 Llama-3 405B
+### 实际案例：训练 Llama-3 405B
 
 Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
 
@@ -854,7 +858,7 @@ Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
 | **PP** | 4（上下文扩展时为 16） | 每个流水线跨 4 个节点 |
 | **DP** | 512（上下文扩展时为 128） | 16384 / (8 × 4) = 512 个 DP 副本 |
 
-### 每 GPU 视角
+#### 每 GPU 视角
 
 ```
 总参数量：405B
@@ -874,11 +878,11 @@ Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
 
 ---
 
-# 第三部分：NCCL 与 GPU 通信内幕
+## 第三部分：NCCL 与 GPU 通信内幕
 
 ---
 
-## 深度学习架构栈
+### 深度学习架构栈
 
 深度学习从下到上的架构栈：
 
@@ -915,9 +919,9 @@ Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
 
 ---
 
-## 多 GPU 训练挑战
+### 多 GPU 训练挑战
 
-### 算法挑战
+#### 算法挑战
 
 - 数据并行还是模型并行
 - 同步还是异步
@@ -929,7 +933,7 @@ Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
 
 ![算法挑战](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sAUbicib5yRvLMzg1nP4szPjsLHhHJs4qcPlrvTXAIWzWKHfhYwic4OcZw/640?wx_fmt=png)
 
-### 工程挑战
+#### 工程挑战
 
 - CPU 和 GPU 性能扩展不均衡
 - 先 Scale Up（NVLink），再通过网卡 Scale Out
@@ -946,15 +950,15 @@ NCCL 可以解决算法设计中的许多通信挑战。
 
 ---
 
-## NCCL：角色与架构
+### NCCL：角色与架构
 
-### 单 GPU 训练数据流
+#### 单 GPU 训练数据流
 
 单 GPU 训练中，原始数据（图像、音频等）存储在数据库中。梯度用于更新参数，然后与下一批数据结合进行新一轮迭代，重复直到收敛。
 
 ![单 GPU 训练](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sXic5LmMOYWw0SgjdMWMNlv6xZPLE9fxUDUASibqSn6ZLS7KrfLJEX3vg/640?wx_fmt=png)
 
-### NCCL 在分布式训练中的角色
+#### NCCL 在分布式训练中的角色
 
 在数据并行的分布式训练中，每个 GPU 从自己的数据生成梯度。这些梯度必须合并求和——需要 AllReduce 操作。NCCL 提供高效的并行梯度通信。AllReduce 后，每个 GPU 获得归约后的梯度并更新参数。
 
@@ -962,13 +966,13 @@ NCCL 可以解决算法设计中的许多通信挑战。
 
 NCCL 缓冲区驻留在 GPU 内存中，支持多种网络互联。
 
-### NCCL 在深度学习栈中的位置
+#### NCCL 在深度学习栈中的位置
 
 NCCL 位于 GPU/CUDA 之上、训练框架之下。它与 cuDNN 和 cuBLAS 并行为深度学习提供库级支持。
 
 ![NCCL 位置](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUn63lp6VzO4uaIl1PDBuRhl3F6Q1HmagxxbJKk8GUgHsEicgWLSJusS59mnUT6v208waQTrtMariag/640?wx_fmt=png)
 
-### NCCL API 结构
+#### NCCL API 结构
 
 NCCL API 分为五类：
 1. NCCL Communicator 创建、销毁、容错
@@ -987,39 +991,39 @@ NCCL API 分为五类：
 
 ---
 
-## NCCL 集合通信操作
+### NCCL 集合通信操作
 
-### Reduce
+#### Reduce
 
 一个 rank 接收所有 rank 的输入值的归约结果。例如，四个 rank 的四个值求和后发送到根 rank 2。
 
 ![Reduce](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1S97tqMTeZXVpfhn42uYjK1mpBCYn7ShfLuicVBSCcia1Xp0AXsAmSGqA/640?wx_fmt=png)
 
-### Broadcast
+#### Broadcast
 
 所有 rank 从一个根 rank 接收数据。
 
 ![Broadcast](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1L5K9YIdSQTBMmTIzcAw63yf533YJBpvxt7s7JS7yn3RsNeXLUcl3Og/640?wx_fmt=png)
 
-### AllReduce
+#### AllReduce
 
 每个 rank 接收所有 rank 输入值的归约结果。
 
 ![AllReduce](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1t2ia9oSdYO8tguhOsKgjibhuI6r7YF86bUPuDEkMia6ojl6XtZs1zEdTA/640?wx_fmt=png)
 
-### AllGather
+#### AllGather
 
 每个 rank 接收所有 rank 的聚合数据，按 rank 顺序排列。
 
 ![AllGather](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1cJUHRLj9K9kibgyibMd3ykibxDlYHQ7RwUNxlClILAvn8CL3hTC2SnsSg/640?wx_fmt=png)
 
-### ReduceScatter
+#### ReduceScatter
 
 输入值在各 rank 间归约，每个 rank 接收归约结果的一部分。
 
 ![ReduceScatter](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1CyKCvaEKoVmxG950rUZ9vq8prlp6RiatssG1bEmuI08FLVPUcljSB4w/640?wx_fmt=png)
 
-### 点对点操作
+#### 点对点操作
 
 - **Send/Receive**：一对一通信
 - **Gather**：多对一
@@ -1035,9 +1039,9 @@ NCCL API 分为五类：
 
 ---
 
-## MPI 多节点训练
+### MPI 多节点训练
 
-### 分布式 GPU 作业的前提条件
+#### 分布式 GPU 作业的前提条件
 
 1. 硬件：计算服务器、网络
 2. 代码：并行划分和实现
@@ -1049,7 +1053,7 @@ NCCL API 分为五类：
 8. `mpicc` 用于代码编译
 9. 启动：`mpirun -np 16 -H node1:8,node2:8 ./application`
 
-### 两种启动方式
+#### 两种启动方式
 
 **方式 1：MPI**
 
@@ -1073,13 +1077,13 @@ NCCL_DEBUG=INFO python -m torch.distributed.launch --nproc_per_node=8 --nnodes=2
     --node_rank=1 --master_addr="192.168.1.1" --master_port=12355 train.py
 ```
 
-### NCCL vs MPI
+#### NCCL vs MPI
 
 NCCL（NVIDIA 集合通信库）处理服务器内优化的 GPU 到 GPU 通信。MPI 处理跨服务器的任务调度。当 NGC 用 MPI 启动测试时，底层通信使用 NCCL。MPI 只负责进程管理和启动。
 
 ![NCCL vs MPI](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sVmqmTJHQ8cibGzpjiczGNe9Z0ICCn6WNdib4Nic7v7XNj4LMjT1nwKicgcg/640?wx_fmt=png)
 
-### GPUDirect RDMA (GDR)
+#### GPUDirect RDMA (GDR)
 
 跨节点 MPI 使用 GDR 时需要 NV_PEER_MEM。该模块加载在每个节点上。使用 GDR 时，GPU 和网卡必须在同一 PCIe 根复合体下——如果距离太远，性能可能反而下降。DGX1 和 DGX A100 需要 GPU 和网卡在同一 PCIe 交换机下。
 
@@ -1087,7 +1091,7 @@ NCCL（NVIDIA 集合通信库）处理服务器内优化的 GPU 到 GPU 通信�
 
 ---
 
-## NCCL 启动过程
+### NCCL 启动过程
 
 NCCL 有两种启动模式：
 
@@ -1107,11 +1111,11 @@ NCCL 首先生成一个根线程，该线程向 NCCL 提供端口和 IP，然后
 
 ![拓扑形成](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4sHO6EkAmKcZH9q3YKgVRZXia4MYLyr1J975dS6Y1dibQHVG0WpGc4NYBw/640?wx_fmt=png)
 
-### NCCL Bootstrap
+#### NCCL Bootstrap
 
 NCCL Bootstrap 使用 TCP/IP socket 连接作业中的各个 rank，提供带外通道用于信息交换。Bootstrap 操作在 NCCL communicator 的整个生命周期中可用，主要在初始化和动态 send/recv 连接建立时使用。当前没有加密或安全措施。使用 `NCCL_SOCKET_IFNAME` 确保 NCCL 使用私有网络接口。
 
-### NCCL 的四个工作步骤
+#### NCCL 的四个工作步骤
 
 1. **拓扑检测** — 构建完整的 GPU 集群拓扑
 2. **图搜索** — 找到最优通信架构（ring 或 tree）
@@ -1144,7 +1148,7 @@ NCCL 发现：IB、NVLink、NVLink Switch 互联（包括 NVLink 到 CPU，如 P
 
 ---
 
-## NCCL 算法：Ring、Tree、CollNet
+### NCCL 算法：Ring、Tree、CollNet
 
 NCCL 有三种通信算法：
 
@@ -1152,7 +1156,7 @@ NCCL 有三种通信算法：
 - **Tree**：更低延迟，但带宽可能不饱和
 - **CollNet**：支持网内归约，但需要专用 IB 交换机
 
-### Ring 算法
+#### Ring 算法
 
 Ring 更容易达到满带宽。良好的拓扑检测对 Ring 性能至关重要——需要最优的环路径。
 
@@ -1166,13 +1170,13 @@ Ring 更容易达到满带宽。良好的拓扑检测对 Ring 性能至关重要
 
 ![优化后的 Ring](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHBguqNLsBqjveCW8Hy5qVaicfkR3dGSwEtQUcyU4FE2c3z5b4ZOMrpibg/640?wx_fmt=png)
 
-### Tree（双二叉树）
+#### Tree（双二叉树）
 
 树总是成对使用。树对的目的是确保每个节点的发送/接收平衡。两棵树偏移一个位置，因此大多数节点各发送和接收两次。
 
 ![Tree](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHqhK54dpOICQK7iaFSfxRiaL3ewZYMzQQQNRWyQMR3zpDtahEaMe70sNA/640?wx_fmt=png)
 
-### CollNet (SHARP)
+#### CollNet (SHARP)
 
 CollNet 使用 SHARP 技术——归约在交换机内部完成。
 
@@ -1182,7 +1186,7 @@ CollNet 使用 SHARP 技术——归约在交换机内部完成。
 
 ![SHARP vs Tree](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nULvQVPF4kv6lZzjBvUvz4s4CEvZrKJITC2DOuaLLlhu2AVlEYpaLYUibMVnLzInJ1HhHB2Uk9cCxw/640?wx_fmt=png)
 
-### Ring Channel 配置
+#### Ring Channel 配置
 
 **节点内：**
 - 基于 NVLink 的系统：总是创建双通道以饱和 NVLink 带宽（如 DGX-1V：6×2=12；DGX A100：12×2=24）
@@ -1193,7 +1197,7 @@ CollNet 使用 SHARP 技术——归约在交换机内部完成。
 
 ![Channel 配置](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1CEZSMgQg7Fs0QG12WVktAnbeiaia5JzgFt11CRyht5T6pdLnfjkklG1A/640?wx_fmt=png)
 
-### Tree 类型
+#### Tree 类型
 
 NCCL tree 有三个子类型：
 
@@ -1207,13 +1211,13 @@ Balanced tree 是最常见的默认选择；Basic tree 仅在 GPU 数量较少�
 
 ---
 
-## Ring AllReduce 详细步骤
+### Ring AllReduce 详细步骤
 
 AllReduce 是深度学习分布式训练中最常用的 NCCL 操作。目标是在所有机器间高效归约数据并将结果分发到每台机器。
 
 ![AllReduce 目标](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHEzWja9ibEzgFNS5LYdpH3p4Cciau7vWSiam13tnj86ibP9yTxxZtcqiaFtg/640?wx_fmt=png)
 
-### 4 GPU 逐步演示
+#### 4 GPU 逐步演示
 
 数据被切分为块以最小化拷贝开销，最大化并发带宽。
 
@@ -1255,23 +1259,23 @@ AllReduce 是深度学习分布式训练中最常用的 NCCL 操作。目标是�
 
 ---
 
-## NVLink 优势
+### NVLink 优势
 
 理解 ring 网络的局限性有助于解释为什么 DGX 使用 NVLink 进行数据传输。
 
-### 单节点 NVLink GPU 系统（V100 示例）
+#### 单节点 NVLink GPU 系统（V100 示例）
 
 两个 NUMA 节点，共 8 个 GPU。每个 GPU 有 6 个 NVLink 连接。总单向带宽：150 GB/s。
 
 ![NVLink V100](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcH8p6ibOWHvuPoZ2f3dsiaMombolV2ghbiaeUeGKsibV4IlQxcxV4RDHsSFw/640?wx_fmt=png)
 
-### 最佳实践
+#### 最佳实践
 
 多 GPU 通信：节点内使用 NVLink，节点间使用 RDMA。
 
 ![NVLink + RDMA](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUKWwMLsxDY8vSFcXmjnvcHI2ILofaFtLch4XQLNPI4IM5IrrGk99riaYia3N7faYR1zMAqehwpTRLw/640?wx_fmt=png)
 
-### H100 NVLink Switch
+#### H100 NVLink Switch
 
 H100 引入了 NVLink Switch 连接，AlltoAll 成为新方向。
 
@@ -1279,7 +1283,7 @@ H100 引入了 NVLink Switch 连接，AlltoAll 成为新方向。
 
 ---
 
-## NCCL 的"三头十五臂"
+### NCCL 的"三头十五臂"
 
 NCCL 可以用三个维度和 15 种实现来描述：
 
@@ -1295,7 +1299,7 @@ NCCL 可以用三个维度和 15 种实现来描述：
 
 ---
 
-## NCCL 协议：LL、LL128、Simple
+### NCCL 协议：LL、LL128、Simple
 
 - **LL (Low Latency)**：依赖 8 字节原子存储（4B 数据 / 4B 标志）。最大带宽为峰值的 50%，因为 50% 的负载是标志位。
 - **LL128**：依赖 128 字节存储按序可见（120B 数据 / 8B 标志）。可达到峰值带宽的 95%。
@@ -1304,7 +1308,7 @@ NCCL 可以用三个维度和 15 种实现来描述：
 > 标志位表示数据段的尾部已经送达，可以被流水线的下一阶段消费。
 > LL128 的性能取决于通信方式（PCI 或 NVLink）和缓冲区位置（GPU 显存或系统内存）。
 
-### 算法 × 协议组合
+#### 算法 × 协议组合
 
 8 种选择 × 3 种协议 = {Ring, Tree, CollNet} × {LL, LL128, Simple}（CollNet 不支持 LL128）。
 
@@ -1314,7 +1318,7 @@ NCCL 根据通道数和速度为每种算法构建延迟和带宽模型，然后
 
 ---
 
-## DGX Superpod 架构
+### DGX Superpod 架构
 
 DGX Superpod 是 NVIDIA 的 GPU 集群参考架构。逻辑架构分为计算服务器和管理服务器。
 
@@ -1334,9 +1338,9 @@ DGX Superpod 是 NVIDIA 的 GPU 集群参考架构。逻辑架构分为计算服
 
 ---
 
-## NCCL 执行与日志分析
+### NCCL 执行与日志分析
 
-### 运行 NCCL 测试
+#### 运行 NCCL 测试
 
 ```bash
 mpirun -bind-to none -H node1:1,node2:1 \
@@ -1353,7 +1357,7 @@ mpirun -bind-to none -H node1:1,node2:1 \
 - `-g 8`：GPU 数量（可以每 GPU 一个进程或每进程多 GPU）
 - `NCCL_SOCKET_IFNAME`：指定用于初始化的以太网卡
 
-### 读取 NCCL 日志
+#### 读取 NCCL 日志
 
 Channel 信息显示生成的 ring 拓扑。NCCL 仅输出前 20 个 rank 的信息。
 
@@ -1371,14 +1375,14 @@ NCCL INFO Trees [0] 19/-1/-1->18->17 [1] 19/-1/-1->18->16 ...
 
 ![NCCL 拓扑可视化](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1F3jOiblvVJQavzN0p1wvco4iaQy88xb6djFia8bicaP7DF1w3KMJCJuWeQ/640?wx_fmt=png)
 
-### P2P 传输标签
+#### P2P 传输标签
 
 P2P 传输是节点内的：
 - **PIX**：连接到同一 PCIe 交换机
 - **PXB**：通过多个 PCIe 交换机或 NVLink 连接
 - **PHB, NODE, SYS**：跨 NUMA 节点，使用共享内存
 
-### 性能指标
+#### 性能指标
 
 - **algbw**（算法带宽）：不完全代表硬件性能
 - **busbw**（总线带宽）：更好地反映实际硬件性能
@@ -1387,7 +1391,7 @@ P2P 传输是节点内的：
 
 ![性能指标](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1yu7iaqfcu25hRI7DC1Z4DFOqHdF6KIAP4OREC5BWp7h3Hb1LB9Gz3gA/640?wx_fmt=png)
 
-### NCCL XML 文件
+#### NCCL XML 文件
 
 **Graph XML**（`NCCL_GRAPH_DUMP_FILE=graph.xml`）：
 - `id="0"`：Ring 信息
@@ -1401,14 +1405,14 @@ P2P 传输是节点内的：
 
 这两个文件都可以手动修改并强制加载，但**强烈不推荐这样做**。在绝大多数情况下，这些文件仅供查阅。
 
-### Channel 数量总结
+#### Channel 数量总结
 
 - **无 SHARP**：Ring 和 Tree channels = 2 × 网卡数
 - **有 SHARP**：Ring、Tree 和 CollNet channels = 3 × 网卡数
 
 ---
 
-## NCCL 环境变量
+### NCCL 环境变量
 
 | 变量 | 用途 |
 |------|------|
@@ -1423,7 +1427,7 @@ P2P 传输是节点内的：
 | **NCCL_MAX_NCHANNELS** | 限制 channel 数量（减少用于通信的 CUDA 块） |
 | **NCCL_DEBUG** | 调试输出级别（VERSION、WARN、INFO） |
 
-### NCCL_P2P_LEVEL 详情
+#### NCCL_P2P_LEVEL 详情
 
 | 值 | 含义 |
 |-----|------|
@@ -1434,7 +1438,7 @@ P2P 传输是节点内的：
 | PHB / 3-4 | GPU 在同一 NUMA 节点内（流量通过 CPU）时使用 P2P |
 | SYS / 5 | 跨 NUMA 节点使用 P2P（可能跨 SMP 互联如 QPI/UPI） |
 
-### NCCL_NET_GDR_LEVEL 详情
+#### NCCL_NET_GDR_LEVEL 详情
 
 | 值 | 含义 |
 |-----|------|
@@ -1447,11 +1451,11 @@ P2P 传输是节点内的：
 
 ---
 
-## NCCL 故障排查
+### NCCL 故障排查
 
 参考：https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/troubleshooting.html
 
-### 常见错误类型
+#### 常见错误类型
 
 - **ncclUnhandledCudaError / ncclSystemError**：外部库调用失败
 - **ncclInvalidArgument / ncclInvalidUsage**：使用 NCCL 的应用程序中的编程错误
@@ -1460,7 +1464,7 @@ P2P 传输是节点内的：
 
 ![故障排查](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXOKibrtfyGNS8O1tW0iarVN1H3qKSjXGR9vicWyvxUNqiaiaeDueia8fD6QdicynZt5tick0pzKcEFuvUgjw/640?wx_fmt=png)
 
-### 调试步骤
+#### 调试步骤
 
 1. **验证节点内 GPU-GPU 连通性**：
 ```bash
@@ -1484,7 +1488,7 @@ lsmod | grep nv_peer_mem
 
 ---
 
-## 参考文献
+### 参考文献
 
 - [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054) (Rajbhandari et al., 2019)
 - [Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism](https://arxiv.org/abs/1909.08053) (Shoeybi et al., 2019)

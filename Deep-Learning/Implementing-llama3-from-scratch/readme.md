@@ -1,6 +1,10 @@
 # 从零实现 Llama3 模型
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+> **Note:** This article is written mainly in Chinese; an English version is not available yet.
 
 本文旨在全面解析并从零开始实现 LLaMA 3 模型。通过结合理论讲解与实践代码示例，带你深入理解 LLaMA 3 的模型架构、核心原理及关键实现细节。
 
@@ -14,16 +18,6 @@ https://github.com/wdndev/llama3-from-scratch-zh?tab=readme-ov-file
 ```
 
 本文主要参考上述文章并增加了备注，以便在关键点进行理解。
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Llama3的整体架构
@@ -318,9 +312,9 @@ def rms_norm(tensor, norm_weights):
 
 
 
-# 构建第一个 Transformer 层
+## 构建第一个 Transformer 层
 
-### 归一化
+#### 归一化
 
 从模型字典中访问 `layer.0` （这是第一层）
 
@@ -342,7 +336,7 @@ torch.Size([17, 4096])
 
 
 
-### 从头实现注意力机制
+#### 从头实现注意力机制
 
 
 
@@ -379,7 +373,7 @@ torch.Size([4096, 4096])
 
 
 
-### 展开 query
+#### 展开 query
 
 
 
@@ -404,7 +398,7 @@ torch.Size([32, 128, 4096])
 
 
 
-### 实现第一层的第一个头
+#### 实现第一层的第一个头
 
 
 
@@ -423,7 +417,7 @@ torch.Size([128, 4096])
 
 
 
-### 现在将 query 权重与 token 嵌入相乘，以获得每个 token 的 query
+#### 现在将 query 权重与 token 嵌入相乘，以获得每个 token 的 query
 
 
 
@@ -444,7 +438,7 @@ q_per_token.shape
 
 
 
-## 位置编码
+### 位置编码
 
 
 
@@ -458,7 +452,7 @@ query: "the answer to the ultimate question of life, the universe, and everythin
 
 在我示例 prompt 中，使用了三次 `"the"`，需要根据它们在 prompt 中的位置为每个 `"the"` token 生成不同的 `query` 向量（每个长度为128）。可以使用 RoPE（旋转位置编码）来实现这一点。
 
-### RoPE
+#### RoPE
 
 
 
@@ -489,7 +483,7 @@ torch.Size([17, 64, 2])
 
 [![img](https://github.com/wdndev/llama3-from-scratch-zh/raw/main/images/qsplit.png)](https://github.com/wdndev/llama3-from-scratch-zh/blob/main/images/qsplit.png)
 
-## 使用复数点积计算旋转向量
+### 使用复数点积计算旋转向量
 
 
 
@@ -559,7 +553,7 @@ plt.show()
 
 [![png](https://github.com/wdndev/llama3-from-scratch-zh/raw/main/images/implllama3_30_0.png)](https://github.com/wdndev/llama3-from-scratch-zh/blob/main/images/implllama3_30_0.png)
 
-### 现在每个 token 的 query 元素都有一个复数（角度变化向量）
+#### 现在每个 token 的 query 元素都有一个复数（角度变化向量）
 
 
 
@@ -591,7 +585,7 @@ torch.Size([17, 64])
 
 
 
-### 得到旋转向量后
+#### 得到旋转向量后
 
 
 
@@ -625,7 +619,7 @@ torch.Size([17, 128])
 
 
 
-# keys（几乎与 query 一模一样）
+## keys（几乎与 query 一模一样）
 
 
 
@@ -729,7 +723,7 @@ torch.Size([17, 128])
 
 
 
-## 现在，已经有了每个 token 的旋转后的 query 和 key
+### 现在，已经有了每个 token 的旋转后的 query 和 key
 
 
 
@@ -737,7 +731,7 @@ torch.Size([17, 128])
 
 每个 query 和 key 的 shape 都是 `[17x128]`。
 
-## 接下来，将 query 和 key 的矩阵相乘
+### 接下来，将 query 和 key 的矩阵相乘
 
 
 
@@ -762,7 +756,7 @@ torch.Size([17, 17])
 
 
 
-# 现在必须屏蔽 QK 分数
+## 现在必须屏蔽 QK 分数
 
 
 
@@ -844,7 +838,7 @@ display_qk_heatmap(qk_per_token_after_masking_after_softmax)
 
 [![png](https://github.com/wdndev/llama3-from-scratch-zh/raw/main/images/implllama3_54_0.png)](https://github.com/wdndev/llama3-from-scratch-zh/blob/main/images/implllama3_54_0.png)​
 
-## values (注意力机制的最后部分)
+### values (注意力机制的最后部分)
 
 
 
@@ -887,7 +881,7 @@ torch.Size([128, 4096])
 
 
 
-## value 向量
+### value 向量
 
 
 
@@ -908,7 +902,7 @@ torch.Size([17, 128])
 
 
 
-## 注意力(attention)
+### 注意力(attention)
 
 
 
@@ -929,7 +923,7 @@ torch.Size([17, 128])
 
 
 
-# 多头注意力 (multi head attention)
+## 多头注意力 (multi head attention)
 
 
 
@@ -997,7 +991,7 @@ torch.Size([17, 4096])
 
 
 
-# 权重矩阵，最后几步之一
+## 权重矩阵，最后几步之一
 
 
 
@@ -1018,7 +1012,7 @@ torch.Size([4096, 4096])
 
 
 
-### 这是一个简单的线性层，所以只需要进行乘法运算
+#### 这是一个简单的线性层，所以只需要进行乘法运算
 
 
 
@@ -1052,7 +1046,7 @@ torch.Size([17, 4096])
 
 
 
-## 将其归一化，然后运行一个前馈神经网络
+### 将其归一化，然后运行一个前馈神经网络
 
 
 
@@ -1071,7 +1065,7 @@ torch.Size([17, 4096])
 
 
 
-## 加载 FFN 权重并实现前馈网络
+### 加载 FFN 权重并实现前馈网络
 
 
 
@@ -1097,7 +1091,7 @@ torch.Size([17, 4096])
 
 
 
-# 在第一层之后，终于为每个 token 编辑了新的 EMBEDDINGS
+## 在第一层之后，终于为每个 token 编辑了新的 EMBEDDINGS
 
 
 
@@ -1120,7 +1114,7 @@ torch.Size([17, 4096])
 
 
 
-# 整合
+## 整合
 
 
 
@@ -1177,7 +1171,7 @@ for layer in range(n_layers):
 
 
 
-# 得到最终 Embedding，对下一个 token 做预测
+## 得到最终 Embedding，对下一个 token 做预测
 
 
 
@@ -1198,7 +1192,7 @@ torch.Size([17, 4096])
 
 
 
-# 最后，将 embedding 解码为 token value
+## 最后，将 embedding 解码为 token value
 
 
 
@@ -1218,7 +1212,7 @@ torch.Size([128256, 4096])
 
 
 
-# 使用最后一个 token 的 embedding 来预测下一个值
+## 使用最后一个 token 的 embedding 来预测下一个值
 
 
 
@@ -1239,7 +1233,7 @@ torch.Size([128256])
 
 
 
-### 模型预测的 token 编号是 2983，这是否代表 42 的 token 编号？
+#### 模型预测的 token 编号是 2983，这是否代表 42 的 token 编号？
 
 
 
@@ -1258,7 +1252,7 @@ tensor(2983)
 
 
 
-# 解码
+## 解码
 
 
 
@@ -1270,7 +1264,7 @@ tokenizer.decode([next_token.item()])
 
 
 
-## 备注1：注意力层QKV权重矩阵的作用的理解
+### 备注1：注意力层QKV权重矩阵的作用的理解
 
 假设你想使用 LLaMA-3 模型生成一句合适的文本，例如输入：
 
@@ -1286,7 +1280,7 @@ tokenizer.decode([next_token.item()])
 
 现在，我们通过 Transformer 的多头注意力机制，一步步详细展示从输入句子开始，到最终模型如何通过 **Q/K/V 的计算**做出对应的预测。
 
-#### 初始化词嵌入 (Embedding)
+##### 初始化词嵌入 (Embedding)
 
 Transformer 首先将输入的每一个token（词语），转化为一个高维的向量。真实模型中每个词对应一个4096维向量，这里为了手算和理解简化为2维举例：
 
@@ -1298,9 +1292,9 @@ Transformer 首先将输入的每一个token（词语），转化为一个高维
 
 > 实际上，真实的模型向量在4096维，这里仅用两维以便直观理解。
 
-#### Transformer 多头注意力机制逐步讲解
+##### Transformer 多头注意力机制逐步讲解
 
-##### 第一步：计算 token 的 Q、K、V 向量
+###### 第一步：计算 token 的 Q、K、V 向量
 
 通过三个由模型训练的权重矩阵（W_Q、W_K、W_V），每个 token 映射出：
 
@@ -1316,7 +1310,7 @@ Transformer 首先将输入的每一个token（词语），转化为一个高维
 | 欣赏   | Q₂      | K₂    | V₂    | 专属于token“欣赏”的QKV表示   |
 | 马斯克 | Q₃      | K₃    | V₃    | 专属于token“马斯克”的QKV表示 |
 
-##### 第二步：以“马斯克”为例，具体计算其注意力及新表示 Z₃
+###### 第二步：以“马斯克”为例，具体计算其注意力及新表示 Z₃
 
 重点关注“马斯克”这个词的计算：
 
@@ -1350,7 +1344,7 @@ Z₃ = α₁·V₁ + α₂·V₂ + α₃·V₃
 
 **(注意：每个Z向量的计算都用到全部token的KV信息，绝不是孤立处理单独某个token)**
 
-#### 第三步：拼接输出并进行最终变换
+##### 第三步：拼接输出并进行最终变换
 
 各个注意力头分别计算出类似的 Z 向量后，模型会把所有头的Z拼接成更长的上下文向量，进一步用一个输出投影矩阵W_O降到原始维度：
 
@@ -1364,7 +1358,7 @@ Attention输出 = [Z₁, Z₂, Z₃] → Wₒ → 输出到下一层Transformer
 H_out = FFN(LayerNorm(Attention输出 + 原始嵌入向量))
 ```
 
-### 基于 Transformer 输出生成新词 (逐步预测Token)
+#### 基于 Transformer 输出生成新词 (逐步预测Token)
 
 假设这一步我们经过32层Transformer的连续变换后，现在只关注句子最后token“马斯克”对应的最终表示向量：
 
@@ -1406,13 +1400,13 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 我 欣赏 马斯克 特斯拉，因为 他 创立 了 特斯拉。
 ```
 
-#### 总结 Transformer 中 Q、K、V、Z 和权重矩阵的作用：
+##### 总结 Transformer 中 Q、K、V、Z 和权重矩阵的作用：
 
 - **W_Q 查询矩阵(Q矩阵)**： 用来将每个token映射成查询向量(Q)，表示当前token更关心什么样的上下文信息。
 - **W_K 键矩阵(K矩阵)、W_V 值矩阵(V矩阵)**： 分别生成每个token的键(K)价值(V)向量，提供每个token的“可匹配信息”和“具体语义信息”。
 - **W_O 输出矩阵(O矩阵)**： 对所有token的注意力输出Z拼接后进行降维、映射，并融合成统一的最终元素表示（H_out），为后续Transformer层继续处理。
 
-#### 一句话总结QKVZ的作用：
+##### 一句话总结QKVZ的作用：
 
 > 每个token产生自己的QKV，通过Q和所有K计算出注意力权重融合所有V，形成该token的新表达Z。
 > 最终这些Z经过残差连接与前馈网络生成最终隐藏表示，用来预测下个词，从而持续生成连贯文本。
@@ -1421,7 +1415,7 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 
 
 
-#### 如果用更简单的直观比喻理解（现实生活的类比）：
+##### 如果用更简单的直观比喻理解（现实生活的类比）：
 
 你把 Transformer 理解为一个“智慧专家论坛”：
 
@@ -1434,14 +1428,14 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 4. 经历几轮讨论后，每位专家的观点都融合了大伙儿的智慧 (经过多个 Transformer 层)。
 5. 最终到投票（预测下一个词汇）阶段时，每位专家（每个token）的观点已经最充分融入了整个小组的上下文信息，从而给出最合理、最贴近上下文的下一步建议（下一个token预测）。
 
-#### QKV 与推理预测下一个词的真实意义：
+##### QKV 与推理预测下一个词的真实意义：
 
 - Q/K/V 本身虽然是不直接进行最终的词语预测操作的；
 - 但在预测下一个词之前，模型需要的是包含充分上下文语境、全面融合整体语义信息的表达；
 - QKV结构确保了每个单词的表示逐渐受到整个句子的充分滋养，从而获得更准确的上下文语义理解；
 - **只有经过了QKV这样的高度交互、融合的过程，模型的Token向量才能最充分地实现自我表达，达到一次最为准确、最具上下文逻辑连续性的单词预测。**
 
-#### 回到刚才示例“我欣赏马斯克”：
+##### 回到刚才示例“我欣赏马斯克”：
 
 - 一开始，“马斯克”仅有初步含义 ([1.0, 0.8]类似早期随机初始)，表达不够明确；
 - 经过注意力机制 Q₃→K₁、K₂、K₃匹配，获得句子中“我”、“欣赏” Token的信息（V向量）；
@@ -1457,7 +1451,7 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 
 ------
 
-#### 一个核心精简总结：
+##### 一个核心精简总结：
 
 - Q：每个词每一层关注什么
 - K：每个词每一层的身份标签
@@ -1467,9 +1461,9 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 
 
 
-## 备注二：查询向量拆成多头的理解
+### 备注二：查询向量拆成多头的理解
 
-### 查询向量拆成多头的理解
+#### 查询向量拆成多头的理解
 
 下面把「我 欣赏 马斯克」这个极简示例继续往下推，专门解释
 
@@ -1484,9 +1478,9 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 
 ------
 
-#### 真实维度：为什么会有 [32 × 128 × 4096]
+##### 真实维度：为什么会有 [32 × 128 × 4096]
 
-##### 整层查询权重
+###### 整层查询权重
 
 ```
 WQ                # 形状：4096 × 4096
@@ -1495,7 +1489,7 @@ WQ                # 形状：4096 × 4096
 - 行数 4096 = 输出维度
 - 列数 4096 = 输入 token 的特征维度
 
-##### 拆成 32 个头
+###### 拆成 32 个头
 
 ```
 n_heads  = 32
@@ -1515,7 +1509,7 @@ WQ_heads = WQ.view(32, 128, 4096) # [头数, head_dim, dim]
 
 ------
 
-##### 取第 0 号头的查询权重并算 Q 向量
+###### 取第 0 号头的查询权重并算 Q 向量
 
 ```
 WQ_h0 = WQ_heads[0]        # [128, 4096]
@@ -1539,7 +1533,7 @@ Q_h0  = token_embeddings @ WQ_h0.T   # [seq_len, 128]
   - 其中 `seq_len = 3`（“我 欣赏 马斯克”）
   - 每个 token 得到 **128 维** 查询向量，专属于 head-0
 
-#### 袖珍 4 头 × 4 维小算例
+##### 袖珍 4 头 × 4 维小算例
 
 为了让数字可见，把 4096 → 16，32 头 → 4 头，head_dim → 4。
 用一句“一共 4 个 token”的假场景跑一下公式：
@@ -1583,7 +1577,7 @@ Q_h0 = E  @  WQ_h0.T    # 得到 (3 × 4)：
 4. 权重 α 乘 `V_h0` → 得到 Z_h0（ `[seq_len, 4]` ）。
 5. **4 个头**各自算完 Z 后再拼接成 `[seq_len, 16]`，乘 W_O，进入残差 / Norm / FFN。
 
-#### 和「马斯克」那条主线对照
+##### 和「马斯克」那条主线对照
 
 - 在真实 LLaMA-3 中，我们确实取 **“马斯克”** 这个 token 的最终隐藏向量（融合了 32 个头 × 32 层的上下文信息）去做词表投影，预测出“特斯拉”。
 - 这里展示的“拆 WQ → 取第 0 头 → 得 [seq_len, 128] 的 Q 向量”就是 **第一层·第一头** 的最开始一步。
@@ -1591,7 +1585,7 @@ Q_h0 = E  @  WQ_h0.T    # 得到 (3 × 4)：
 
 ------
 
-#### 小结一句
+##### 小结一句
 
 > **拆成 [32, 128, 4096] → 取 head-0 → 乘嵌入**
 > 只是整个注意力大链条的起步动作。
@@ -1601,7 +1595,7 @@ Q_h0 = E  @  WQ_h0.T    # 得到 (3 × 4)：
 
 
 
-## 备注3：查询向量的位置编码的理解 (Q 的旋转位置编码 - RoPE)
+### 备注3：查询向量的位置编码的理解 (Q 的旋转位置编码 - RoPE)
 
 在前面的步骤中，我们已经为输入句子中的每个 token 得到了各自的查询（Q）向量。但是截止到目前，这些查询向量仅仅包含了 token 本身的语义信息，还没有全面地考虑它们在句子中各自所处的位置信息。
 
@@ -1613,7 +1607,7 @@ Q_h0 = E  @  WQ_h0.T    # 得到 (3 × 4)：
 
 Transformer 中使用一种高效的方法——RoPE (旋转位置嵌入, Rotary Positional Embedding) 来完成这一任务。
 
-### 为什么需要 RoPE？
+#### 为什么需要 RoPE？
 
 最初，我们获得的整个查询权重矩阵 (`wq.weight`) 的尺寸为 `[4096, 4096]`。而随着 Transformer 使用了多头注意力机制，我们会把这个巨大的子空间拆分成 32 个小而独立的子空间：
 
@@ -1624,7 +1618,7 @@ Transformer 中使用一种高效的方法——RoPE (旋转位置嵌入, Rotary
 
 ------
 
-### 具体操作说明及代码解析：
+#### 具体操作说明及代码解析：
 
 我们拿到的第一个头的查询向量（例如 `q_per_token` 的形状为 `[17,128]`，即17个token对应128维查询）进行预处理，随后再用于RoPE旋转：
 
@@ -1651,7 +1645,7 @@ print(q_per_token_split_into_pairs.shape)
 
 ------
 
-### 下一步：RoPE如何工作？
+#### 下一步：RoPE如何工作？
 
 拆分完成后，我们现在已经获得了形状为 `[token数量,64,2]` 的tensor：
 
@@ -1664,7 +1658,7 @@ print(q_per_token_split_into_pairs.shape)
 
 这一步RoPE完成的位置编码，可以高效地为Transformer模型提供充足的相对位置信息（相比传统的绝对位置嵌入embedding）。
 
-### 小结 - 清晰地回顾一下RoPE的完整步骤：
+#### 小结 - 清晰地回顾一下RoPE的完整步骤：
 
 - **步骤1 (准备Q矩阵)**: 提取单个头(Q_Head)查询向量，初始为 `[token数量, 128]`
 - **步骤2 (向量拆分)**: 重塑成 `[token数量, 64, 2]` 二维复数向量形式
@@ -1683,14 +1677,14 @@ RoPE 做的事情，就是对每一个token的查询Q（以及键K），根据to
 
 
 
-## 备注4： 计算RoPE旋转使用的频率参数 (`freqs` 矩阵)
+### 备注4： 计算RoPE旋转使用的频率参数 (`freqs` 矩阵)
 
 上面我们已经完成了查询向量 (Q) 和键向量 (K) 的拆分与准备，并明确了位置旋转的目标。
 现在，我们就需要为每个查询向量的“小向量对”（也就是 `[17, 64, 2]` 张量的第二维维度为64）计算对应的旋转频率，以便实施旋转位置编码（RoPE）。
 
 具体而言，我们需要一组频率，来确定每一对小向量在旋转时的“角速度”——即它们究竟旋转多少角度。
 
-### 我们到底为什么需要这样一组频率数字？好处在哪里？
+#### 我们到底为什么需要这样一组频率数字？好处在哪里？
 
 在Transformer模型里，我们需要给每个token赋予位置信息（token在句中的前后位置）。
 RoPE(旋转位置嵌入)用不同的“旋转频率”实现了这种位置的编码：
@@ -1708,7 +1702,7 @@ RoPE(旋转位置嵌入)用不同的“旋转频率”实现了这种位置的�
 
 ------
 
-### ⭕️ 步骤1. 生成均匀采样序列 `zero_to_one_split_into_64_parts`
+#### ⭕️ 步骤1. 生成均匀采样序列 `zero_to_one_split_into_64_parts`
 
 我们首先定义一个在区间 [0, 1] 上均匀采样的序列，长度为64：
 
@@ -1736,7 +1730,7 @@ zero_to_one_split_into_64_parts = torch.tensor(range(64)) / 64
 
 ------
 
-### ⭕️ 步骤2. 计算RoPE频率参数 `freqs`
+#### ⭕️ 步骤2. 计算RoPE频率参数 `freqs`
 
 现在我们继续，根据预设的常量 rope_theta 和上述的均匀采样点序列，计算每个向量对的小频率参数：
 
@@ -1767,7 +1761,7 @@ freqs.shape  # torch.Size([64])
 
 ------
 
-### ⭕️ 为什么要这样算？
+#### ⭕️ 为什么要这样算？
 
 RoPE的核心思想是使用一系列频率，把token的位置用旋转方式“嵌入”到token的Q/K向量中：
 
@@ -1777,7 +1771,7 @@ RoPE的核心思想是使用一系列频率，把token的位置用旋转方式�
 
 ------
 
-### 🚩 我们做一个直观的总结：
+#### 🚩 我们做一个直观的总结：
 
 1. 原本的Q/K向量还不知道位置关系
    👇
@@ -1800,11 +1794,11 @@ RoPE的核心思想是使用一系列频率，把token的位置用旋转方式�
 > • `freqs` 就相当于实际提供指南针针头转动的具体速度(转动力度)；
 > • RoPE的位置旋转编码则是给指南针指针调整到了由它自身位置决定的特定方向，让不同位置的相同单词（例如不同位置的"the "）变得能够轻易地区分开来。
 
-## 备注5：端到端完整流程
+### 备注5：端到端完整流程
 
 ![images](https://github.com/wdndev/llama3-from-scratch-zh/blob/main/images/archi.png)
 
-### 步骤 0：输入准备（Token化)
+#### 步骤 0：输入准备（Token化)
 
 以输入句为：“我 欣赏 马斯克” 为例，实际Transformer模型往往还会添加一个表示句子起始的特殊token（<BOS> token）。 实际模型prompt通常为：
 
@@ -1818,7 +1812,7 @@ RoPE的核心思想是使用一系列频率，把token的位置用旋转方式�
 
 ------
 
-### 💡 步骤 1：Token Embedding（将每个词转为向量）
+#### 💡 步骤 1：Token Embedding（将每个词转为向量）
 
 为了便于理解，我们暂时把实际模型中的4096维简化为4维：
 
@@ -1841,7 +1835,7 @@ E = [[1.0, 0.0, 0.0, 0.0],
 
 ------
 
-### 💡 步骤 2：第一个 RMSNorm 归一化（对应图片的 normalization①）
+#### 💡 步骤 2：第一个 RMSNorm 归一化（对应图片的 normalization①）
 
 在多头自注意力计算之前，先进行归一化（LayerNorm或RMSNorm）稳定特征：
 
@@ -1863,7 +1857,7 @@ E_norm[i] = E[i] * γ / sqrt(mean(E[i]²) + ε)
 
 ------
 
-### 💡 步骤 3：线性变换获得Query(Q)、Key(K)、Value(V)
+#### 💡 步骤 3：线性变换获得Query(Q)、Key(K)、Value(V)
 
 使用三个可训练权重矩阵（实际形状均为 [dim × dim]，简化为 [4×4]）分别对归一化的E做映射：
 
@@ -1883,7 +1877,7 @@ V = E_norm × W_Vᵀ
 
 ------
 
-### 💡 步骤 4：RoPE位置编码（旋转位置）
+#### 💡 步骤 4：RoPE位置编码（旋转位置）
 
 在上面的Q与K中加入位置信息：
 
@@ -1901,7 +1895,7 @@ K_rotated = RoPE(K)
 
 ------
 
-### 💡 步骤 5：计算注意力得分 (Q与K点积)
+#### 💡 步骤 5：计算注意力得分 (Q与K点积)
 
 以「马斯克」为例，其query (Q₃) dot 每个token key(K₁,K₂,K₃):
 
@@ -1923,7 +1917,7 @@ scores = [[Q₁ K₁, Q₁ K₂, Q₁ K₃],
 
 ------
 
-### 💡 步骤 6：因果掩码 & softmax归一化
+#### 💡 步骤 6：因果掩码 & softmax归一化
 
 在推理和生成时，需要加入因果掩码避免未来token的信息泄漏：
 
@@ -1955,7 +1949,7 @@ scores_masked = scores + causal_mask
 
 ------
 
-### 💡 步骤 7：计算最终Attention输出Z（加权Value信息）
+#### 💡 步骤 7：计算最终Attention输出Z（加权Value信息）
 
 每个token的V向量根据注意力权重α融合:
 
@@ -1975,7 +1969,7 @@ Z₃= α₁×V₁ + α₂×V₂ + α₃×V₃
 
 ------
 
-### 💡 步骤 8：多头Attention拼接与投影至输出空间
+#### 💡 步骤 8：多头Attention拼接与投影至输出空间
 
 假设单层共32个头，每头独立运算前面Attention(Z)，最后拼接成一条向量并做投影:
 
@@ -1988,7 +1982,7 @@ Attention_output = Z_concat × W_oᵀ
 
 ------
 
-### 💡 步骤 9：第一次残差连接 (residual connection①，对应图片中绿色 add①部分)
+#### 💡 步骤 9：第一次残差连接 (residual connection①，对应图片中绿色 add①部分)
 
 将此attention_output与初始Embedding输入进行残差连接避免梯度消失：
 
@@ -2000,7 +1994,7 @@ H_add1 = Embedding_input + Attention_output
 
 ------
 
-### 💡 步骤 10：第二次 RMSNorm归一化 (对应图片 normalization②部分)
+#### 💡 步骤 10：第二次 RMSNorm归一化 (对应图片 normalization②部分)
 
 对上一步残差连接之后的结果H_add1进行归一化:
 
@@ -2012,7 +2006,7 @@ H_norm2 = RMSNorm(H_add1)
 
 ------
 
-### 💡 步骤 11：前馈网络 Feed-Forward Network (FFN,SwiGLU 激活)
+#### 💡 步骤 11：前馈网络 Feed-Forward Network (FFN,SwiGLU 激活)
 
 对归一化后的特征使用前馈网络（FFN）进行非线性处理：
 
@@ -2030,7 +2024,7 @@ FFN_output = (U ⊙ V̂) × W₂ᵀ
 
 ------
 
-### 💡 步骤 12：第二次残差连接 (residual connection②，绿色add②部分)
+#### 💡 步骤 12：第二次残差连接 (residual connection②，绿色add②部分)
 
 将FFN输出与H_add1再次残差连接：
 
@@ -2044,7 +2038,7 @@ Transformer_output = H_add1 + FFN_output
 
 ------
 
-### 💡 步骤 13：堆叠32层Transformer Block获得H_final
+#### 💡 步骤 13：堆叠32层Transformer Block获得H_final
 
 实际模型共32层Transformer Block，重复步骤2～12即可：
 
@@ -2056,7 +2050,7 @@ H_final = TransformerBlock_32 (... TransformerBlock_2 (TransformerBlock_1(Embedd
 
 ------
 
-### 💡 步骤 14：预测下一个token（词表投影与softmax）
+#### 💡 步骤 14：预测下一个token（词表投影与softmax）
 
 取H_final中最后token(「马斯克」)的hidden向量H_final_last进行投影：
 
@@ -2078,7 +2072,7 @@ next_token = tokenizer.decode(next_token_id)
 
 ------
 
-### 💡 步骤 15：自回归生成更多token（可持续循环端到端生成长文本）
+#### 💡 步骤 15：自回归生成更多token（可持续循环端到端生成长文本）
 
 将生成的token加入输入作为下个step继续预测，使其能持续生成完整文本：
 
@@ -2094,7 +2088,7 @@ next_token = tokenizer.decode(next_token_id)
 
 
 
-### Embedding部分（图示左下部分）
+#### Embedding部分（图示左下部分）
 
 | 图中元素                     | 详细对应的文字步骤      | 是否涵盖 |
 | ---------------------------- | ----------------------- | -------- |
@@ -2103,7 +2097,7 @@ next_token = tokenizer.decode(next_token_id)
 
 ------
 
-### 第1个Transformer block内结构（中间偏左部分）
+#### 第1个Transformer block内结构（中间偏左部分）
 
 | 图中节点                          | 详细文字说明            | 是否涵盖      |
 | --------------------------------- | ----------------------- | ------------- |
@@ -2122,7 +2116,7 @@ next_token = tokenizer.decode(next_token_id)
 
 ------
 
-### 多个Transformer Block堆叠（中间至右上部分）
+#### 多个Transformer Block堆叠（中间至右上部分）
 
 | 图中节点                    | 详细文字步骤说明          | 是否涵盖        |
 | --------------------------- | ------------------------- | --------------- |
@@ -2132,7 +2126,7 @@ next_token = tokenizer.decode(next_token_id)
 
 ------
 
-### 最终Transformer Block 后续向量处理（右下部分）
+#### 最终Transformer Block 后续向量处理（右下部分）
 
 | 图中节点                                    | 详细文字步骤对应                              | 是否涵盖      |
 | ------------------------------------------- | --------------------------------------------- | ------------- |

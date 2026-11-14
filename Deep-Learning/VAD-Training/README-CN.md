@@ -1,6 +1,8 @@
 # VAD :**向量化场景表征**在多传感器 3D 感知中的落地
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 Vectorized Scene Representation for Efficient Autonomous Driving
 
@@ -10,16 +12,6 @@ Vectorized Scene Representation for Efficient Autonomous Driving
 2. 从 **逐帧静态** 走向 **时序记忆**。
 
 
-
-
-## 在 Azure 上运行
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## 1.三大流派的核心理念

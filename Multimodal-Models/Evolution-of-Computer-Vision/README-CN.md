@@ -1,6 +1,8 @@
 # 计算机视觉的演进与多模态建模：从CNN到视觉语言模型
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 计算机视觉（Computer Vision, CV）作为人工智能领域的重要研究方向，从最初尝试模拟人类视觉感知，到如今的多模态模型和通用智能，其发展经历了多个显著阶段：
 
@@ -9,16 +11,6 @@
 - 最后发展到 **视觉语言模型（Vision Language Models, VLM）**，将图像编码器和语言生成组件结合，实现了从图像识别到语言生成、多模态推理等复杂任务的有机融合。
 
 近年来，多种 VLM 模型（如 CLIP、Florence-2、Qwen2-VL）取得了优秀成绩，使计算机视觉逐步迈入多模态交互与智能推理的新阶段。以下我们将详细梳理 CV 的演化路径，并分析代表性技术和模型的应用特点。
-
-
-## 在 Azure 上运行
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## 视觉模型能力递进示意

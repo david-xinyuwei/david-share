@@ -1,6 +1,10 @@
 # 从一块 KV Cache 到 32 张卡：把 Attention、5D 与 TP/DP/EP 一次讲全
 
-[English Full Edition](M02_attention_memory_parallelism_full_article_EN.md) | 中文完整版
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+*Author: 魏新宇 (Xinyu Wei) | Microsoft AI Lead Senior System Engineer*
+
+[English](README.md) | **中文**
 
 > 从 KV Cache 的 dtype、Paging 和页内 Layout 出发，走到 Flash/Paged Attention、TP/DP/EP、MiMo 192/128 与 TP8-interleaved checkpoint。
 
@@ -15,13 +19,11 @@
 
 ---
 
-*Author: 魏新宇 (Xinyu Wei) | Microsoft AI and Apps GBB Senior System Engineer*
-
 ---
 
 ## 怎么读这篇完整稿
 
-这不是摘要版。下方每个“原稿章节”都保留对应旧稿的全部技术正文、表格、代码、公式、版本边界、误区、验证方法和参考来源。只删除重复的公众号引流、作者署名与横向分隔线；删除清单和逐图 SHA-256 记录在 `FULL_MERGE_LEDGER.md`。
+这不是摘要版。下方每个“原稿章节”都保留对应旧稿的全部技术正文、表格、代码、公式、版本边界、误区、验证方法和参考来源。只删除重复的公众号引流、作者署名与横向分隔线；删除清单和逐图 SHA-256 记录在 `FULL_MERGE_LEDGER.md`（未在本仓库公开）。
 
 本篇包含 6 张总览图和 49 张逐字节保留的原图。先用总览图建立位置感，再进入完整章节；总览图负责合并关系，细节图负责保留原始视觉信息，两者不互相替代。
 

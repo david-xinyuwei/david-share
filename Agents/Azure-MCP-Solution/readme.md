@@ -1,11 +1,11 @@
 # MCP Server Hands-On Guide and Examples
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 
 ## Overview
-
-This repository contains implementation and documentation for MCP Server Hands-On Guide and Examples.
 
 This repository provides a practical, hands-on guide to using and integrating MCP (Model-Context Protocol) Servers. Through clear step-by-step examples, you will learn how to set up MCP Servers within VS Code, interact with AI models and tools (such as Open-WebUI and GitHub Copilot), and enhance AI workflows by creating custom MCP servers. Additionally, this guide will cover advanced integration patterns, including exposing MCP services securely via Azure API Management (APIM). The security-related scenarios, particularly the use of APIM to safely expose MCP Servers, will be detailed in an upcoming update to this guide.
 

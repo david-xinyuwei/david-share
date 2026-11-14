@@ -1,9 +1,13 @@
 # BF16 vs FP16 在强化学习中的应用：现状如何？
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 > **基于 arXiv:2510.26788** — *通过 FP16 解决训练-推理不匹配问题*
 
 [![arXiv](https://img.shields.io/badge/arXiv-2510.26788-b31b1b.svg)](https://arxiv.org/abs/2510.26788)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
 ---
 
@@ -783,17 +787,18 @@ pytest tests/test_dtype_stability.py --dtype float16
 ```bibtex
 @article{fp16_defeats_mismatch_2024,
   title   = {Defeating the Training-Inference Mismatch via FP16},
-  author  = {[作者姓名]},
+  author  = {Qi, Penghui and Liu, Zichen and Zhou, Xiangxin and Pang, Tianyu and Du, Chao and Lee, Wee Sun and Lin, Min},
   journal = {arXiv preprint arXiv:2510.26788},
-  year    = {2024},
+  year    = {2025},
   month   = {October},
   url     = {https://arxiv.org/abs/2510.26788}
 }
+```
 ---
 
 ## 许可证
 
-MIT 许可证 — 详见 [LICENSE](LICENSE)。
+MIT 许可证 — 详见 [LICENSE](../../LICENSE)。
 
 ---
 

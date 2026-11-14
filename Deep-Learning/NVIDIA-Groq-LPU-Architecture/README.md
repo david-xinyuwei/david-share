@@ -1,8 +1,12 @@
 # NVIDIA Groq LPU — Architecture Deep Dive: From TSP to Vera Rubin Platform
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > **Last Updated**: 2026-04-10
 > **Category**: AI Infrastructure — Chip Architecture Analysis
-> **Author**: Xinyu Wei (魏新宇) | Microsoft AI GBB
+> **Author**: Xinyu Wei (魏新宇) | Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 ---
 

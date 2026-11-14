@@ -1,6 +1,8 @@
 # Practical Experience of Padding-Free Training
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 As large language models (such as Meta's Llama and OpenAI's GPT series) become widely adopted in production and research, effectively utilizing expensive GPU resources and improving training efficiency have become crucial issues. Currently, three main batch processing strategies exist for fine-tuning language models: padding, packing, and padding-free. This article provides detailed insights, practical experience, comparative data, and important considerations about padding-free practice, helping you gain deeper understanding and efficiently apply padding-free techniques.
 

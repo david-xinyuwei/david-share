@@ -1,8 +1,13 @@
 # BiomedParse 微调指南
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 微软 BiomedParse 医学图像分割模型的微调实战指南。
 
-**作者**: 魏新宇 (Microsoft AI and Apps GBB)  
+**作者**: 魏新宇 (Microsoft AI Lead Senior System Engineer)  
+
+[English](README.md) | **中文**
+
 **模型**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
 **论文**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
 **测试环境**: NVIDIA A10 24GB GPU

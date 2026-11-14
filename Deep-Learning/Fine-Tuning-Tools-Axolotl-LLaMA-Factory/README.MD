@@ -1,6 +1,10 @@
 # Fine-Tuning Tools: Axolotl & LLaMA-Factory
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+> **Note:** This article is written mainly in Chinese; an English version is not available yet.
 
 This article covers two popular fine-tuning tools for large language models: **Axolotl** and **LLaMA-Factory**. It also provides a deep dive into parallel training strategies (DP, FSDP, TP, PP) that are essential for understanding how these tools scale across GPUs.
 

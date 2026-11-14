@@ -1,14 +1,15 @@
+# 用 GPT-4 做机器翻译
+
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4). It stays here so existing links keep working; check current documentation before reusing the steps.
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## 在 Azure 上运行
 
 本项目使用 **Azure OpenAI 服务** 的 GPT-4 进行机器翻译测试。
 
 ## Overview
-
-This repository contains implementation and documentation for Use GPT4 as Translator.
-
 
 | 项目 | 详情 |
 |---|---|

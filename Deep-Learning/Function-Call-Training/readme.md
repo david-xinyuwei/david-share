@@ -3,21 +3,11 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps.
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 Some models inherently have function call capabilities, such as OpenAI and Phi3. Some do not. We can enhance a model's function call capabilities through fine-tuning, which means enabling the model to natively possess more functions. 
 
 In this repo, I will fine-tune Microsoft's Phi3 using the xlam-function-calling-60k dataset to enhance its native function call capabilities. The training method employed will be Q-LoRA
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## Training Dataset Analysis

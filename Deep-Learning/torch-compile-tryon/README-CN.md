@@ -4,6 +4,10 @@
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 本项目展示了使用 `torch.compile` 为虚拟试穿扩散模型实现 **16-24% 推理加速**的基准测试研究，并深入分析了 PyTorch 优化的三个层次。
 
 

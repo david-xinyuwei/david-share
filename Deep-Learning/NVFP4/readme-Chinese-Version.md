@@ -1,4 +1,11 @@
-## NVFP4 解析与工程实践
+# NVFP4 解析与工程实践
+
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](readme.md) | **中文**
+
 ### **摘要与要点**
 
 - NVFP4 是 NVIDIA 为 Blackwell Tensor Core 定制优化的 4-bit 浮点量化数据类型,采用 **E2M1 元素格式**(1 符号位 + 2 指数位 + 1 尾数位,共 4 bit)与**双层缩放**机制:每 16 个权重共用一个 FP8 精度的局部缩放因子(**微块级**,即"分组粒度"为 16),整个张量再配一个 FP32 高精度全局缩放因子(张量级),以此平衡存储压缩与数值稳定性。实测结果显示:在激活与权重均采用 NVFP4 时,吞吐可比 INT4 提升约 2.35 倍(RTX 6000 Pro, vLLM 0.10.0, Llama-3.3-70B-Instruct)。
@@ -1140,7 +1147,7 @@ W4A4:   5.62 GB   →  2.66× 压缩 ✅
 - ⚠️  vLLM 总显存节省 <1% (KV cache 占主导 65GB)
 - ✅ 模型文件压缩 2.66× (14.96GB → 5.62GB)
 
-详细结果与分析见: **[H100_Test_Results.md](./H100_Test_Results.md)**
+详细结果与分析见: `H100_Test_Results.md`（未包含在本仓库中）
 
 ### 7.3 H100 vs Blackwell 对比
 

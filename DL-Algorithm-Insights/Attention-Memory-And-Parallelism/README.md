@@ -1,14 +1,16 @@
 # From Key-Value Cache Layout to 32 Graphics Processors: Attention, Memory, and Parallelism
 
-[中文完整版](M02_attention_memory_parallelism_full_article.md) | English
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
 
-*Author: Xinyu Wei | Microsoft AI and Apps GBB Senior System Engineer*
+**English** | [中文](README-CN.md)
+
+*Author: Xinyu Wei | Microsoft AI Lead Senior System Engineer*
 
 **GitHub repository:** <https://github.com/david-xinyuwei/david-share>
 
 **Series:** `DL-Algorithm-Insights/`
 
-This complete edition covers five traceable source chapters: Key-Value (KV) cache precision, including 8-bit floating point (FP8) and bfloat16 (BF16), paging, and physical layout; FlashAttention and PagedAttention; Tensor Parallelism (TP), Data Parallelism (DP), and Expert Parallelism (EP); CuTe domain-specific language (DSL) and FlyDSL layout programming; and the MiMo-V2.5-Pro TP8/DP4/EP32 topology across 32 Graphics Processing Units (GPUs). The source snapshots, exclusions, image hashes, and chapter lineage are recorded in `FULL_MERGE_LEDGER.md`, linked as [merge evidence](FULL_MERGE_LEDGER.md). Illustrative arithmetic is labeled as an example, shape ratios are derived rather than measured, and externally reported performance is attributed to its public source. This article adds no new benchmark result and makes no industry-wide claim for SHUFFLE 5D, no universal speedup claim for FP8 or a DSL, and no claim that the MiMo `192/128` kernel has been implemented or measured through NVIDIA CuTe DSL.
+This complete edition covers five traceable source chapters: Key-Value (KV) cache precision, including 8-bit floating point (FP8) and bfloat16 (BF16), paging, and physical layout; FlashAttention and PagedAttention; Tensor Parallelism (TP), Data Parallelism (DP), and Expert Parallelism (EP); CuTe domain-specific language (DSL) and FlyDSL layout programming; and the MiMo-V2.5-Pro TP8/DP4/EP32 topology across 32 Graphics Processing Units (GPUs). The source snapshots, exclusions, image hashes, and chapter lineage are recorded in `FULL_MERGE_LEDGER.md`, linked as merge evidence (not published in this repository). Illustrative arithmetic is labeled as an example, shape ratios are derived rather than measured, and externally reported performance is attributed to its public source. This article adds no new benchmark result and makes no industry-wide claim for SHUFFLE 5D, no universal speedup claim for FP8 or a DSL, and no claim that the MiMo `192/128` kernel has been implemented or measured through NVIDIA CuTe DSL.
 
 ## Reading map
 
@@ -2577,4 +2579,4 @@ Increasing “parallelism” without naming the objective is not an actionable d
 | #13 `13_why_dsl_attention_article.md` | `4d1f179fad7e54be6c80e65bd80c841f233b02d11ab96fbd81ed9eac5ea048d9` | `8892ad9dfc0047b2b7a9c82f370ac2aefe5ab179952e277371fddec9830b8e38` | 8 |
 | #14 `14_head_limit_tp_dp_ep_article.md` | `40545d5104c1bc78dbf8912221d931a9d7a510f6c0f3e60d1ec54816f15a9a63` | `a7d0402d064464fd01a10321872e440854a36df3bf5a58479e2e49e188ffec51` | 7 |
 
-The normalized-body hashes identify the deterministic source text after removal of repeated publication scaffolding, extraction of source images, and heading-depth adjustment. [FULL_MERGE_LEDGER.md](FULL_MERGE_LEDGER.md) records every excluded line and every source-image SHA-256.
+The normalized-body hashes identify the deterministic source text after removal of repeated publication scaffolding, extraction of source images, and heading-depth adjustment. `FULL_MERGE_LEDGER.md` (not published in this repository) records every excluded line and every source-image SHA-256.

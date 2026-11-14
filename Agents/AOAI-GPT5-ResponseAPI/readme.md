@@ -4,7 +4,9 @@
 
 # Using the Responses API with Azure OpenAI GPT‑5 / Codex: Chain-of-Thought Reuse, Encryption, Summarization, and Cost Analysis
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](readme-Chinese.md)
 
 > **Quick Navigation**: [TL;DR](#tldr-quick-core-findings) | [Background](#background--problems) | [Mechanism](#mechanism-deep-dive) | [Experiments](#experiment-scenarios-and-result-analysis) | [Operations Handbook](#decision-checklists--operations-handbook) | [Code](#full-reproduction-code) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-performance-comparison) | [Best Practices](#summary--best-practices)
 

@@ -1,6 +1,6 @@
 # TurboQuant: Sub-4-bit KV Cache Quantization with Near-Zero Accuracy Loss
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [中文版](README-CN.md) | English
 

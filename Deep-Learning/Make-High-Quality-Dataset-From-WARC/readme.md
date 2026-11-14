@@ -1,19 +1,11 @@
 # Make High Quality Dataset from WARC for Pre-training
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 In the following subsections, we will explain each step involved in generating High Qualit dataset Pre-training
 
-
-
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ## How to evaluate the quality of training data?
@@ -818,7 +810,7 @@ Check the the first item of final outputs:
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Make-High-Quality-Dataset-From-WARC/images/2.png)
 
 
-# Check quality of the corpus
+## Check quality of the corpus
 
 This part of my code is refer to: https://github.com/Azure/synthetic-qa-generation/tree/main*, I modified some codes, please refer to corpus-suggestions.ipynb, which could analyze quality of the corpus from the last steps and give lots of useful suggestions.
 
@@ -933,7 +925,7 @@ New Feedback List:
     #Feedback#: Expand diversity by adding varied contexts, like international access options.
 ```
 
-## Genarate Synthetic Q&A 
+### Genarate Synthetic Q&A 
 
 Refer to generate-QA.ipynb, we could generate high quality synthetic Q&A pairs with GPT -4o. Prompt temlpate is refer to : *https://github.com/Azure/synthetic-qa-generation/tree/main/seed/prompt_template/en*
 Take some results as examples:
@@ -955,6 +947,6 @@ Take some results as examples:
 ```
 
 
-## References
+### References
 - DataTrove: https://github.com/huggingface/datatrove/
 - Generate Synthetic QnAs from Real-world Data: https://github.com/Azure/synthetic-qa-generation/

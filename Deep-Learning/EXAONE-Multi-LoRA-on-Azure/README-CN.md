@@ -1,5 +1,11 @@
 # vLLM Multi-LoRA Serving：EXAONE（LG Electronics）在 Azure 上的部署验证
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 本仓库提供了在 Azure GPU VM 上使用 vLLM 运行 LG AI Research 的 **EXAONE 3.5** 模型并实现 **Multi-LoRA adapter 并发服务** 的完整验证方案，涵盖模型加载、LoRA adapter 创建、多 adapter 并发服务及性能基准测试。
 
 

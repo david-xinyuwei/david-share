@@ -2,9 +2,9 @@
 
 ![Azure AI Foundry](https://img.shields.io/badge/Azure%20AI%20Foundry-Fireworks-0078D4) ![Model](https://img.shields.io/badge/Model-FW--GLM--5.1-2EA44F) ![Cache](https://img.shields.io/badge/Prompt%20Cache-Validated-6F42C1) ![Workload](https://img.shields.io/badge/Workload-AI%20Companion-6F42C1) ![Language](https://img.shields.io/badge/Docs-EN%20%7C%20CN-lightgrey)
 
-这是给微软同事和客户看的现场指南：**哪些 prompt / request settings 能提升 Fireworks prompt cache hit rate，能提升多少，证据是什么**。
+> Author: Wei Xinyu (Xinyu Wei), Microsoft AI Lead Senior System Engineer
 
-> Author: Wei Xinyu (Xinyu Wei), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
+这是给微软同事和客户看的现场指南：**哪些 prompt / request settings 能提升 Fireworks prompt cache hit rate，能提升多少，证据是什么**。
 
 [English](README.md) | [中文版](README-CN.md)
 

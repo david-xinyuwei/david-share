@@ -1,5 +1,9 @@
 # Python 写的 GPU Kernel，怎么一路变成机器码？Tile、Layout、MLIR、NVVM 与 ROCDL 一次讲透
 
+[![Area: DL Algorithm Insights](https://img.shields.io/badge/Area-DL%20Algorithm%20Insights-0078D4)](../README.md) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+*Author: 魏新宇 (Xinyu Wei) | Microsoft AI Lead Senior System Engineer*
+
 > 高性能 GPU Kernel 的关键，不只是“用 Python 写”，而是能否准确表达数据如何分块、如何映射给线程、如何在存储层级之间搬运，以及这些语义如何逐层降级为目标 GPU 指令。
 
 ---
@@ -10,8 +14,6 @@
 - **本系列**：`DL-Algorithm-Insights/`
 
 ---
-
-*Author: 魏新宇 (Xinyu Wei) | Microsoft AI and Apps GBB Senior System Engineer*
 
 ---
 

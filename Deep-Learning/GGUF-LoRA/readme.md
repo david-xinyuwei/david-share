@@ -1,11 +1,11 @@
 # Efficiently Using GGUF Format LoRA Adapters on CPU: From Introduction to Practice
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 
 ## Overview
-
-This repository contains implementation and documentation for Efficiently Using GGUF Format LoRA Adapters on CPU: From Introduction to Practice.
 
 Llama.cpp has introduced a new feature: GGUF now supports LoRA loading. I tested the perplexity of the torch format merged model (Base model + LoRA Adapter) to GGUF, and it is only 3% lower than the perplexity of the base and adapter models separately to GGUF, followed by dynamic loading. I adopted the second method, converting the base model to GGUF, then quantizing it to 4-bit, and dynamically loading the 4bit base model + FP16 adapter as shown in the video. This is the inference result on the CPU. I hope it is useful.
 

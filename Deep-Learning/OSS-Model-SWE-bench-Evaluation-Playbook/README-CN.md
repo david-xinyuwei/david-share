@@ -8,7 +8,7 @@
 
 本Repo用于测量运行在微软平台上的OSS模型（开源权重或微调后模型）的SWE-bench Verified准确率，覆盖四条部署路径：Azure GPU VM、AI Foundry OSS Serverless、AI Foundry Managed Compute和AI Foundry / Fireworks。Repo本身只提供endpoint配置和可审计的缝合层：Agent循环来自官方mini-swe-agent，评分走官方SWE-bench Docker harness，因此结果可与公开发表的SWE-bench分数直接对比。
 
-> **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
+> **作者**：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文版
 

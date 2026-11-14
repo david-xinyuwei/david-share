@@ -1,8 +1,12 @@
 # Azure GPU VM Selection Guide & Performance Benchmark
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > Comprehensive GPU hardware analysis, VM selection guide, and performance benchmarks across RTX PRO 6000 BSE (Blackwell), H100 NVL (Hopper), A100 PCIe (Ampere), and A10 (Ampere)
 
-**Author**: Xinyu Wei (魏新宇) | Microsoft AI and Apps GBB Architect
+**Author**: Xinyu Wei (魏新宇) | Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 ---
 
@@ -58,11 +62,11 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-# Part I: GPU Hardware & Selection
+## Part I: GPU Hardware & Selection
 
-## Core Concept: GPU Is Not Just "Compute Power"
+### Core Concept: GPU Is Not Just "Compute Power"
 
-### Common Misconceptions
+#### Common Misconceptions
 
 | Misconception | Reality |
 |---|---|
@@ -70,7 +74,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | "More VRAM = Can run anything" | Can load ≠ Can complete the full pipeline (may lack encoder for output) |
 | "Data center GPU = Best for everything" | NC H100 cannot do video transcoding, NV A10 can |
 
-### The Right Mental Model
+#### The Right Mental Model
 
 **GPU = A combination of specialized hardware units**
 
@@ -92,9 +96,9 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-## Six Hardware Units Explained
+### Six Hardware Units Explained
 
-### 1. NVDEC - Video Decoder
+#### 1. NVDEC - Video Decoder
 
 | Attribute | Description |
 |---|---|
@@ -102,7 +106,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **Analogy** | Like unzipping a ZIP file |
 | **Use Cases** | Video playback, pre-processing for video AI analysis |
 
-### 2. NVENC - Video Encoder
+#### 2. NVENC - Video Encoder
 
 | Attribute | Description |
 |---|---|
@@ -111,7 +115,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **Use Cases** | Live streaming, video export, cloud gaming |
 | **⚠️ Critical** | **NC H100 / NC A100 do NOT have NVENC!** |
 
-### 3. NVJPG - JPEG Hardware Engine
+#### 3. NVJPG - JPEG Hardware Engine
 
 | Attribute | Description |
 |---|---|
@@ -121,7 +125,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 > ⚠️ **Note**: A10 does NOT support hardware JPEG acceleration, despite being Ampere architecture. nvJPEG hardware acceleration only supports Ampere (A100, A30), Hopper, Ada, and Blackwell.
 
-### 4. Tensor Core
+#### 4. Tensor Core
 
 | Attribute | Description |
 |---|---|
@@ -129,7 +133,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **Use Cases** | LLM, Stable Diffusion, video generation AI |
 | **Generations** | 3rd (Ampere) → 4th (Hopper) → 5th (Blackwell) |
 
-### 5. RT Core - Ray Tracing Core
+#### 5. RT Core - Ray Tracing Core
 
 | Attribute | Description |
 |---|---|
@@ -138,7 +142,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **⚠️ Critical** | **NC H100 / NC A100 do NOT have RT Core!** |
 | **Note** | NV A10 has 72 RT Cores (2nd Gen), RTX PRO 6000 BSE has 188 (4th Gen) |
 
-### 6. CUDA Core
+#### 6. CUDA Core
 
 | Attribute | Description |
 |---|---|
@@ -147,11 +151,11 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-## GPU Hardware Configuration Comparison
+### GPU Hardware Configuration Comparison
 
 > Note: All specifications are based on Azure VM series offerings.
 
-### Hardware Unit Configuration Matrix
+#### Hardware Unit Configuration Matrix
 
 | Hardware Unit | RTX 6000 Pro Blackwell | H100 NVL | A100 PCIe | A10 |
 |---|---|---|---|---|
@@ -164,7 +168,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 > 📝 **Data Sources**: RTX PRO 6000 BSE NVENC/NVDEC/RT Core generations from NVIDIA official specs. H100/A100 NVDEC counts from Azure VM specifications.
 
-### Basic Specifications (Azure VM Series)
+#### Basic Specifications (Azure VM Series)
 
 | Spec | NC H100 (NCads_H100_v5) | NC A100 (NC_A100_v4) | RTX PRO 6000 BSE (NCv6) | NV A10 (NVadsA10_v5) |
 |---|---|---|---|---|
@@ -174,7 +178,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **Max vCPUs** | 80 | 96 | 320 | 72 |
 | **Max Memory** | 640 GiB | 880 GiB | 1280 GiB | 880 GiB |
 
-### Positioning Summary
+#### Positioning Summary
 
 | GPU | Positioning | Strengths | Limitations |
 |---|---|---|---|
@@ -185,9 +189,9 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-## Scenario × GPU Support Matrix
+### Scenario × GPU Support Matrix
 
-### Legend
+#### Legend
 
 | Symbol | Meaning |
 |---|---|
@@ -195,7 +199,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | ❌ | Not supported |
 | ⚠️ | Works but with limitations |
 
-### AI Scenarios
+#### AI Scenarios
 
 | Scenario | Required Hardware | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -207,7 +211,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | AI Video Generation (generation only) | Tensor Core + Large VRAM | ✅ | ✅ | ✅ | ⚠️ |
 | AI Video Generation (with MP4 output) | Tensor Core + NVENC | ❌ | ❌ | ✅ | ✅ |
 
-### Video/Media Scenarios
+#### Video/Media Scenarios
 
 | Scenario | Required Hardware | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -217,7 +221,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | Video Conferencing Encode | NVENC | ❌ | ❌ | ✅ | ✅ |
 | Video AI Analysis | NVDEC + Tensor Core | ✅ | ✅ | ✅ | ✅ |
 
-### Gaming/Rendering Scenarios
+#### Gaming/Rendering Scenarios
 
 | Scenario | Required Hardware | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -231,7 +235,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 > ⚠️ **DLSS Frame Generation Note**: DLSS Frame Generation only supports Ada Lovelace and newer architectures. A10 (Ampere) does NOT support Frame Generation, only DLSS Super Resolution. RTX PRO 6000 BSE (Blackwell) supports DLSS 4 Multi Frame Generation.
 
-### Scientific Computing
+#### Scientific Computing
 
 | Scenario | Required Hardware | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -241,9 +245,9 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-## Azure GPU VM Series
+### Azure GPU VM Series
 
-### Available GPU VM Series
+#### Available GPU VM Series
 
 | VM Series | GPU | GPU Count | VRAM per GPU | Use Cases |
 |---|---|---|---|---|
@@ -252,7 +256,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | **NC RTX PRO 6000 BSE v6** | RTX PRO 6000 Blackwell Server Edition | 1-2 | 96GB GDDR7 | Professional graphics, AI, full pipeline |
 | **NVadsA10_v5** | A10 | 1/6 - 2 | 24GB GDDR6 | Inference, graphics, VDI |
 
-### VM Selection by Scenario
+#### VM Selection by Scenario
 
 | Scenario | Recommended VM Series | Reason |
 |---|---|---|
@@ -267,9 +271,9 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-## Selection Decision Tree
+### Selection Decision Tree
 
-### Three Key Questions
+#### Three Key Questions
 
 | # | Question | If Yes |
 |---|---|---|
@@ -277,7 +281,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | 2 | **Need ray tracing?** | → Exclude NC H100 / NC A100 |
 | 3 | **Model fits in single GPU VRAM?** | No → Need multi-GPU with NVLink |
 
-### Decision Flowchart
+#### Decision Flowchart
 
 ```
                     ┌─────────────────────┐
@@ -307,11 +311,11 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 
 ---
 
-# Part II: Scientific Computing & Numeric Precision
+## Part II: Scientific Computing & Numeric Precision
 
-## Precision Quick Reference (FP64/FP32/TF32/BF16/FP16/FP8/FP4)
+### Precision Quick Reference (FP64/FP32/TF32/BF16/FP16/FP8/FP4)
 
-### CUDA Core vs Tensor Core Precision Comparison
+#### CUDA Core vs Tensor Core Precision Comparison
 
 | Precision | Execution Unit | Primary Use Case | RTX 6000 Performance |
 |---|---|---|---|
@@ -326,7 +330,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 > - FP64 and FP32 are **physically separate ALU units** (Datacenter: FP64:FP32 = 1:2, RTX: 1:64)
 > - TF32/BF16/FP16/FP8/NVFP4 **share the same Tensor Core hardware**, just different precision configs
 
-### TF32 Transparent Optimization
+#### TF32 Transparent Optimization
 
 > **One-liner**: TF32 is not a data type, it's Tensor Core's "stealth acceleration mode" — you write FP32, hardware secretly computes in TF32, 8-10x faster, <0.1% precision loss.
 
@@ -346,7 +350,7 @@ torch.backends.cuda.matmul.allow_tf32  # True by default
 torch.backends.cudnn.allow_tf32        # True by default
 ```
 
-### GPU Performance Quick Reference
+#### GPU Performance Quick Reference
 
 | Scenario | Key Metric | RTX 6000 | H100 NVL | Winner |
 |---|---|---|---|---|
@@ -363,7 +367,7 @@ torch.backends.cudnn.allow_tf32        # True by default
 
 ---
 
-## CUDA Core vs Tensor Core: Who Computes What
+### CUDA Core vs Tensor Core: Who Computes What
 
 ```mermaid
 sequenceDiagram
@@ -395,9 +399,9 @@ sequenceDiagram
 
 ---
 
-# Part III: FP8 Performance Validation
+## Part III: FP8 Performance Validation
 
-## FP8 Technical Architecture
+### FP8 Technical Architecture
 
 | GPU | Architecture | FP8 Execution Path | Key Feature |
 |---|---|---|---|
@@ -423,7 +427,7 @@ sequenceDiagram
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 🔥 Key Findings Summary
+#### 🔥 Key Findings Summary
 
 | GPU | Architecture | FP8 Prefill vs BF16 | FP8 Decode vs BF16 | Recommendation |
 |---|---|---|---|---|
@@ -438,9 +442,9 @@ sequenceDiagram
 
 ---
 
-## FP8 Test Results
+### FP8 Test Results
 
-### RTX 6000 Blackwell Two-Way Comparison (2026-01-04)
+#### RTX 6000 Blackwell Two-Way Comparison (2026-01-04)
 
 > **Test Configuration**: NVIDIA RTX PRO 6000 Blackwell (96GB vGPU), vLLM 0.13.0rc2+cu130, CUDA 13.0
 >
@@ -459,7 +463,7 @@ sequenceDiagram
 | BF16 | 27.57 GiB | Full precision weights |
 | FP8 Pre-quant | 15.39 GiB | **44% reduction** |
 
-### H100 Three-Way Comparison (2026-01-04)
+#### H100 Three-Way Comparison (2026-01-04)
 
 > **Test Configuration**: NVIDIA H100 NVL 96GB, vLLM 0.13.0, PyTorch 2.9.0+cu128
 
@@ -477,7 +481,7 @@ sequenceDiagram
 | FP8 Runtime | 15.36 GiB | 62.64 GiB |
 | FP8 Pre-quant | 15.39 GiB | 62.62 GiB |
 
-### A100 Three-Way Comparison (2026-01-03)
+#### A100 Three-Way Comparison (2026-01-03)
 
 > **Test Configuration**: NVIDIA A100 80GB PCIe, vLLM 0.11.2
 
@@ -488,7 +492,7 @@ sequenceDiagram
 | **Decode Single** | 47 tok/s | 73 tok/s | 73 tok/s | **+55.3%** ✅ |
 | **Decode 50 Concurrent** | 1,702 tok/s | 1,999 tok/s | 2,031 tok/s | **+17.4%** ✅ |
 
-### Cross-GPU Performance Comparison
+#### Cross-GPU Performance Comparison
 
 | Scenario | A100 BF16 | H100 BF16 | RTX 6000 BF16 | H100 vs A100 | RTX 6000 vs A100 |
 |---|---|---|---|---|---|
@@ -591,9 +595,9 @@ sequenceDiagram
 
 ---
 
-## FP8 Technical Analysis
+### FP8 Technical Analysis
 
-### Why Different GPUs Show Different FP8 Behavior?
+#### Why Different GPUs Show Different FP8 Behavior?
 
 | Factor | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
 |---|---|---|---|
@@ -605,7 +609,7 @@ sequenceDiagram
 | Decode (memory-bound) | FP8 +26% faster | FP8 +36% faster | FP8 +17-56% faster |
 | Runtime FP8 Support | ❌ Not yet in vLLM | ✅ Supported | ✅ Supported |
 
-### Marlin Kernel: Why Dequantization Overhead Matters
+#### Marlin Kernel: Why Dequantization Overhead Matters
 
 > 📚 **Reference**: Benjamin Marie, *"The Kaitchup: LLMs on a Budget"* (Chapter 3.4.3)
 
@@ -645,7 +649,7 @@ flowchart TB
 
 > **Key Difference**: Prefill is compute-bound where dequant overhead exceeds bandwidth savings; Decode is memory-bound where 50% memory reduction provides bandwidth savings that exceed dequant cost.
 
-### Why Runtime and Pre-quantized FP8 Have Same Speed?
+#### Why Runtime and Pre-quantized FP8 Have Same Speed?
 
 ```
 Runtime FP8:
@@ -667,9 +671,9 @@ Pre-quantized FP8:
 
 ---
 
-## FP8 Recommendations
+### FP8 Recommendations
 
-### Decision Matrix
+#### Decision Matrix
 
 | Workload Type | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
 |---|---|---|---|
@@ -678,7 +682,7 @@ Pre-quantized FP8:
 | **Batch Processing** | ✅ FP8 (+59%) | ✅ FP8 (+29%) | ⚠️ BF16 (FP8 is -26% slower) |
 | **Memory Constrained** | ✅ FP8 (44% less VRAM) | ✅ FP8 (44% less VRAM) | ✅ FP8 (50% less VRAM) |
 
-### GPU Selection Guide
+#### GPU Selection Guide
 
 ```mermaid
 quadrantChart
@@ -699,11 +703,11 @@ quadrantChart
 
 ---
 
-# Part IV: NC RTX Pro 6000 V6 BSE Benchmark
+## Part IV: NC RTX Pro 6000 V6 BSE Benchmark
 
 > Comprehensive comparison: NC RTX 6000 Pro Blackwell / NC H100 NVL / NC A100 PCIe / NV A10. For fairness, each test uses the same data type across all four GPUs.
 
-## 1. Network Configuration Test
+### 1. Network Configuration Test
 
 | Item | Standard_NC256ds_xl_RTXPRO6000BSE_v6 |
 |---|---|
@@ -719,7 +723,7 @@ quadrantChart
 
 ---
 
-## 2. GPU P2P Interconnect Test
+### 2. GPU P2P Interconnect Test
 
 | Item | Standard_NC256ds_xl_RTXPRO6000BSE_v6 |
 |---|---|
@@ -729,7 +733,7 @@ quadrantChart
 | **GPU1 → GPU0 BW** | **44.46 GB/s** |
 | **NCCL AllReduce** | **~43.5 GB/s** |
 
-### P2P Comparison
+#### P2P Comparison
 
 | GPU Config | P2P Bandwidth | Notes |
 |---|---|---|
@@ -739,7 +743,7 @@ quadrantChart
 
 ---
 
-## 3. FP32 Compute Test
+### 3. FP32 Compute Test
 
 | Metric | RTX 6000 Pro Blackwell |
 |---|---|
@@ -751,9 +755,9 @@ quadrantChart
 
 ---
 
-## 4. LLM Inference Test
+### 4. LLM Inference Test
 
-### Test Configuration
+#### Test Configuration
 
 | Parameter | Value |
 |---|---|
@@ -761,7 +765,7 @@ quadrantChart
 | **Inference Engine** | vLLM |
 | **Test Tool** | guidellm |
 
-### Test Results
+#### Test Results
 
 | GPU | Output Tokens/s | Relative Performance |
 |---|---|---|
@@ -770,12 +774,12 @@ quadrantChart
 | **A100 PCIe** | **2119.6** | **69%** |
 | **A10** | **563.1** | **18%** |
 
-### 4.1 NVFP4 Quantization - Blackwell Exclusive
+#### 4.1 NVFP4 Quantization - Blackwell Exclusive
 
 > **Blackwell-only feature**: NVFP4 (4-bit floating point) requires SM100/SM120 native FP4 Tensor Core
 > - **Memory Savings**: Model size ~35% smaller than FP8 (9.9GB vs 15.3GB for 14B)
 
-#### Test Results
+##### Test Results
 
 | Precision | Model | Input Tokens | Output Tokens | Time | Output TPS |
 |---|---|---:|---:|---:|---:|
@@ -797,7 +801,7 @@ FP8 (W8A8)      █████████████████████�
 | **KV Cache Available** | 65.5 GiB | 60.1 GiB | +9% |
 | **Inference Time** | **9.22s** | 12.75s | **-28%** |
 
-#### NVFP4 Known Issues ⚠️
+##### NVFP4 Known Issues ⚠️
 
 | Issue | Cause | Solution |
 |---|---|---|
@@ -816,11 +820,11 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
 
-### 4.2 Tensor Parallel (TP=1 vs TP=2) Benchmark
+#### 4.2 Tensor Parallel (TP=1 vs TP=2) Benchmark
 
 > ⚠️ **RTX PRO 6000 Dual GPU**: Testing when TP=2 provides benefits over TP=1
 
-#### Small Model Results (Qwen3-14B-FP8)
+##### Small Model Results (Qwen3-14B-FP8)
 
 | Configuration | Output Throughput | TTFT | TPOT |
 |---|---:|---:|---:|
@@ -830,7 +834,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > ⚠️ **14B model is too small for TP=2 benefit** - The communication overhead between GPUs outweighs the parallelism benefit.
 
-#### Large Model Results (Qwen2.5-VL-72B-FP8)
+##### Large Model Results (Qwen2.5-VL-72B-FP8)
 
 | Configuration | Output Throughput | TTFT | TPOT |
 |---|---:|---:|---:|
@@ -838,7 +842,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
 | **Difference** | **+27.0%** | +6.3% slower | **-24.2% faster** |
 
-#### TP Recommendations
+##### TP Recommendations
 
 | Model Size | Recommended Config | Reason |
 |---|---|---|
@@ -848,7 +852,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > 💡 **Rule of thumb**: Only use TP=2 when a single GPU cannot fit the model comfortably, or when the model is large enough (>70B) to benefit from parallel computation.
 
-### 4.3 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
+#### 4.3 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
 
 > Test Date: 2025-12 | Framework: SGLang 0.5.6.post2 + FlashInfer 0.5.3
 
@@ -860,7 +864,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > ⚠️ **A100 Note**: A100 lacks native FP8 Tensor Core, requires Marlin kernel fallback.
 
-#### SGLang Known Issues ⚠️
+##### SGLang Known Issues ⚠️
 
 | Issue | Cause | Solution |
 |---|---|---|
@@ -870,7 +874,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 5. SFT Full Fine-tuning Test
+### 5. SFT Full Fine-tuning Test
 
 | Parameter | Value |
 |---|---|
@@ -886,7 +890,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 6. FLUX Image Generation Test
+### 6. FLUX Image Generation Test
 
 | Parameter | Value |
 |---|---|
@@ -905,7 +909,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 7. Blender Rendering Test
+### 7. Blender Rendering Test
 
 | GPU | **Pure Render Time** | Relative Performance |
 |---|---|---|
@@ -916,9 +920,9 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 8. NVENC Video Encoding Test
+### 8. NVENC Video Encoding Test
 
-### Single Stream Test Results (H.264)
+#### Single Stream Test Results (H.264)
 
 | Preset | RTX 6000 | A10 | Winner |
 |---|---|---|---|
@@ -926,7 +930,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | **P4 (Balance)** | **129 fps** | 97 fps | **RTX 6000 +33%** ✅ |
 | **P7 (High quality)** | **87 fps** | 60 fps | **RTX 6000 +45%** ✅ |
 
-### Multi-Stream Parallel Test
+#### Multi-Stream Parallel Test
 
 | Parallel Streams | RTX 6000 | A10 | Ratio |
 |---|---|---|---|
@@ -939,11 +943,11 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-# Part V: Practical Guide
+## Part V: Practical Guide
 
-## Case Studies
+### Case Studies
 
-### Case 1: AI Video Generation Service (CogVideo / Open-Sora Style)
+#### Case 1: AI Video Generation Service (CogVideo / Open-Sora Style)
 
 **Requirement**: Build a text-to-video generation service, output MP4 files
 
@@ -956,7 +960,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | ✅ Strong | ✅ Has NVENC | **End-to-end solution** |
 | NV A10 | ⚠️ Limited VRAM | ✅ Has NVENC | May not fit large models |
 
-### Case 2: Cloud Gaming Platform
+#### Case 2: Cloud Gaming Platform
 
 **Pipeline**: `User Input → Game Rendering (RT Core + CUDA) → Frame Capture → Stream (NVENC)`
 
@@ -967,7 +971,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | ✅ 4th Gen | ✅ 2 encoders | **Excellent choice** |
 | NV A10 | ✅ 72 RT Cores | ✅ 1 encoder | **Good choice** |
 
-### Case 3: LLM Training (70B Parameters)
+#### Case 3: LLM Training (70B Parameters)
 
 **VRAM Requirements** (BF16): Model ~140GB + Optimizer ~280GB + Gradients ~140GB = Cannot fit in single GPU
 
@@ -978,7 +982,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | 96GB | ❌ None | Cannot efficiently do tensor parallel |
 | NV A10 | 24GB | ❌ None | **Not suitable** |
 
-### Case 4: Video Surveillance AI Analysis (100 Cameras)
+#### Case 4: Video Surveillance AI Analysis (100 Cameras)
 
 **Pipeline**: `Camera Input (H.264/265) → Decode (NVDEC) → AI Inference (Tensor Core) → Results (JSON)`
 
@@ -991,7 +995,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | 4 | Very strong (5th) | **Good choice** |
 | NV A10 | 2 | Moderate | Lower concurrency |
 
-### Case 5: AI Training Data Preprocessing (Batch JPEG Decoding)
+#### Case 5: AI Training Data Preprocessing (Batch JPEG Decoding)
 
 **Pipeline**: `JPEG Images (Storage) → Hardware Decode (NVJPG) → Raw Pixels (GPU Memory) → Data Augmentation (CUDA) → Training (Tensor Core)`
 
@@ -1033,9 +1037,9 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## Deployment Guide
+### Deployment Guide
 
-### Azure vGPU Driver Installation
+#### Azure vGPU Driver Installation
 
 **Critical**: Must use Azure-specific vGPU driver
 
@@ -1057,7 +1061,7 @@ sudo sh NVIDIA-Linux-x86_64-580.105.08-grid-azure.run --silent --dkms
 nvidia-smi
 ```
 
-### vGPU Monitoring Solution
+#### vGPU Monitoring Solution
 
 **Problem**: Standard `nvidia-smi` shows N/A for GPU utilization in vGPU environment
 
@@ -1079,7 +1083,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | 2 | SM Activity (smutil) | **SM Utilization** ✅ |
 | 3 | SM Occupancy (smocc) | **SM Occupancy** ✅ |
 
-### OS Compatibility Status
+#### OS Compatibility Status
 
 | OS | NCv6 Status | Notes |
 |---|---|---|
@@ -1089,9 +1093,9 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ---
 
-## Four GPU Comprehensive Comparison
+### Four GPU Comprehensive Comparison
 
-### 🏆 Scenario Recommendations
+#### 🏆 Scenario Recommendations
 
 | Use Case | Recommended GPU | Reason |
 |---|---|---|
@@ -1105,7 +1109,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | **Cloud Gaming/VDI** | 🥇 **RTX 6000** > 🥈 A10 | RT Core + NVENC, H100/A100 not supported |
 | **Live Streaming** | 🥇 **RTX 6000** > 🥈 A10 | NVENC Gen9 vs Gen7, H100/A100 no NVENC |
 
-### Quick Reference - By Scenario
+#### Quick Reference - By Scenario
 
 | Scenario | Recommended | Avoid |
 |---|---|---|
@@ -1119,7 +1123,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | DLSS Frame Generation | RTX PRO 6000 BSE | NC H100, NC A100, NV A10 |
 | VDI | NV A10, RTX PRO 6000 BSE | NC H100, NC A100 |
 
-### Quick Reference - By Hardware Requirement
+#### Quick Reference - By Hardware Requirement
 
 | Requirement | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|
@@ -1130,7 +1134,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | Large VRAM (>48GB) | ✅ 94GB | ✅ 80GB | ✅ 96GB | ❌ 24GB |
 | NVLink multi-GPU | ✅ | ✅ | ❌ | ❌ |
 
-### Summary: Three Principles
+#### Summary: Three Principles
 
 1. **Need video encoding output?** → Must have NVENC → **Exclude NC H100 / NC A100**
 2. **Need ray tracing?** → Must have RT Core → **Exclude NC H100 / NC A100**
@@ -1138,7 +1142,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ---
 
-## 📦 Repository Structure & Quick Start
+### 📦 Repository Structure & Quick Start
 
 ```
 NC-RTX-Pro-6000V6-BSE-Benchmark/
@@ -1166,7 +1170,7 @@ NC-RTX-Pro-6000V6-BSE-Benchmark/
     └── rtx6000_fp8_prequant.json
 ```
 
-### Quick Start
+#### Quick Start
 
 ```bash
 # Create conda environment
@@ -1177,7 +1181,7 @@ conda activate vllm012
 pip install -r requirements.txt
 ```
 
-### Run FP8 Benchmark
+#### Run FP8 Benchmark
 
 ```bash
 # Phase 1: BF16 Baseline
@@ -1190,7 +1194,7 @@ vllm serve neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic --port 8080 --max-model-
 python benchmark_fair.py --model "neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic" --output results/fp8_prequant_results.json
 ```
 
-### Run TP Benchmark
+#### Run TP Benchmark
 
 ```bash
 # TP=1 test (single GPU)
@@ -1200,7 +1204,7 @@ python benchmark_tp_comparison.py --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 --tp 
 python benchmark_tp_comparison.py --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 --tp 2 --port 8001
 ```
 
-### Test GPU P2P Bandwidth
+#### Test GPU P2P Bandwidth
 
 ```bash
 python gpu_p2p_bandwidth_test.py
@@ -1209,9 +1213,9 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## Test Environments
+### Test Environments
 
-### RTX 6000 Blackwell Test Environment (2026-01-04)
+#### RTX 6000 Blackwell Test Environment (2026-01-04)
 
 | Component | Specification |
 |---|---|
@@ -1225,7 +1229,7 @@ python gpu_p2p_bandwidth_test.py
 | Model (BF16) | Qwen/Qwen2.5-14B-Instruct |
 | Model (FP8 Pre-quant) | <your-model-path>/Qwen2.5-14B-Instruct-FP8 |
 
-### H100 Test Environment (2026-01-04)
+#### H100 Test Environment (2026-01-04)
 
 | Component | Specification |
 |---|---|
@@ -1238,7 +1242,7 @@ python gpu_p2p_bandwidth_test.py
 | Model (BF16) | Qwen/Qwen2.5-14B-Instruct |
 | Model (FP8 Pre-quant) | RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic |
 
-### A100 Test Environment (2026-01-03)
+#### A100 Test Environment (2026-01-03)
 
 | Component | Specification |
 |---|---|
@@ -1252,7 +1256,7 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## References
+### References
 
 - [Azure NCads_H100_v5 Series](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series)
 - [Azure NC_A100_v4 Series](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nca100v4-series)
@@ -1266,13 +1270,13 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## License
+### License
 
 MIT License - Feel free to use and share.
 
 ---
 
-## Document History
+### Document History
 
 | Date | Changes |
 |---|---|

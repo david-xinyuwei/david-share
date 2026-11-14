@@ -1,21 +1,13 @@
+# Image Super-Resolution with Real-ESRGAN
+
 > [!NOTE]
 > **Archived.** This project predates June 2026 and its models, APIs or tool versions may have changed since. It stays here so existing links keep working; check current documentation before reusing the steps.
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ```
 pip install git+https://github.com/sberbank-ai/Real-ESRGAN.git
 ```
-
-
-## Running on Azure
-
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
 ```

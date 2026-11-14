@@ -2,9 +2,9 @@
 
 ![Azure AI Foundry](https://img.shields.io/badge/Azure%20AI%20Foundry-Fireworks-0078D4) ![Model](https://img.shields.io/badge/Model-FW--GLM--5.1-2EA44F) ![Cache](https://img.shields.io/badge/Prompt%20Cache-Validated-6F42C1) ![Workload](https://img.shields.io/badge/Workload-AI%20Companion-6F42C1) ![Language](https://img.shields.io/badge/Docs-EN%20%7C%20CN-lightgrey)
 
-A field guide for Microsoft teammates and customers: **which prompt and request settings improve Fireworks prompt-cache hit rate, by how much, and what evidence supports the recommendation**.
+> Author: Wei Xinyu (Xinyu Wei), Microsoft AI Lead Senior System Engineer
 
-> Author: Wei Xinyu (Xinyu Wei), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
+A field guide for Microsoft teammates and customers: **which prompt and request settings improve Fireworks prompt-cache hit rate, by how much, and what evidence supports the recommendation**.
 
 [English](README.md) | [中文版](README-CN.md)
 

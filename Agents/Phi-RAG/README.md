@@ -3,7 +3,9 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-2 and Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Foundry-IQ](../Foundry-IQ/).
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
+**English** | [中文](README-CN.md)
 
 ## Overview
 
@@ -18,12 +20,10 @@ Implementation of Retrieval-Augmented Generation (RAG) using Microsoft Phi model
 
 ## Project Structure
 
-| File | Description |
-|------|-------------|
-| `v3-chromadb/db.py` | Db |
-| `v3-chromadb/keyword_generator.py` | Keyword Generator |
-| `v3-chromadb/llm.py` | Llm |
-| `v3-chromadb/main.py` | Main |
+- [`v3-chromadb/db.py`](v3-chromadb/db.py)
+- [`v3-chromadb/keyword_generator.py`](v3-chromadb/keyword_generator.py)
+- [`v3-chromadb/llm.py`](v3-chromadb/llm.py)
+- [`v3-chromadb/main.py`](v3-chromadb/main.py)
 
 ## License
 

@@ -1,21 +1,13 @@
+# 在本地运行 LLM 的 7 种方法
+
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 2, Phi-2 and Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [vLLM-Architecture-and-Inference-Engines](../vLLM-Architecture-and-Inference-Engines/).
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 我们如何在本地安全地运行私有的LLMs呢？开源模型为此提供了可能的解决方案。本文将介绍七种方法。
 
 1. **Hugging Face的transformers**
-
-
-## Running on Azure
-
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
 
 
    这是一个Python库，可以简化本地运行LLM的过程。

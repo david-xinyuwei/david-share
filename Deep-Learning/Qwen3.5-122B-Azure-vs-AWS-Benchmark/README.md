@@ -2,10 +2,11 @@
 
 # Qwen3.5-122B-A10B-FP8 Benchmark Reproduction Guide
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 ## Overview
-
-This repository contains implementation and documentation for Qwen3.5-122B-A10B-FP8 Benchmark Reproduction Guide.
 
 > Reproducible benchmark for Qwen3.5-122B-A10B-FP8 using SGLang. Used for Azure vs AWS comparison testing.
 

@@ -1,6 +1,10 @@
 # Azure OpenAI Priority Processing: Standard vs Priority PAYGO Benchmark
 
-**Author**: Xinyu Wei | **Date**: 2026-04-05 | **Model**: gpt-5.4 (2026-03-05) | **Region**: swedencentral
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+**Author**: Xinyu Wei — Microsoft AI Lead Senior System Engineer | **Date**: 2026-04-05 | **Model**: gpt-5.4 (2026-03-05) | **Region**: swedencentral
+
+**English** | [中文](README-CN.md)
 
 ## Executive Summary
 
@@ -164,7 +168,7 @@ We validated these recommendations with benchmark data and extended the analysis
 | **Content gen (long prompt)** | Our test | Long (1K+) | 500-2000 | +49~66% | -25~37% | P50 -6% | ✅✅✅ | Long system prompt + brand rules |
 | **Email/report generation** | Our test | Short (<500) | 200-1000 | +35~39% | -17~27% | P50 -6% | ✅✅ | Moderate stable benefit |
 | **Short Q&A** | Our test | Short | <30 | ≈0% | -4% | P50 -6% | ❌ | GenTime <100ms, benefit unmeasurable |
-| **Intent classification / routing** | Our test | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero benefit |
+| **Intent classification / routing** | Our test | Short | 5-20 | ≈0% | ≈0% | — | ❌ | Output too short, zero benefit |
 
 > **Key insight from our benchmark**: Priority's biggest advantage appears in **long input + long output** scenarios (Agent, RAG, Code). Under long-context prefill load, Standard TPS degrades while Priority TPS stays consistent — the percentage gap widens. Short-output tasks (<30 tokens) show no measurable benefit regardless of input length.
 

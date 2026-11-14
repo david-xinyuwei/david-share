@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (AutoGen). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Microsoft-Agent-Framework](../Microsoft-Agent-Framework/).
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 In recent years, the field of generative artificial intelligence has been experiencing a surge in "multi-agent" systems, including Microsoft's AutoGen and the latest Magentic-One, OpenAI's Swarm, LangChain's LangGraph, CrewAI, and others. This repository mainly introduces the architecture and implementation effects of Magentic-One.
 

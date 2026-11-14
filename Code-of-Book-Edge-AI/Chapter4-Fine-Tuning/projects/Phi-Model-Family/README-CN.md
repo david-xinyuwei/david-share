@@ -3,7 +3,7 @@
 # Phi Model Family
 
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 ## 在 Azure 上运行
 

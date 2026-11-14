@@ -1,6 +1,8 @@
 # Customer AI Training Proposal
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 This training equips participants with practical expertise in secure Azure AI deployments, model fine‑tuning workflows, and advanced large model optimization on Azure infrastructure. The curriculum focuses on:
 
@@ -10,7 +12,7 @@ This training equips participants with practical expertise in secure Azure AI de
 
 Knowledge points in this course：
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Training-Proposal/images/1.png)
+![images](images/1.png)
 
 
 ## Running on Azure

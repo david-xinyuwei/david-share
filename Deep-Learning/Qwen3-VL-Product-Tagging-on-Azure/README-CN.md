@@ -1,6 +1,6 @@
 # Azure 上的 Qwen3-VL 商品理解与结构化打标
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | 中文文档
 

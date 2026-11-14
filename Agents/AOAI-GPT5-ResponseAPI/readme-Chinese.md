@@ -4,6 +4,10 @@
 
 # 在 Azure OpenAI GPT‑5/Codex 中使用Responses API：推理链复用、加密、摘要与成本分析
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](readme.md) | **中文**
+
 > **快速导航**: [TL;DR](#tldr核心发现速览) | [背景与问题](#背景与问题) | [核心机制](#核心机制详解) | [实验数据](#实验场景设计与结果分析) | [操作手册](#判定清单操作手册) | [完整代码](#完整复现代码) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-性能对比) | [最佳实践](#总结与最佳实践)
 
 ## **TL;DR（核心发现速览）**

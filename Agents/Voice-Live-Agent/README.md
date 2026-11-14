@@ -1,5 +1,9 @@
 # Voice Live Agent
 
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 English | [中文](README-CN.md)
 
 A Chinese-language desktop voice agent built on the **Azure AI Foundry Voice Live API**. It runs on a Windows machine and handles real-time Q&A, live data lookup, camera-based object recognition, system control, news briefings, email delivery, and wallpaper changes — **every tool executes on the user's own PC**.

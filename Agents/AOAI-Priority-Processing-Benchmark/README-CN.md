@@ -1,6 +1,10 @@
 # Azure OpenAI Priority Processing：Standard vs Priority PAYGO 基准测试
 
-**作者**：魏新宇 (Xinyu Wei) | **日期**：2026-04-05 | **模型**：gpt-5.4 (2026-03-05) | **区域**：swedencentral
+[![Area: Agents](https://img.shields.io/badge/Area-Agents-0078D4)](../README.md) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+**作者**：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer | **日期**：2026-04-05 | **模型**：gpt-5.4 (2026-03-05) | **区域**：swedencentral
+
+[English](README.md) | **中文**
 
 ## 摘要
 

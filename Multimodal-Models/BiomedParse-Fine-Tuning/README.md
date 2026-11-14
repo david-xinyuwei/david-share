@@ -1,8 +1,13 @@
 # BiomedParse Fine-Tuning Guide
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom datasets.
 
-**Author**: Xinyu Wei (Microsoft AI and Apps GBB)  
+**Author**: Xinyu Wei (Microsoft AI Lead Senior System Engineer)  
+
+**English** | [中文](README-CN.md)
+
 **Model**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
 **Paper**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
 **Test Environment**: NVIDIA A10 24GB GPU

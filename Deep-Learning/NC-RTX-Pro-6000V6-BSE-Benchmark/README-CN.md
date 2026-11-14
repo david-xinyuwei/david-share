@@ -1,8 +1,12 @@
 # Azure GPU VM 选型指南与 Performance Benchmark（性能基准测试）
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > 全面的 GPU 硬件分析、VM 选型指南和跨 RTX PRO 6000 BSE (Blackwell)、H100 NVL (Hopper)、A100 PCIe (Ampere)、A10 (Ampere) 性能基准测试
 
-**作者**: 魏新宇 (Xinyu Wei) | Microsoft AI and Apps GBB 架构师
+**作者**: 魏新宇 (Xinyu Wei) | Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
 
 ---
 
@@ -58,11 +62,11 @@
 
 ---
 
-# 第一部分：GPU 硬件与选型
+## 第一部分：GPU 硬件与选型
 
-## 核心理念：GPU 不仅仅是"算力"
+### 核心理念：GPU 不仅仅是"算力"
 
-### 常见误区
+#### 常见误区
 
 | 误区 | 真相 |
 |---|---|
@@ -70,7 +74,7 @@
 | "显存大 = 万能" | 能加载 ≠ 能跑完整 pipeline（可能缺少编码器无法输出） |
 | "数据中心 GPU = 万能" | NC H100 无法做视频转码，NV A10 可以 |
 
-### 正确的思维模型
+#### 正确的思维模型
 
 **GPU = 多种专用硬件单元的组合**
 
@@ -92,9 +96,9 @@
 
 ---
 
-## 六大硬件单元详解
+### 六大硬件单元详解
 
-### 1. NVDEC - 视频解码器
+#### 1. NVDEC - 视频解码器
 
 | 属性 | 说明 |
 |---|---|
@@ -102,7 +106,7 @@
 | **类比** | 相当于解压 ZIP 文件 |
 | **应用** | 视频播放、视频 AI 分析的预处理 |
 
-### 2. NVENC - 视频编码器
+#### 2. NVENC - 视频编码器
 
 | 属性 | 说明 |
 |---|---|
@@ -111,7 +115,7 @@
 | **应用** | 直播推流、视频导出、云游戏 |
 | **⚠️ 关键** | **NC H100 / NC A100 没有 NVENC！** |
 
-### 3. NVJPG - JPEG 硬件引擎
+#### 3. NVJPG - JPEG 硬件引擎
 
 | 属性 | 说明 |
 |---|---|
@@ -121,7 +125,7 @@
 
 > ⚠️ **注意**: A10 不支持 JPEG 硬件加速，虽然它也是 Ampere 架构。nvJPEG 硬件加速仅支持 Ampere (A100, A30)、Hopper、Ada 和 Blackwell。
 
-### 4. Tensor Core
+#### 4. Tensor Core
 
 | 属性 | 说明 |
 |---|---|
@@ -129,7 +133,7 @@
 | **应用** | LLM、Stable Diffusion、视频生成 AI |
 | **代数** | 第3代 (Ampere) → 第4代 (Hopper) → 第5代 (Blackwell) |
 
-### 5. RT Core - 光线追踪核心
+#### 5. RT Core - 光线追踪核心
 
 | 属性 | 说明 |
 |---|---|
@@ -138,7 +142,7 @@
 | **⚠️ 关键** | **NC H100 / NC A100 没有 RT Core！** |
 | **说明** | NV A10 有 72 个 RT Core（第2代），RTX PRO 6000 BSE 有 188 个（第4代）|
 
-### 6. CUDA Core
+#### 6. CUDA Core
 
 | 属性 | 说明 |
 |---|---|
@@ -147,11 +151,11 @@
 
 ---
 
-## GPU 硬件配置对比
+### GPU 硬件配置对比
 
 > 注意：所有规格基于 Azure VM 系列产品。
 
-### 硬件单元配置矩阵
+#### 硬件单元配置矩阵
 
 | 硬件单元 | RTX 6000 Pro Blackwell | H100 NVL | A100 PCIe | A10 |
 |---|---|---|---|---|
@@ -164,7 +168,7 @@
 
 > 📝 **数据来源**: RTX PRO 6000 BSE NVENC/NVDEC/RT Core 代数来自 NVIDIA 官方规格。H100/A100 NVDEC 数量来自 Azure VM 规格。
 
-### 基础规格（Azure VM 系列）
+#### 基础规格（Azure VM 系列）
 
 | 规格 | NC H100 (NCads_H100_v5) | NC A100 (NC_A100_v4) | RTX PRO 6000 BSE (NCv6) | NV A10 (NVadsA10_v5) |
 |---|---|---|---|---|
@@ -174,7 +178,7 @@
 | **最大 vCPU** | 80 | 96 | 320 | 72 |
 | **最大内存** | 640 GiB | 880 GiB | 1280 GiB | 880 GiB |
 
-### 定位总结
+#### 定位总结
 
 | GPU | 定位 | 优势 | 局限 |
 |---|---|---|---|
@@ -185,9 +189,9 @@
 
 ---
 
-## 场景 × GPU 支持矩阵
+### 场景 × GPU 支持矩阵
 
-### 图例
+#### 图例
 
 | 符号 | 含义 |
 |---|---|
@@ -195,7 +199,7 @@
 | ❌ | 不支持 |
 | ⚠️ | 可用但有局限 |
 
-### AI 场景
+#### AI 场景
 
 | 场景 | 所需硬件 | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -207,7 +211,7 @@
 | AI 视频生成（仅生成）| Tensor Core + 大显存 | ✅ | ✅ | ✅ | ⚠️ |
 | AI 视频生成（含 MP4 输出）| Tensor Core + NVENC | ❌ | ❌ | ✅ | ✅ |
 
-### 视频/媒体场景
+#### 视频/媒体场景
 
 | 场景 | 所需硬件 | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -217,7 +221,7 @@
 | 视频会议编码 | NVENC | ❌ | ❌ | ✅ | ✅ |
 | 视频 AI 分析 | NVDEC + Tensor Core | ✅ | ✅ | ✅ | ✅ |
 
-### 游戏/渲染场景
+#### 游戏/渲染场景
 
 | 场景 | 所需硬件 | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -231,7 +235,7 @@
 
 > ⚠️ **DLSS 帧生成说明**: DLSS Frame Generation 仅支持 Ada Lovelace 及更新架构。A10 (Ampere) 不支持帧生成，仅支持 DLSS 超分辨率。RTX PRO 6000 BSE (Blackwell) 支持 DLSS 4 多帧生成。
 
-### 科学计算
+#### 科学计算
 
 | 场景 | 所需硬件 | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|---|
@@ -241,9 +245,9 @@
 
 ---
 
-## Azure GPU VM 系列
+### Azure GPU VM 系列
 
-### 可用 GPU VM 系列
+#### 可用 GPU VM 系列
 
 | VM 系列 | GPU | GPU 数量 | 每卡显存 | 使用场景 |
 |---|---|---|---|---|
@@ -252,7 +256,7 @@
 | **NC RTX PRO 6000 BSE v6** | RTX PRO 6000 Blackwell Server Edition | 1-2 | 96GB GDDR7 | 专业图形、AI、全 pipeline |
 | **NVadsA10_v5** | A10 | 1/6 - 2 | 24GB GDDR6 | 推理、图形、VDI |
 
-### 按场景选型
+#### 按场景选型
 
 | 场景 | 推荐 VM 系列 | 原因 |
 |---|---|---|
@@ -267,9 +271,9 @@
 
 ---
 
-## 选型决策树
+### 选型决策树
 
-### 三个关键问题
+#### 三个关键问题
 
 | # | 问题 | 如果"是" |
 |---|---|---|
@@ -277,7 +281,7 @@
 | 2 | **需要光线追踪？** | → 排除 NC H100 / NC A100 |
 | 3 | **模型能放进单卡显存？** | 不能 → 需要 NVLink 多卡 |
 
-### 决策流程图
+#### 决策流程图
 
 ```
                     ┌─────────────────────┐
@@ -307,11 +311,11 @@
 
 ---
 
-# 第二部分：科学计算与数值精度
+## 第二部分：科学计算与数值精度
 
-## 精度速查表（FP64/FP32/TF32/BF16/FP16/FP8/FP4）
+### 精度速查表（FP64/FP32/TF32/BF16/FP16/FP8/FP4）
 
-### CUDA Core vs Tensor Core 精度对比
+#### CUDA Core vs Tensor Core 精度对比
 
 | 精度 | 执行单元 | 主要用途 | RTX 6000 性能 |
 |---|---|---|---|
@@ -326,7 +330,7 @@
 > - FP64 和 FP32 是**物理上独立的 ALU 单元**（数据中心: FP64:FP32 = 1:2，RTX: 1:64）
 > - TF32/BF16/FP16/FP8/NVFP4 **共享同一个 Tensor Core 硬件**，只是不同精度配置
 
-### TF32 透明优化
+#### TF32 透明优化
 
 > **一句话**：TF32 不是数据类型，而是 Tensor Core 的"隐身加速模式"——你写 FP32，硬件暗中用 TF32 算，快 8-10 倍，精度损失 <0.1%。
 
@@ -346,7 +350,7 @@ torch.backends.cuda.matmul.allow_tf32  # 默认 True
 torch.backends.cudnn.allow_tf32        # 默认 True
 ```
 
-### GPU 性能速查表
+#### GPU 性能速查表
 
 | 场景 | 关键指标 | RTX 6000 | H100 NVL | 胜者 |
 |---|---|---|---|---|
@@ -363,7 +367,7 @@ torch.backends.cudnn.allow_tf32        # 默认 True
 
 ---
 
-## CUDA Core vs Tensor Core：谁在算什么
+### CUDA Core vs Tensor Core：谁在算什么
 
 ```mermaid
 sequenceDiagram
@@ -399,9 +403,9 @@ sequenceDiagram
 
 ---
 
-# 第三部分：FP8 性能验证
+## 第三部分：FP8 性能验证
 
-## FP8 技术架构
+### FP8 技术架构
 
 | GPU | 架构 | FP8 执行路径 | 关键特性 |
 |---|---|---|---|
@@ -427,7 +431,7 @@ sequenceDiagram
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 🔥 关键发现摘要
+#### 🔥 关键发现摘要
 
 | GPU | 架构 | FP8 Prefill vs BF16 | FP8 Decode vs BF16 | 建议 |
 |---|---|---|---|---|
@@ -442,9 +446,9 @@ sequenceDiagram
 
 ---
 
-## FP8 测试结果
+### FP8 测试结果
 
-### RTX 6000 Blackwell 双向对比 (2026-01-04)
+#### RTX 6000 Blackwell 双向对比 (2026-01-04)
 
 > **测试配置**: NVIDIA RTX PRO 6000 Blackwell (96GB vGPU)，vLLM 0.13.0rc2+cu130，CUDA 13.0
 >
@@ -463,7 +467,7 @@ sequenceDiagram
 | BF16 | 27.57 GiB | 全精度权重 |
 | FP8 预量化 | 15.39 GiB | **减少 44%** |
 
-### H100 三向对比 (2026-01-04)
+#### H100 三向对比 (2026-01-04)
 
 > **测试配置**: NVIDIA H100 NVL 96GB，vLLM 0.13.0，PyTorch 2.9.0+cu128
 
@@ -481,7 +485,7 @@ sequenceDiagram
 | FP8 运行时 | 15.36 GiB | 62.64 GiB |
 | FP8 预量化 | 15.39 GiB | 62.62 GiB |
 
-### A100 三向对比 (2026-01-03)
+#### A100 三向对比 (2026-01-03)
 
 > **测试配置**: NVIDIA A100 80GB PCIe，vLLM 0.11.2
 
@@ -492,7 +496,7 @@ sequenceDiagram
 | **解码 单请求** | 47 tok/s | 73 tok/s | 73 tok/s | **+55.3%** ✅ |
 | **解码 50并发** | 1,702 tok/s | 1,999 tok/s | 2,031 tok/s | **+17.4%** ✅ |
 
-### 跨 GPU 性能对比
+#### 跨 GPU 性能对比
 
 | 场景 | A100 BF16 | H100 BF16 | RTX 6000 BF16 | H100 vs A100 | RTX 6000 vs A100 |
 |---|---|---|---|---|---|
@@ -595,9 +599,9 @@ sequenceDiagram
 
 ---
 
-## FP8 技术分析
+### FP8 技术分析
 
-### 为什么不同 GPU 表现出不同的 FP8 行为？
+#### 为什么不同 GPU 表现出不同的 FP8 行为？
 
 | 因素 | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
 |---|---|---|---|
@@ -609,7 +613,7 @@ sequenceDiagram
 | 解码（访存密集）| FP8 快 26% | FP8 快 36% | FP8 快 17-56% |
 | 运行时 FP8 支持 | ❌ vLLM 暂不支持 | ✅ 支持 | ✅ 支持 |
 
-### Marlin 内核：为什么反量化开销很重要
+#### Marlin 内核：为什么反量化开销很重要
 
 > 📚 **参考文献**: Benjamin Marie,《The Kaitchup: LLMs on a Budget》（第 3.4.3 节）
 
@@ -649,7 +653,7 @@ flowchart TB
 
 > **关键区别**: 预填充阶段计算密集，反量化开销超过带宽节省；解码阶段访存密集，50% 的内存减少带来的带宽节省超过反量化成本。
 
-### 为什么运行时和预量化 FP8 速度相同？
+#### 为什么运行时和预量化 FP8 速度相同？
 
 ```
 运行时 FP8:
@@ -671,9 +675,9 @@ flowchart TB
 
 ---
 
-## FP8 使用建议
+### FP8 使用建议
 
-### 决策矩阵
+#### 决策矩阵
 
 | 工作负载类型 | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
 |---|---|---|---|
@@ -682,7 +686,7 @@ flowchart TB
 | **批量处理** | ✅ FP8 (+59%) | ✅ FP8 (+29%) | ⚠️ BF16（FP8 慢 26%）|
 | **显存受限** | ✅ FP8（少 44% 显存）| ✅ FP8（少 44% 显存）| ✅ FP8（少 50% 显存）|
 
-### GPU 选型指南
+#### GPU 选型指南
 
 ```mermaid
 quadrantChart
@@ -703,11 +707,11 @@ quadrantChart
 
 ---
 
-# 第四部分：NC RTX Pro 6000 V6 BSE 基准测试
+## 第四部分：NC RTX Pro 6000 V6 BSE 基准测试
 
 > 全面对比：NC RTX 6000 Pro Blackwell / NC H100 NVL / NC A100 PCIe / NV A10。为保证公平性，每项测试在所有四款 GPU 上使用相同的数据类型。
 
-## 1. 网络配置测试
+### 1. 网络配置测试
 
 | 项目 | Standard_NC256ds_xl_RTXPRO6000BSE_v6 |
 |---|---|
@@ -723,7 +727,7 @@ quadrantChart
 
 ---
 
-## 2. GPU P2P 互联测试
+### 2. GPU P2P 互联测试
 
 | 项目 | Standard_NC256ds_xl_RTXPRO6000BSE_v6 |
 |---|---|
@@ -733,7 +737,7 @@ quadrantChart
 | **GPU1 → GPU0 带宽** | **44.46 GB/s** |
 | **NCCL AllReduce** | **~43.5 GB/s** |
 
-### P2P 对比
+#### P2P 对比
 
 | GPU 配置 | P2P 带宽 | 说明 |
 |---|---|---|
@@ -743,7 +747,7 @@ quadrantChart
 
 ---
 
-## 3. FP32 算力测试
+### 3. FP32 算力测试
 
 | 指标 | RTX 6000 Pro Blackwell |
 |---|---|
@@ -755,9 +759,9 @@ quadrantChart
 
 ---
 
-## 4. LLM 推理测试
+### 4. LLM 推理测试
 
-### 测试配置
+#### 测试配置
 
 | 参数 | 值 |
 |---|---|
@@ -765,7 +769,7 @@ quadrantChart
 | **推理引擎** | vLLM |
 | **测试工具** | guidellm |
 
-### 测试结果
+#### 测试结果
 
 | GPU | 输出 Tokens/s | 相对性能 |
 |---|---|---|
@@ -774,12 +778,12 @@ quadrantChart
 | **A100 PCIe** | **2119.6** | **69%** |
 | **A10** | **563.1** | **18%** |
 
-### 4.1 NVFP4 量化 - Blackwell 独占功能
+#### 4.1 NVFP4 量化 - Blackwell 独占功能
 
 > **Blackwell 独占**: NVFP4（4位浮点）需要 SM100/SM120 原生 FP4 Tensor Core
 > - **内存节省**: 模型大小比 FP8 小约 35%（14B 模型: 9.9GB vs 15.3GB）
 
-#### 测试结果
+##### 测试结果
 
 | 精度 | 模型 | 输入 Tokens | 输出 Tokens | 时间 | 输出 TPS |
 |---|---|---:|---:|---:|---:|
@@ -801,7 +805,7 @@ FP8 (W8A8)      █████████████████████�
 | **可用 KV Cache** | 65.5 GiB | 60.1 GiB | +9% |
 | **推理时间** | **9.22s** | 12.75s | **-28%** |
 
-#### NVFP4 已知问题 ⚠️
+##### NVFP4 已知问题 ⚠️
 
 | 问题 | 原因 | 解决方案 |
 |---|---|---|
@@ -820,11 +824,11 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > 💡 **建议**: 在 RTX PRO 6000 Blackwell 上，优先使用 NVFP4 量化模型，比 FP8 **额外提升 38%** 性能。
 
-### 4.2 Tensor Parallelism（张量并行）(TP=1 vs TP=2) 基准测试
+#### 4.2 Tensor Parallelism（张量并行）(TP=1 vs TP=2) 基准测试
 
 > ⚠️ **RTX PRO 6000 双卡**: 测试 TP=2 何时比 TP=1 有优势
 
-#### 小模型结果 (Qwen3-14B-FP8)
+##### 小模型结果 (Qwen3-14B-FP8)
 
 | 配置 | Output Throughput（输出吞吐量） | TTFT | TPOT |
 |---|---:|---:|---:|
@@ -834,7 +838,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > ⚠️ **14B 模型太小，TP=2 无收益** — GPU 间通信开销超过了并行计算的收益。
 
-#### 大模型结果 (Qwen2.5-VL-72B-FP8)
+##### 大模型结果 (Qwen2.5-VL-72B-FP8)
 
 | 配置 | Output Throughput（输出吞吐量） | TTFT | TPOT |
 |---|---:|---:|---:|
@@ -842,7 +846,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
 | **差异** | **+27.0%** | 慢 6.3% | **快 24.2%** |
 
-#### TP 建议
+##### TP 建议
 
 | 模型大小 | 推荐配置 | 原因 |
 |---|---|---|
@@ -852,7 +856,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > 💡 **经验法则**: 仅当单卡无法舒适容纳模型，或模型够大（>70B）能从并行计算中受益时才使用 TP=2。
 
-### 4.3 SGLang BF16/FP8 三卡对比 (200 并发)
+#### 4.3 SGLang BF16/FP8 三卡对比 (200 并发)
 
 > 测试日期: 2025-12 | 框架: SGLang 0.5.6.post2 + FlashInfer 0.5.3
 
@@ -864,7 +868,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > ⚠️ **A100 说明**: A100 缺少原生 FP8 Tensor Core，需要 Marlin 内核回退。
 
-#### SGLang 已知问题 ⚠️
+##### SGLang 已知问题 ⚠️
 
 | 问题 | 原因 | 解决方案 |
 |---|---|---|
@@ -874,7 +878,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 5. SFT 全量微调测试
+### 5. SFT 全量微调测试
 
 | 参数 | 值 |
 |---|---|
@@ -890,7 +894,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 6. FLUX 图像生成测试
+### 6. FLUX 图像生成测试
 
 | 参数 | 值 |
 |---|---|
@@ -909,7 +913,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 7. Blender 渲染测试
+### 7. Blender 渲染测试
 
 | GPU | **纯渲染时间** | 相对性能 |
 |---|---|---|
@@ -920,9 +924,9 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 8. NVENC 视频编码测试
+### 8. NVENC 视频编码测试
 
-### 单流测试结果 (H.264)
+#### 单流测试结果 (H.264)
 
 | 预设 | RTX 6000 | A10 | 胜者 |
 |---|---|---|---|
@@ -930,7 +934,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | **P4（平衡）** | **129 fps** | 97 fps | **RTX 6000 +33%** ✅ |
 | **P7（高质量）** | **87 fps** | 60 fps | **RTX 6000 +45%** ✅ |
 
-### 多流并行测试
+#### 多流并行测试
 
 | 并行流数 | RTX 6000 | A10 | 倍率 |
 |---|---|---|---|
@@ -943,11 +947,11 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-# 第五部分：实用指南
+## 第五部分：实用指南
 
-## 实际场景选型案例
+### 实际场景选型案例
 
-### 案例一：AI 视频生成服务（CogVideo / Open-Sora 风格）
+#### 案例一：AI 视频生成服务（CogVideo / Open-Sora 风格）
 
 **需求**: 搭建文生视频服务，输出 MP4 文件
 
@@ -960,7 +964,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | ✅ 强 | ✅ 有 NVENC | **端到端解决方案** |
 | NV A10 | ⚠️ 显存有限 | ✅ 有 NVENC | 可能无法加载大模型 |
 
-### 案例二：云游戏平台
+#### 案例二：云游戏平台
 
 **流水线**: `用户输入 → 游戏渲染 (RT Core + CUDA) → 帧捕获 → 推流 (NVENC)`
 
@@ -971,7 +975,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | ✅ 第4代 | ✅ 2 个编码器 | **绝佳选择** |
 | NV A10 | ✅ 72 RT Cores | ✅ 1 个编码器 | **不错选择** |
 
-### 案例三：LLM 训练（70B 参数）
+#### 案例三：LLM 训练（70B 参数）
 
 **显存需求**（BF16）: 模型约 140GB + 优化器约 280GB + 梯度约 140GB = 单卡放不下
 
@@ -982,7 +986,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | 96GB | ❌ 无 | 无法高效做 Tensor Parallelism |
 | NV A10 | 24GB | ❌ 无 | **不适合** |
 
-### 案例四：视频监控 AI 分析（100 路摄像头）
+#### 案例四：视频监控 AI 分析（100 路摄像头）
 
 **流水线**: `摄像头输入 (H.264/265) → 解码 (NVDEC) → AI 推理 (Tensor Core) → 结果 (JSON)`
 
@@ -995,7 +999,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 | RTX PRO 6000 BSE | 4 | 非常强（第5代）| **好选择** |
 | NV A10 | 2 | 中等 | 并发数较低 |
 
-### 案例五：AI 训练数据预处理（批量 JPEG 解码）
+#### 案例五：AI 训练数据预处理（批量 JPEG 解码）
 
 **流水线**: `JPEG 图片 (存储) → 硬件解码 (NVJPG) → 原始像素 (GPU 显存) → 数据增强 (CUDA) → 训练 (Tensor Core)`
 
@@ -1037,9 +1041,9 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ---
 
-## 部署指南
+### 部署指南
 
-### Azure vGPU 驱动安装
+#### Azure vGPU 驱动安装
 
 **关键**: 必须使用 Azure 专用 vGPU 驱动
 
@@ -1061,7 +1065,7 @@ sudo sh NVIDIA-Linux-x86_64-580.105.08-grid-azure.run --silent --dkms
 nvidia-smi
 ```
 
-### vGPU 监控方案
+#### vGPU 监控方案
 
 **问题**: 标准 `nvidia-smi` 在 vGPU 环境中 GPU 利用率显示 N/A
 
@@ -1083,7 +1087,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | 2 | SM Activity (smutil) | **SM 利用率** ✅ |
 | 3 | SM Occupancy (smocc) | **SM 占用率** ✅ |
 
-### 操作系统兼容性
+#### 操作系统兼容性
 
 | 操作系统 | NCv6 状态 | 说明 |
 |---|---|---|
@@ -1093,9 +1097,9 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ---
 
-## 四款 GPU 综合对比
+### 四款 GPU 综合对比
 
-### 🏆 场景推荐
+#### 🏆 场景推荐
 
 | 使用场景 | 推荐 GPU | 原因 |
 |---|---|---|
@@ -1109,7 +1113,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | **云游戏/VDI** | 🥇 **RTX 6000** > 🥈 A10 | RT Core + NVENC，H100/A100 不支持 |
 | **直播推流** | 🥇 **RTX 6000** > 🥈 A10 | NVENC 第9代 vs 第7代，H100/A100 无 NVENC |
 
-### 速查 - 按场景
+#### 速查 - 按场景
 
 | 场景 | 推荐 | 避免 |
 |---|---|---|
@@ -1123,7 +1127,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | DLSS 帧生成 | RTX PRO 6000 BSE | NC H100、NC A100、NV A10 |
 | VDI | NV A10、RTX PRO 6000 BSE | NC H100、NC A100 |
 
-### 速查 - 按硬件需求
+#### 速查 - 按硬件需求
 
 | 需求 | NC H100 | NC A100 | RTX PRO 6000 BSE | NV A10 |
 |---|---|---|---|---|
@@ -1134,7 +1138,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 | 大显存（>48GB）| ✅ 94GB | ✅ 80GB | ✅ 96GB | ❌ 24GB |
 | NVLink 多卡 | ✅ | ✅ | ❌ | ❌ |
 
-### 总结：三个原则
+#### 总结：三个原则
 
 1. **需要视频编码输出？** → 必须有 NVENC → **排除 NC H100 / NC A100**
 2. **需要光线追踪？** → 必须有 RT Core → **排除 NC H100 / NC A100**
@@ -1142,7 +1146,7 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ---
 
-## 📦 仓库结构与快速开始
+### 📦 仓库结构与快速开始
 
 ```
 NC-RTX-Pro-6000V6-BSE-Benchmark/
@@ -1170,7 +1174,7 @@ NC-RTX-Pro-6000V6-BSE-Benchmark/
     └── rtx6000_fp8_prequant.json
 ```
 
-### 快速开始
+#### 快速开始
 
 ```bash
 # 创建 conda 环境
@@ -1181,7 +1185,7 @@ conda activate vllm012
 pip install -r requirements.txt
 ```
 
-### 运行 FP8 基准测试
+#### 运行 FP8 基准测试
 
 ```bash
 # 阶段 1: BF16 基准
@@ -1194,7 +1198,7 @@ vllm serve neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic --port 8080 --max-model-
 python benchmark_fair.py --model "neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic" --output results/fp8_prequant_results.json
 ```
 
-### 运行 TP 基准测试
+#### 运行 TP 基准测试
 
 ```bash
 # TP=1 测试（单卡）
@@ -1204,7 +1208,7 @@ python benchmark_tp_comparison.py --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 --tp 
 python benchmark_tp_comparison.py --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 --tp 2 --port 8001
 ```
 
-### 测试 GPU P2P 带宽
+#### 测试 GPU P2P 带宽
 
 ```bash
 python gpu_p2p_bandwidth_test.py
@@ -1213,9 +1217,9 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## 测试环境
+### 测试环境
 
-### RTX 6000 Blackwell 测试环境 (2026-01-04)
+#### RTX 6000 Blackwell 测试环境 (2026-01-04)
 
 | 组件 | 规格 |
 |---|---|
@@ -1229,7 +1233,7 @@ python gpu_p2p_bandwidth_test.py
 | 模型 (BF16) | Qwen/Qwen2.5-14B-Instruct |
 | 模型 (FP8 预量化) | <your-model-path>/Qwen2.5-14B-Instruct-FP8 |
 
-### H100 测试环境 (2026-01-04)
+#### H100 测试环境 (2026-01-04)
 
 | 组件 | 规格 |
 |---|---|
@@ -1242,7 +1246,7 @@ python gpu_p2p_bandwidth_test.py
 | 模型 (BF16) | Qwen/Qwen2.5-14B-Instruct |
 | 模型 (FP8 预量化) | RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic |
 
-### A100 测试环境 (2026-01-03)
+#### A100 测试环境 (2026-01-03)
 
 | 组件 | 规格 |
 |---|---|
@@ -1256,7 +1260,7 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## 参考资料
+### 参考资料
 
 - [Azure NCads_H100_v5 系列](https://learn.microsoft.com/zh-cn/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series)
 - [Azure NC_A100_v4 系列](https://learn.microsoft.com/zh-cn/azure/virtual-machines/sizes/gpu-accelerated/nca100v4-series)
@@ -1270,13 +1274,13 @@ python gpu_p2p_bandwidth_test.py
 
 ---
 
-## 许可证
+### 许可证
 
 MIT License - 自由使用和分享。
 
 ---
 
-## 文档历史
+### 文档历史
 
 | 日期 | 变更 |
 |---|---|

@@ -1,6 +1,8 @@
 # Pre-Training Methods Explained
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 This article provides a comprehensive guide to pre-training methods for large language models (LLMs), covering the fundamental concepts of pre-training vs fine-tuning, continuous pre-training (CPT), instruction pre-training with synthetic data, code demonstrations, and distributed training tools.
 
@@ -18,7 +20,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, Unsloth, Axolotl, Diffusers |
 
 
-## 目录
+## Table of Contents
 
 - [Part I: Pre-Training, Continuous Pre-Training, and Fine-Tuning — Core Concepts](#part-i-pre-training-continuous-pre-training-and-fine-tuning--core-concepts)
 - [Part II: Pre-Training Code Demonstration (GPT-2)](#part-ii-pre-training-code-demonstration-gpt-2)
@@ -37,7 +39,7 @@ The goals of pre-training, the datasets used, and the number of GPUs required ar
 
 The parameters mentioned above include: weights, biases, Word Embeddings, Positional Encoding, attention mechanism parameters, etc.
 
-### 训练
+### Pre-Training
 
 **Pre-Training** aims to learn the fundamental structure and semantic features of a language using large-scale unsupervised datasets (such as text corpora). Pre-training typically involves the following steps:
 
@@ -45,7 +47,7 @@ The parameters mentioned above include: weights, biases, Word Embeddings, Positi
 2. **Large-Scale Dataset**: Training is conducted using a vast amount of unsupervised data.
 3. **Learning General Features**: The model learns the general features of the language by optimizing a loss function (e.g., the cross-entropy loss of a language model).
 
-#### 训练
+#### Key Points of Pre-Training
 
 - **Random Initialization**: All model parameters (weights, biases, etc.) are random at the beginning of pre-training.
 - **Large-Scale Data**: Training is done using a large-scale unsupervised dataset.
@@ -61,7 +63,7 @@ Technically, the weights of a continuously pre-trained model are no longer rando
 
 For example, if we want to turn a base LLM into a Japanese legal assistant, continuously pre-training on millions of tokens from Japanese legal documents would make the LLM perform better in both the legal domain and the Japanese language. After CPT, we can fine-tune the model with a Japanese legal instruction dataset to create a chatbot specialized for that domain. This fine-tuning dataset would be relatively small. If we fine-tuned the base LLM directly on this small dataset without CPT, the model might struggle to generate Japanese text and understand legal terminology.
 
-### 微调
+### Fine-Tuning
 
 **Fine-Tuning** aims to optimize the model's performance on a specific task using a task-specific dataset. Fine-tuning typically involves the following steps:
 
@@ -69,7 +71,7 @@ For example, if we want to turn a base LLM into a Japanese legal assistant, cont
 2. **Task-Specific Data**: Training is conducted using a dataset specific to the task.
 3. **Optimizing Task Performance**: The model adjusts its parameters by optimizing a loss function to improve performance on the specific task.
 
-#### 微调
+#### Key Points of Fine-Tuning
 
 - **Loading Pre-Trained Weights**: The model's parameters are loaded from the pre-trained model, retaining the general features learned during pre-training.
 - **Task-Specific Data**: Training is done using a dataset specific to the task.
@@ -77,7 +79,7 @@ For example, if we want to turn a base LLM into a Japanese legal assistant, cont
 
 Fine-tuning does not necessarily involve labeled data, but in practice today it is basically performed with labeled datasets. For example, for a binary classification task, we need labeled sequences paired with labels (0 or 1). For instruction tuning, we need prompt-answer pairs so the model learns to generate correct answers given prompts.
 
-### 微调
+### The Boundaries Between CPT and Fine-Tuning
 
 The boundary between continuous pre-training and fine-tuning can be subtle:
 
@@ -90,7 +92,7 @@ The boundary between continuous pre-training and fine-tuning can be subtle:
 
 From a technical standpoint, continuous pre-training is actually a form of fine-tuning — the goal is to make the model better adapt to a specific domain. The key distinction lies in the nature of the datasets used and the training objective.
 
-### 总结
+### Summary
 
 1. **Training Efficiency**: Pre-training usually requires substantial computational resources and time because it involves training all model parameters on a large-scale dataset. Fine-tuning is relatively efficient as it builds on the pre-trained model and only requires further optimization on task-specific data.
 2. **Model Performance**: The pre-trained model has already learned general language features, allowing fine-tuning to converge faster and perform better on specific tasks. Training a task-specific model from random initialization typically requires more data and time, and its performance may not match that of the pre-training + fine-tuning approach.
@@ -170,7 +172,7 @@ Training result is as following:
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nW6dQWwELzZygpch9cW1IXx7daWmg4C8ziaIX8CCwt8rddGcLQKXYSODtEaPaDIsNTsy3h3mEuSIEg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
-### 推理
+### Inference Validation
 
 The trained model can be used for inference validation:
 
@@ -405,7 +407,7 @@ Rank-Stabilized LoRA（rsLoRA）是一种改进的LoRA方法，它通过简单�
 
 ## Part IV: Instruction Pre-Training — Synthetic Data Approach
 
-### 训练
+### Concept of Instruction Pre-Training
 
 [Instruction Pre-Training](https://huggingface.co/instruction-pretrain/instruction-synthesizer) is a new pre-training method proposed by Microsoft, which details how to generate and use synthetic instruction-response pairs to pre-train large language models (LLMs).
 
@@ -419,7 +421,7 @@ Given raw text, the instruction synthesizer generates paired instructions and re
 
 Microsoft extracted 200M segments (200B tokens) of text samples from the RefinedWeb dataset. The instruction synthesizer generated instruction-response pairs from these samples, which were then re-input into the synthesizer to generate more examples. Ultimately, 200M instruction-response pairs were generated and mixed with the original samples for pre-training.
 
-### 结果
+### Experimental Results
 
 Microsoft conducted pre-training experiments on LLMs of different sizes. The results showed that models using instruction pre-training performed better on public benchmarks than those pre-trained only on raw text. They also conducted continued pre-training experiments, showing that the advantages of instruction pre-training vary by task.
 
@@ -569,11 +571,11 @@ A: They will be seen as incompetent.
 
 ---
 
-## 对比
+## Part V: Fine-Tuning Methods Comparison
 
 When we fine-tune a model, it usually refers to Supervised Fine Tuning (SFT). SFT can be divided into Parameter-Efficient Fine-Tuning (PEFT) and Full Fine Tuning. In PEFT implementations, methods like LoRA, QLoRA, and GA-LoRA are quite popular.
 
-### 微调
+### Loading Models for Full Fine-Tuning
 
 We use the `AutoModelForCausalLM.from_pretrained` class, which retrieves the parameters of the pre-trained model:
 
@@ -640,11 +642,11 @@ For detailed information on continuous pre-training with LoRA, refer to [Part II
 
 ---
 
-## 训练
+## Part VI: Distributed Implementation of Training
 
 There is no doubt that pre-training large language models requires multi-node and multi-GPU setups. This necessitates distributed training. Currently, the underlying distributed pre-training can be implemented by calling NCCL. Higher-level tools such as Megatron, DeepSpeed, and HF's accelerate library (which currently supports FSDP) can be used. These tools effectively implement DP/PP/TP.
 
-### 对比
+### Tool Comparison
 
 | Tool Name              | Features                                                     | Use Cases                                                    | Advantages                                                   | Disadvantages                                                | Distinctions                                                 | Underlying Implementation of Distributed Training and Fine-Tuning | Ability to Perform Inference                                 |
 | ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |

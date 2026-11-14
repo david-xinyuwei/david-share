@@ -1,9 +1,13 @@
 # Azure CycleCloud 深度解析 — 架构、Slurm 集成与 AI 训练适用性分析
 
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
 > **客户**: Insilico Medicine（英矽智能，AI 药物发现）
 > **场景**: 9× ND H200 v5 (72 GPU), DeepSpeed 分布式训练
 > **最后更新**: 2026-03-11
-> **作者**: 魏新宇 (Senior System Engineer, Microsoft)
+> **作者**: 魏新宇 (Microsoft AI Lead Senior System Engineer)
+
+[English](README.md) | **中文**
 
 ---
 

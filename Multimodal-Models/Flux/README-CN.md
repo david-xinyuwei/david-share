@@ -1,6 +1,8 @@
 # Flux.1 Solution Test
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: 中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 FLUX.1 是由 Black Forest Labs 开发的开源图像生成模型。它提供多个版本以满足不同用户需求，包括 [pro]、[dev] 和 [schnell]。本文使用 FLUX.1 的 dev 版本进行了验证。FLUX.1 支持最高可达 2K 分辨率（2048 x 2048 像素）。
 
@@ -18,7 +20,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## FLUX.1 模型技术架构与处理流程
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/7.png)
+![images](images/7.png)
 
 FLUX.1 模型是一种基于 Transformer 的文本-图像多模态生成模型，整体生成流程包括：
 
@@ -168,21 +170,21 @@ python main.py --listen 0.0.0.0 --port 8188
 
 *image = generate_image("A Handsome chinese man with glasses is holding a book named LLM , the cover of the book is a Astronauts skiing on the moon， the book cover is blue stars in the background. ")*
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/8.png)
+![images](images/8.png)
 
 image = generate_image("The most beautiful October in Beijing")
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/9.png)
+![images](images/9.png)
 
 GPU consumed during image generation:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/10.png)
+![images](images/10.png)
 
 ### Demo2: Do Image Inpaint 
 
 **Using  models/flux1-fill-dev.safetensors**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
+![images](images/3.png)
 
 Detailed test process:
 
@@ -193,7 +195,7 @@ Detailed test process:
 
 Image before backfill:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.png)
+![images](images/1.png)
 
 Prompt:
 
@@ -203,11 +205,11 @@ Please backfill the missing parts of the picture, only the natural landscape
 
 Image after backfill:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/2.png)
+![images](images/2.png)
 
 GPU usage during before action:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/4.png)
+![images](images/4.png)
 
 ### **Demo3: Flux Kontext Dev(Grouped)**
 
@@ -220,7 +222,7 @@ GPU usage during before action:
 
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/L7aDBOdz4_U)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.jpg)
+![images](images/1.jpg)
 
 
 
@@ -233,4 +235,4 @@ GPU usage during before action:
 
 The test result is as following:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/11.png)
+![images](images/11.png)

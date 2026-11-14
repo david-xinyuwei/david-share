@@ -1,6 +1,8 @@
 # Azure AMD MI300X Guide
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Article](https://img.shields.io/badge/Type-Article-6E7781) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 This guide provides comprehensive guidance and resources for deploying, benchmarking, and fine-tuning cutting-edge open-source foundation models on Azure ND MI300X (Standard_ND96isr_MI300X_v5) GPU Virtual Machines powered by AMD Instinct MI300X accelerators.
 
@@ -674,7 +676,7 @@ evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model dee
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in [**results1.txt**](PoC-Handbook-for-Azure-AMD-MI300X/results1.txt).
+The raw test output (`results1.txt`) is not included in this repository.
 
 ---
 
@@ -1290,7 +1292,7 @@ evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen
 evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in [**results2.txt**](PoC-Handbook-for-Azure-AMD-MI300X/results2.txt).
+The raw test output (`results2.txt`) is not included in this repository.
 
 ---
 

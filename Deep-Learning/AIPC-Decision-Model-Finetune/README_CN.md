@@ -1,5 +1,7 @@
 # 端侧决策模型：微调与推理优化
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
 <!-- REPORT:SOURCES
 {
     "first_summary": "验证结果/微调评测_20261027-220226/summary/summary.json",
@@ -17,8 +19,6 @@
 [![Device](https://img.shields.io/badge/device-Snapdragon%20X%20Elite%20%C2%B7%20llama.cpp%20b11935-0078D4)](文档/评测与端侧结果全集.md#5-笔记本端推理引擎)
 [![Measured](https://img.shields.io/badge/measured-2026--10--27%20to%2011--03%20%C2%B7%20simulated%20vendor%20data-0078D4)](#实现效果)
 [![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
-
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 [成果一览](#成果一览) · [架构](#架构) · [实现效果](#实现效果) · [操作步骤](#操作步骤)
 

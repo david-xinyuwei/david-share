@@ -1,6 +1,6 @@
 # StackChan Azure 语音助手
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB Senior System Engineer
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 中文版 | [English](README.md)
 

@@ -5,9 +5,11 @@
 [![Evidence](https://img.shields.io/badge/claims-source--graded-16a34a)](#evidence-grading)
 [![Offline](https://img.shields.io/badge/offline-single--file%20HTML-f59e0b)](./azure-voice-live-components.html)
 
-Every component you can plug into **Azure Voice Live**, mapped across the three layers of a voice agent — **listen (STT) → think (LLM/SLM) → speak (TTS)**. Each row pairs a readable display name with the **exact API enum value** you must write in JSON.
+> Author: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-> Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
+**English** | [中文](README-CN.md)
+
+Every component you can plug into **Azure Voice Live**, mapped across the three layers of a voice agent — **listen (STT) → think (LLM/SLM) → speak (TTS)**. Each row pairs a readable display name with the **exact API enum value** you must write in JSON.
 
 [中文版](./README-CN.md) &nbsp;|&nbsp; [Offline HTML](./azure-voice-live-components.html) (dark mode + print styles)
 

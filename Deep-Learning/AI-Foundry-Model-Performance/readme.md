@@ -1,12 +1,12 @@
 # AML and AI Foundry Model Catalog Models Performance Evaluation
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Azure](https://img.shields.io/badge/Azure-AI%20Foundry-0078D4.svg)](https://azure.microsoft.com/en-us/products/ai-services)
 [![Azure Developer CLI](https://img.shields.io/badge/azd-supported-blue.svg)](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
 [![Infrastructure as Code](https://img.shields.io/badge/IaC-Bicep-blue.svg)](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](../../LICENSE)
 
 > 🚀 **Comprehensive performance evaluation toolkit for Azure Machine Learning and AI Foundry Model Catalog**  
 > 💡 **One-click deployment with Azure Developer CLI (azd) support**
@@ -345,7 +345,7 @@ Tokenizer loaded successfully: microsoft/phi-4
 | ------------------------ | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- |
 | **Text Generation**      | 12.473                 | 19.546                 | 19.497                 | 68.07                  | 44.66                  | 44.78                  |
 | **Question Answering**   | 11.914                 | 15.552                 | 15.943                 | 72.10                  | 44.56                  | 46.04                  |
-| **Translation**          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |
+| **Translation**          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |
 | **Text Summarization**   | 2.811                  | 4.630                  | 3.369                  | 50.16                  | 37.36                  | 33.84                  |
 | **Code Generation**      | 20.441                 | 27.685                 | 26.504                 | 83.12                  | 51.58                  | 52.26                  |
 | **Chatbot**              | 5.035                  | 9.349                  | 8.366                  | 64.55                  | 43.96                  | 41.24                  |

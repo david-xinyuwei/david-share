@@ -5,9 +5,9 @@
 [![Official Code](https://img.shields.io/badge/Official%20Code-BRK232-green)](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry)
 [![Post-Training](https://img.shields.io/badge/Post--Training-SFT%20%7C%20RFT%20%7C%20Low--Level%20API-orange)](#三层训练体系)
 
-Microsoft Build 2026 发布的 Agent Post-Training 全链路技术拆解——覆盖 distillation、SFT、RFT 和全新的 Foundry Low-Level Training API。基于 BRK231 + BRK232 两个 session。**结果：Qwen3-32B 达到 86.9% retail_quality（~$0.50/M tokens）——超越 GPT-5.4（65%，$15/M）。**
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB
+Microsoft Build 2026 发布的 Agent Post-Training 全链路技术拆解——覆盖 distillation、SFT、RFT 和全新的 Foundry Low-Level Training API。基于 BRK231 + BRK232 两个 session。**结果：Qwen3-32B 达到 86.9% retail_quality（~$0.50/M tokens）——超越 GPT-5.4（65%，$15/M）。**
 
 [English](README.md) | 中文版 | [微软官方 BRK232 代码 Repo](https://github.com/microsoft/Build26-BRK232-train-and-deploy-custom-oss-reasoning-models-with-foundry)
 
@@ -826,7 +826,7 @@ python src/post-training-experimentation/grader_demo.py
   → 下一轮训练数据集（循环回来）
 ```
 
-> 来源：基于 BRK231、BRK232、DEM320、BRK230、BRK234、BRK241、BRK252 的 slides、逐字稿和 demo repo 的跨 session 分析。完整分析：[Build-2026-Keynote-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive/../../../Build-2026-Keynote-Deep-Dive)。
+> 来源：基于 BRK231、BRK232、DEM320、BRK230、BRK234、BRK241、BRK252 的 slides、逐字稿和 demo repo 的跨 session 分析。完整分析：Build-2026-Keynote-Deep-Dive（未在本仓库公开）。
 
 ---
 

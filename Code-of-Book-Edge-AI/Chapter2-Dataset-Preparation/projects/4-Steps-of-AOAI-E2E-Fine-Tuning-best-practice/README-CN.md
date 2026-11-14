@@ -2,7 +2,7 @@
 
 # 4 Steps of AOAI E2E Fine-Tuning best practice
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 In this repository, I will start by introducing the process of synthesizing training data from Personas and then proceed step by step to fine-tune GPT-3.5 or other open-source models. This article will also discuss how to improve the fine-tuning results by adjusting the fine-tuning parameters.
 

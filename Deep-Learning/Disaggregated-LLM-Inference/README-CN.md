@@ -1,6 +1,8 @@
 # LLM 推理分离架构：六层技术栈、生态全景与功能验证
 
-> **作者**：魏新宇 (Xinyu Wei)  
+[![Area: Deep Learning](https://img.shields.io/badge/Area-Deep%20Learning-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English · 中文](https://img.shields.io/badge/Language-English%20%C2%B7%20%E4%B8%AD%E6%96%87-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **作者**：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer  
 > **日期**：2026-04-20（功能验证）| 2026-05-03（架构分析）  
 > **硬件**：Azure NC80adis_H100_v5（2× NVIDIA H100 NVL 95830 MiB，NV12 NVLink）  
 > **技术栈**：SGLang 0.5.10.post1 + NVIDIA Dynamo 1.0.1 + NIXL 1.0.1 + NATS v2.11.3 + etcd v3.5.21

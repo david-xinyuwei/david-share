@@ -4,6 +4,10 @@
 [![SAM 2.1](https://img.shields.io/badge/SAM-2.1-orange.svg)](https://github.com/facebookresearch/sam2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
+[English](README.md) | **中文**
+
 跨风格工程图纸实体检测 using **SAM 2.1 + 自动调优连通域白区分支**。已在多种公开建筑平面图风格上完成验证。
 
 ![Detection Results](images/v13_4in1_comparison.png)

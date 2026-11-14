@@ -2,7 +2,7 @@
 
 # Using LLMs as Judges: Evaluating Large Language Models with Large Language Models
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 *An effective evaluation method providing rapid feedback and monitoring*
 

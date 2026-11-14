@@ -14,7 +14,7 @@
 
 ## 🌟 Overview
 
-This repository collects the hands-on work of **Xinyu Wei (魏新宇)** in two connected areas:
+This repository collects the hands-on work of **Xinyu Wei (魏新宇)**, Microsoft AI Lead Senior System Engineer, in two connected areas:
 
 - **AI agents**: building, hosting and operating agents on Microsoft Foundry and Azure, the model APIs and gateways they call, voice agents, retrieval and MCP.
 - **Deep learning**: fine-tuning and reinforcement learning, inference optimization, precision and quantization, GPU selection on NVIDIA and AMD hardware, multimodal models, and one-topic algorithm explainers.
