@@ -1244,5 +1244,73 @@
    "render_s_sum": 120.4,
    "unmatched_meshes": 0
   }
+ },
+ "deployment": {
+  "source": "evidence/deploy-20261114/up.json, verify.json, down.json",
+  "run": "deploy-20261114",
+  "region": "eastus2",
+  "vm_size": "Standard_D4as_v6",
+  "gpt6_sku": "DataZoneStandard",
+  "repo_ref": "master",
+  "installed_commit": "d32e1e6ea9193dff81180a8105e5081b4d8da4da",
+  "reference_solids": {
+   "zh": 15,
+   "en": 15
+  },
+  "built_without_edge_break": [
+   "nb_thermal"
+  ],
+  "up": {
+   "minutes": 14.0,
+   "steps": [
+    {
+     "name": "1/5 preflight: Azure CLI, sign-in, model quota",
+     "seconds": 163.9,
+     "minutes": 2.7
+    },
+    {
+     "name": "2/5 resource group rg-thermal-studio",
+     "seconds": 11.3,
+     "minutes": 0.2
+    },
+    {
+     "name": "3/5 Azure resources (infra/main.bicep): AI resource and models, identity and role, network, VM",
+     "seconds": 47.2,
+     "minutes": 0.8
+    },
+    {
+     "name": "4/5 install on the VM through Run Command (infra/vm-install.sh): the longest step, silent until it ends",
+     "seconds": 618.2,
+     "minutes": 10.3
+    },
+    {
+     "name": "5/5 HTTPS check from this machine: https://thermal-<hash>.eastus2.cloudapp.azure.com/healthz",
+     "seconds": 0.8,
+     "minutes": 0.0
+    }
+   ],
+   "install_on_vm_s": 604,
+   "install_on_vm_minutes": 10.1
+  },
+  "verify": {
+   "minutes": 2.1,
+   "checks": 10,
+   "passed": 10,
+   "gpt6_round_trip_s": 2.1,
+   "live_step": {
+    "attempts": 1,
+    "latency_s": 91.5,
+    "occt_s": 6.7,
+    "solids": 4,
+    "faces": 315,
+    "mass_kg": 1.58,
+    "step_bytes": 1106781,
+    "reasoning_effort": null,
+    "reasoning_tokens": 1472
+   }
+  },
+  "down": {
+   "minutes": 4.4
+  }
  }
 }

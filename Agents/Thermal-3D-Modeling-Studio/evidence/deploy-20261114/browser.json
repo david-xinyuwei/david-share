@@ -1,0 +1,137 @@
+{
+  "check": "README step 4 in headless Microsoft Edge (Playwright), run by the author between verify.ps1 and down.ps1; the script is not part of this repository",
+  "url": "https://thermal-<hash>.eastus2.cloudapp.azure.com",
+  "installedCommit": "d32e1e6ea9193dff81180a8105e5081b4d8da4da",
+  "browser": "Microsoft Edge 157.0.4341.57, headless",
+  "gpu": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-85 GPU (0x36334330) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "started": "2026-11-14T07:24:55+00:00",
+  "finished": "2026-11-14T07:27:16+00:00",
+  "seconds": 140.7,
+  "status": "PASS",
+  "passed": 5,
+  "total": 5,
+  "checks": [
+    {
+      "name": "served_bytes",
+      "result": "PASS",
+      "seconds": 5.9,
+      "details": {
+        "files": 13,
+        "fromGit": 10,
+        "sha256": {
+          "static/index.html": {
+            "sha256": "45499239e82c1be139787a235838280f67aa423ab0c89ce541b85a96f90c5d4d",
+            "comparedWith": "git"
+          },
+          "static/app.js": {
+            "sha256": "e3a3057068ca0c9a9fae813d391132b2cdd428c086a105772ec54d074cdeba83",
+            "comparedWith": "git"
+          },
+          "static/styles.css": {
+            "sha256": "3a888578e940adf1d2144ba1870a8c06eeeea4c8cabfe8d876f367524154c1f1",
+            "comparedWith": "git"
+          },
+          "static/viewer-bridge.js": {
+            "sha256": "0e661fba0bf4402ba30b8c5d4b896dcb6efd60f5adbef00345b139a59c473e9d",
+            "comparedWith": "git"
+          },
+          "static/viewer-workspace.mjs": {
+            "sha256": "f05bcfcdeac39bed3f5f577bc494132844e2a3beca03bd773d6f09ee785cc981",
+            "comparedWith": "git"
+          },
+          "static/viewer-workspace.css": {
+            "sha256": "332616451d4b06cc00428c69c6e37909b7c80b7d1e914a2b44321d4255589e2c",
+            "comparedWith": "git"
+          },
+          "static/icons/lucide.min.js": {
+            "sha256": "3411692820cb8d47543f69496aa25fd603a358f4498046f41c508a5a3342210e",
+            "comparedWith": "git"
+          },
+          "static/studio-kit.js": {
+            "sha256": "37362dd86293cadf249a805a4b82b948bde015592909964a77c8014424ecac1b",
+            "comparedWith": "git"
+          },
+          "static/studio-env.mjs": {
+            "sha256": "23b52e30f1d85e7945cc13c0bf644ee7253968bcf35af83ee885bbd8f3612870",
+            "comparedWith": "git"
+          },
+          "static/brep-viewer.html": {
+            "sha256": "a6dcaf88bff4fa78111f8fa384762f5f39dda00a5256e485f1913ae554099dfd",
+            "comparedWith": "git"
+          },
+          "static/vendor/three/jsm/geometries/RoundedBoxGeometry.js": {
+            "sha256": "d20aeaf7077c459a8d952d215738d7b44fba028440bb862d84b622a34f0c80bb",
+            "comparedWith": "pinned local copy"
+          },
+          "static/vendor/three/jsm/loaders/GLTFLoader.js": {
+            "sha256": "d073b438e6a07e1359741dd5d6c76c953420cc0d4fd84eb1bdde94315540e6a3",
+            "comparedWith": "pinned local copy"
+          },
+          "static/vendor/three/jsm/postprocessing/GTAOPass.js": {
+            "sha256": "5140b7cc63800381ced45bef3a7a55c471f4be3cd9eb70b947e7ebfbe92658c2",
+            "comparedWith": "pinned local copy"
+          }
+        }
+      }
+    },
+    {
+      "name": "sign_in_page",
+      "result": "PASS",
+      "seconds": 3.8,
+      "details": {
+        "status": 200,
+        "wrongPasswordMessage": "unauthorized",
+        "tls": {
+          "protocol": "TLS 1.3",
+          "issuer": "YE1",
+          "validTo": 1802412946
+        }
+      }
+    },
+    {
+      "name": "example_en",
+      "result": "PASS",
+      "seconds": 41.9,
+      "details": {
+        "badge": "Pre-generated B-rep solid (matches STEP)",
+        "source": "Current model: saved example (no GPT-6 call this time)",
+        "cadBadge": "STEP solid · pre-generated example",
+        "step": "/api/cad/file/cache-coldplate/model.step?lang=en",
+        "errors": [],
+        "parts": 4,
+        "stepBytes": 2013215
+      }
+    },
+    {
+      "name": "nb_thermal_en",
+      "result": "PASS",
+      "seconds": 45.7,
+      "details": {
+        "badge": "Pre-generated B-rep solid (matches STEP)",
+        "source": "Current model: saved example (no GPT-6 call this time)",
+        "cadBadge": "STEP solid · pre-generated example",
+        "step": "/api/cad/file/cache-nb_thermal/model.step?lang=en",
+        "errors": [],
+        "parts": 14,
+        "stepBytes": 8352258
+      }
+    },
+    {
+      "name": "example_zh",
+      "result": "PASS",
+      "seconds": 41.6,
+      "details": {
+        "badge": "预生成 B-rep 实体（与 STEP 一致）",
+        "source": "当前模型：预生成示例（本次未调用 GPT-6）",
+        "cadBadge": "STEP 实体 · 预生成示例",
+        "step": "/api/cad/file/cache-coldplate/model.step",
+        "errors": [],
+        "parts": 4,
+        "stepBytes": 2013341
+      }
+    }
+  ],
+  "modelCalls": [],
+  "pageErrors": [],
+  "dialogs": []
+}

@@ -8,6 +8,7 @@ Inputs, all committed:
   Track A  studio/cache/<scenario>.json and <scenario>.en.json: 30 GPT-6 responses saved by pregen.py
   Track B  evidence/<run>/cad/<scenario>.meta.json: what `python pregen_cad.py` wrote for each reference script
   Track C  evidence/<run>/engineering/<scenario>_check.json: what `python pregen_engineering.py --out` measured
+  Deploy   evidence/deploy-<date>/up.json, verify.json, down.json: receipts of infra/up.ps1, verify.ps1 -Full, down.ps1
 """
 from __future__ import annotations
 
@@ -136,12 +137,48 @@ def track_c(scenarios: list[dict], run: Path) -> dict:
                         "unmatched_meshes": sum(r["unmatched_meshes"] for r in rows)}}
 
 
+def deployment() -> dict:
+    """The latest recorded deployment: infra/up.ps1 into a new resource group, verify.ps1 -Full, down.ps1."""
+    runs = sorted(p for p in EVIDENCE.glob("deploy-*") if p.is_dir())
+    if not runs:
+        raise SystemExit("no evidence/deploy-*/ directory")
+    d = runs[-1]
+    load = lambda name: json.loads((d / name).read_text(encoding="utf-8"))
+    up, verify, down = load("up.json"), load("verify.json"), load("down.json")
+    for name, r in (("up.json", up), ("verify.json", verify), ("down.json", down)):
+        items = r.get("steps") or r.get("checks") or []
+        if r.get("status") != "PASS" or not items or any(i.get("status") != "PASS" for i in items):
+            raise SystemExit(f"{d.relative_to(ROOT).as_posix()}/{name} is not a complete PASS")
+    minutes = lambda s: round(s / 60, 1)
+    number = lambda v: float(v) if isinstance(v, str) and v.replace(".", "", 1).isdigit() else v   # the studio sends mass as text
+    checks = {c["name"]: c for c in verify["checks"]}
+    live = next((c["detail"] for n, c in checks.items() if n.startswith("Generate STEP live")), None)
+    gpt6 = next((c["detail"] for n, c in checks.items() if n.startswith("GPT-6 round trip")), None)
+    return {
+        "source": f"{d.relative_to(ROOT).as_posix()}/up.json, verify.json, down.json", "run": d.name,
+        "region": up["location"], "vm_size": up["vmSize"], "gpt6_sku": up["gpt6Sku"], "repo_ref": up["repoRef"],
+        "installed_commit": up["installedCommit"], "reference_solids": up["referenceSolids"],
+        "built_without_edge_break": up["noEdgeBreak"],
+        "up": {"minutes": up["minutes"], "steps": [{"name": s["name"], "seconds": s["seconds"], "minutes": minutes(s["seconds"])}
+                                                  for s in up["steps"]],
+               "install_on_vm_s": up["installSeconds"], "install_on_vm_minutes": minutes(up["installSeconds"])},
+        "verify": {"minutes": verify["minutes"], "checks": len(verify["checks"]),
+                   "passed": sum(1 for c in verify["checks"] if c["status"] == "PASS"),
+                   "gpt6_round_trip_s": gpt6 and gpt6.get("latency_s"),
+                   "live_step": live and {k: number(live.get(k)) for k in ("attempts", "latency_s", "occt_s", "solids", "faces",
+                                                                           "mass_kg", "step_bytes", "reasoning_effort",
+                                                                           "reasoning_tokens")}},
+        "down": {"minutes": down["minutes"]},
+    }
+
+
 def build() -> dict:
     scenarios = load_scenarios()
     run = latest_run()
     machine = json.loads((run / "machine.json").read_text(encoding="utf-8"))
     return {"generated_by": "tools/build_results.py", "run": run.name, "machine": machine,
-            "track_a": track_a(scenarios), "track_b": track_b(scenarios, run), "track_c": track_c(scenarios, run)}
+            "track_a": track_a(scenarios), "track_b": track_b(scenarios, run), "track_c": track_c(scenarios, run),
+            "deployment": deployment()}
 
 
 def compare_local() -> int:
@@ -179,7 +216,8 @@ def main() -> int:
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(fresh, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
     print(f"track_a {fresh['track_a']['summary']['all']['runs']} runs, track_b {fresh['track_b']['summary']['scenarios']} solids, "
-          f"track_c {fresh['track_c']['summary']['scenarios']} renders -> {OUT.relative_to(ROOT).as_posix()}")
+          f"track_c {fresh['track_c']['summary']['scenarios']} renders, deployment {fresh['deployment']['run']} "
+          f"-> {OUT.relative_to(ROOT).as_posix()}")
     return 0
 
 

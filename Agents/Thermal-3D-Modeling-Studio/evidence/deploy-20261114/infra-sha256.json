@@ -1,0 +1,25 @@
+{
+  "what": "SHA-256 of the infra/ files this run executed; the VM installed studio/ from repoUrl at installedCommit",
+  "files": {
+    "infra/down.ps1": {
+      "bytes": 4785,
+      "sha256": "ac628da853a5cf9280b3b6ac7815ff1f87168c6987761e71b54902c785f918c7"
+    },
+    "infra/main.bicep": {
+      "bytes": 8714,
+      "sha256": "798128012f1d870a6bbabee376225c7961fe7b529e5cac1422ba732ba8da4c00"
+    },
+    "infra/up.ps1": {
+      "bytes": 20089,
+      "sha256": "ec6bdbcb45dc815b6bed4efe91b1046005755242d318a952add0f263a4551da5"
+    },
+    "infra/verify.ps1": {
+      "bytes": 9831,
+      "sha256": "d9f3e0233f91f9f895bd9d3e4e1e7a77ab13ab904716953c4a40fc68bc46c4e1"
+    },
+    "infra/vm-install.sh": {
+      "bytes": 9250,
+      "sha256": "b2478ca00a26a144e500fe0d0b86c76e1aaaccd2062a0a45227eb3090bf30722"
+    }
+  }
+}

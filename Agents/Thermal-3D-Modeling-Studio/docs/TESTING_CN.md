@@ -2,7 +2,7 @@
 
 [English](TESTING.md) · [README](../README_CN.md) · [逐场景结果](RESULTS_CN.md)
 
-测试分六层，从最便宜到最贵。前四层不需要 Azure 账号；浏览器检查和工程渲染图需要 Microsoft Edge；只有在线检查会调用模型、消耗 token。
+测试分七层，从最便宜到最贵。前四层不需要 Azure 账号；浏览器检查和工程渲染图需要 Microsoft Edge；只有部署和在线检查会创建 Azure 资源或调用模型，要花钱。
 
 ## 每一层测什么
 
@@ -14,7 +14,8 @@
 | 仓库检查 | 在仓库根目录执行 `python -m unittest discover -s tests -v` | 只要 Python | 中英文 README 和文档的结构、链接与锚点、图片与 `images/SOURCES.json` 一致、每个结果数字都能在 `data/results.json` 里找到、架构图和测试拓扑图与各自的 HTML 源文件一致、没有私有主机名、路径或密钥 | 文字写得对不对，仍要有人读 |
 | 浏览器检查，23 步 | 工坊运行在 `127.0.0.1:8015` 时执行 `python tests/check_workspace_browser.py --headless --output <dir>`（见下） | Edge；`requirements-dev.txt` | 服务端返回的文件与源码一致；打开场景时带出预生成的 STEP 实体；环境光遮蔽确实压暗零件；着色、剖切、隔离和两种导出可用；英文界面；390 px 窄屏；按当前提示词写的场景能通过同一个 bridge 渲染；没有任何请求到达模型接口 | GPU 渲染（这里用软件 WebGL）；实时模型结果 |
 | 工程渲染图，15 张 | `python pregen_engineering.py <ids> --out <dir> --no-install` | Edge；`requirements-dev.txt`；`pregen_cad.py` 建好的实体 | 每个 STEP 网格都能渲染、没有对不上材质的部件，并计算同一相机下画面与 STEP 轮廓的重合度（IoU） | gpt-image 效果图（那需要 Azure） |
-| 在线检查，手动 | 界面上的 **实时调用 GPT-6**、**生成 STEP**、**生成渲染图**、**生成方案书** | Azure 上的模型部署（README 第 5 步） | 真实模型路径端到端走通 | 没有自动化；每点一次都消耗 token |
+| 端到端部署 | 在仓库根目录执行 `./infra/up.ps1`、`./infra/verify.ps1 -Full`、`./infra/down.ps1`（README 第 2、3、5 步） | 有配额的 Azure 订阅（见 README [操作步骤](../README_CN.md#操作步骤)）、Azure CLI、PowerShell 7.3 | 按 `infra/main.bicep` 在新资源组里创建全部资源；虚拟机从仓库安装工坊，用 Let's Encrypt 证书提供 HTTPS；再通过这个地址检查：健康检查、HTTP 跳转、错误密码被拒绝、登录、15 个场景、每个场景中英文两套预生成实体、用虚拟机托管身份调用一次 GPT-6、实时 **生成 STEP** 并下载 STEP 文件、生成一张 gpt-image 概念图；删除后既没有资源组，也没有软删除状态的 AI 资源 | 虚拟机上的浏览器界面（同样的页面由浏览器检查在本机覆盖）、实时生成 three.js 网页、**生成渲染图** 和方案书；费用 |
+| 在线检查，手动 | 界面上的 **实时调用 GPT-6**、**生成渲染图**、**生成方案书** | 一套部署（README 第 2 步） | 真实模型路径端到端走通 | 没有自动化；每点一次都消耗 token。**生成 STEP** 和概念图由 `verify.ps1 -Full` 覆盖 |
 
 ### 浏览器检查
 
@@ -48,7 +49,7 @@ python pregen_engineering.py aidc aps cdu coldplate drawing2d exv fourway mchx m
 
 ## 运行记录
 
-[`evidence/run-20261113/`](../evidence/run-20261113/) 记录了一次完整重跑：README 第 1–4 步，加上浏览器检查、截图和工程渲染图，在测试笔记本上的一个新建虚拟环境里执行。机器：Windows 11 Enterprise（Arm，版本 10.0.26300），Snapdragon X X1E80100 12 核，内存 63.5 GB，x64 Python 3.11.9 仿真运行，Node.js v24.18.0，Microsoft Edge 157.0.4341.57（[`machine.json`](../evidence/run-20261113/machine.json)、[`capture.json`](../evidence/run-20261113/browser/capture.json)、[`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)）。第一次 Node 测试及之前的步骤在 2026-11-13 17:11（UTC+8）开始执行；下文的修复、各项重跑、浏览器检查、截图和渲染图在 2026-11-14 执行。全程没有调用模型。耗时包括 pip 下载和 x64 仿真的开销。
+[`evidence/run-20261113/`](../evidence/run-20261113/) 记录了一次本机路径的完整重跑（README 第 6 步的安装和构建、README 附录里的测试），加上浏览器检查、截图和工程渲染图，在测试笔记本上的一个新建虚拟环境里执行。机器：Windows 11 Enterprise（Arm，版本 10.0.26300），Snapdragon X X1E80100 12 核，内存 63.5 GB，x64 Python 3.11.9 仿真运行，Node.js v24.18.0，Microsoft Edge 157.0.4341.57（[`machine.json`](../evidence/run-20261113/machine.json)、[`capture.json`](../evidence/run-20261113/browser/capture.json)、[`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)）。第一次 Node 测试及之前的步骤在 2026-11-13 17:11（UTC+8）开始执行；下文的修复、各项重跑、浏览器检查、截图和渲染图在 2026-11-14 执行。全程没有调用模型。耗时包括 pip 下载和 x64 仿真的开销。
 
 | 步骤 | 命令（除注明外在 `studio/` 里执行） | 结果 | 耗时（s） |
 |---|---|---|---|
@@ -79,4 +80,32 @@ python pregen_engineering.py aidc aps cdu coldplate drawing2d exv fourway mchx m
 
 **环境。** `deploy/constraints.txt` 只锁定工坊直接导入的 10 个包；其余的包在 2026-11-13 从 PyPI 解析，例如 python-dateutil 4.0.0、multidict 7.2.1、trame 4.0.0。[`pip-freeze.txt`](../evidence/run-20261113/pip-freeze.txt) 列出了这次运行的全部版本；要把所有包都锁定，可以改为从这个文件安装（`pip install -r ../evidence/run-20261113/pip-freeze.txt`，没有在别的机器上试过）。`studio/app.py` 导入了 aiohttp，而 `requirements.txt` 没有列出它：它随 CadQuery 一起装进来（cadquery → trame → wslink → aiohttp）。
 
-**没有重跑的：** README 第 5–8 步（Azure 部署、实时调用、虚拟机）和在线检查。30 份已记录的 GPT-6 回答和各场景的 gpt-image 效果图，是更早用工坊自己的部署生成的（2026-09-09 至 2026-09-12，以及 2026-11-10）。
+**这次运行不包括的：** Azure 部署（下面单独记录）和在线检查。30 份已记录的 GPT-6 回答和各场景的 gpt-image 效果图，是更早用工坊自己的部署生成的（2026-09-09 至 2026-09-12，以及 2026-11-10）。
+
+## 部署记录
+
+[`evidence/deploy-20261114/`](../evidence/deploy-20261114/) 记录了 README 第 2、3、5 步在 2026-11-14 的一次完整运行：`up.ps1`、`verify.ps1 -Full` 和 `down.ps1 -Yes`，在测试笔记本（Windows 11 Arm 版，Azure CLI 2.92.0，PowerShell 7.7.0）上执行，部署到 East US 2 的一个新资源组；事先只做了 `az login`。`up.json`、`verify.json`、`down.json` 记录每一步、每一项检查的状态和耗时；`up-output.txt`、`verify-output.txt`、`down-output.txt` 是各脚本的输出，去掉了显示订阅的那一行；`infra-sha256.json` 是这次运行用的五个 `infra/` 文件的 SHA-256，也就是本版本里的这些文件。所有文件里，部署名称中唯一的那段后缀都换成了 `<hash>`。
+
+| 步骤 | 命令 | 结果 | 耗时（min） |
+|---|---|---|---|
+| 预检 | `up.ps1` 第 1/5 步 | East US 2 提供这两个模型；gpt-6-astra 用 Data Zone Standard，因为订阅的 Global Standard 配额已经用完；虚拟机规格 `Standard_D4as_v6`，即列表里该区域对订阅开放的第一个 | 2.7 |
+| 资源组 | `up.ps1` 第 2/5 步 | 已创建 | 0.2 |
+| Azure 资源 | `up.ps1` 第 3/5 步：`infra/main.bicep` | AI 资源及两个模型部署、身份与角色、网络、虚拟机 | 0.8 |
+| 虚拟机上安装 | `up.ps1` 第 4/5 步：通过 Run Command 执行 `infra/vm-install.sh` | `studio/` 取自 `master` 的 `d32e1e6e`；中文部件名和英文部件名的参考实体各 15 个，其中笔记本双风扇散热模组没有锐边倒钝（见下文）；虚拟机上通过 HTTPS 访问 `/healthz`：200 | 10.3 |
+| HTTPS 检查 | `up.ps1` 第 5/5 步 | 笔记本访问 `/healthz`：`{"ok":true,"deployment":"gpt-6-astra",...}` | < 0.1 |
+| 通过公网地址检查 | `verify.ps1 -Full` | 10 项全部通过 | 2.1 |
+| 删除 | `down.ps1 -Yes` | 资源组已删除，AI 资源已清除，没有残留 | 4.4 |
+
+**`verify.ps1 -Full` 里的实时生成 STEP。** 向 `/api/cad` 发了一个请求：带 6 道 S 形流道的铝制电池水冷板，要求推理强度 `none`。结果：用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB。部署没有接受 `none`：工坊回复里的推理强度为空（[`verify.json`](../evidence/deploy-20261114/verify.json) 里的 `"reasoning_effort": null`），而 `studio/app.py` 只有在部署拒绝这个参数、工坊去掉它重发请求之后才会留空。所以 GPT-6 是按部署的默认推理强度运行的，推理用了 1,472 个 token。这只是一个请求，用来确认这条路径走得通，不是典型耗时的测量。
+
+**部署上的浏览器检查。** 在 `verify.ps1` 和 `down.ps1` 之间，作者用一个 Playwright 脚本（不在本仓库里）驱动无头 Microsoft Edge，在部署好的地址上走了一遍 README 第 4 步的开头。这个地址提供的前端与所装提交的文件逐字节一致，打开的是页面自带的登录表单，没有浏览器的身份验证弹窗；错误密码在页面上被拒绝；中英文界面的冷板和笔记本双风扇散热模组都以预生成示例打开，徽标、来源栏和部件与第 4 步的描述一致，下载链接背后是 STEP 文件。页面没有向模型接口发出请求，也没有报错。每项检查记录在 [`browser.json`](../evidence/deploy-20261114/browser.json)。
+
+**这次之前失败过什么，改了什么。** 同一天更早的时候，`up.ps1` 在另一个资源组里运行了五次。前四次因为几处缺陷中途停下，每次都先修好再跑下一次；这些缺陷，旧 README 的手敲步骤是暴露不出来的。本次运行用的脚本已经包含修复：
+
+- `up.ps1` 在预检阶段停下。资源组还不存在时，`az cognitiveservices account list -g` 什么也不返回，在 `Set-StrictMode` 下，管道里的这个空结果会报错。现在筛选时跳过空结果。
+- 部署模板被拒绝，报 `SkuNotAvailable`。East US 2 对测试订阅不开放任何 `Standard_D4*_v5` 或 `_v4` 规格，只开放 `_v6` 规格，而 `_v6` 只支持 NVMe 磁盘控制器。现在 `up.ps1` 从候选列表里选第一个开放的规格，并相应设置磁盘控制器。
+- 虚拟机上，第 1/7 步一直等到超时，因为它把常驻的 unattended-upgrades 守护进程当成了正在运行的软件包任务；第 3/7 步报 `Permission denied`：`bootstrap_vm.sh` 以用户 `studio` 的身份读取 `requirements.txt` 和 `constraints.txt`，而它们所在的临时目录只有 root 能读。现在 `vm-install.sh` 只等真正在运行的 apt 任务，并把这个目录设为可读。
+- 第四次运行停在第 6/7 步：15 个实体建成了 14 个，笔记本双风扇散热模组在 131 s 后崩溃，退出码 -11。在同一台虚拟机上重建，又在同一位置崩溃了两次，是 OpenCascade 7.9.3 的 `libTKBRep` 段错误；关掉锐边倒钝后 7.2 s 建成。笔记本上的离线运行没有遇到这个崩溃：它用的是同一版本 OpenCascade 的 Windows 构建。现在 `vm-install.sh` 会把这一步失败的实体再建一次，不做锐边倒钝，并以 `no_edge_break` 报告。
+- 第五次运行仍在同一个资源组里：`up.ps1` 保留了已有资源、虚拟机规格和密码，并完成了安装，这正是 README 第 2 步说的更新路径；之后 `verify.ps1 -Full` 和 `down.ps1 -Yes` 也都通过了。
+
+**没有覆盖的：** 浏览器里第 4 步的其余部分：**实时调用 GPT-6**（实时生成 three.js 网页）、在页面上点击**生成 STEP**（`verify.ps1 -Full` 通过 API 发过同类请求）、**生成渲染图**和方案书；用 macOS 或 Linux 运行 `up.ps1`；以及这次运行的费用。

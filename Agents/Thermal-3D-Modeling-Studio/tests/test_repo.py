@@ -15,20 +15,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAIRS = [("README.md", "README_CN.md"), ("docs/RESULTS.md", "docs/RESULTS_CN.md"), ("docs/TESTING.md", "docs/TESTING_CN.md")]
-SECTIONS = {"README.md": ["Purpose", "Results", "Steps"], "README_CN.md": ["目的", "实现效果", "操作步骤"]}
-RESULT_HEADINGS = {"README.md": "Results", "README_CN.md": "实现效果"}
+# Deployment first (SOP-68 section 2a): the reader deploys before reading results; the author's validation is the appendix.
+SECTIONS = {"README.md": ["Purpose", "Steps", "Results", "Appendix"], "README_CN.md": ["目的", "操作步骤", "实现效果", "附录"]}
+RESULT_HEADINGS = {"README.md": ("Results", "Appendix"), "README_CN.md": ("实现效果", "附录")}
 FENCE = re.compile(r"^\s*(```|~~~)")
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)\)|<img[^>]*\ssrc=\"([^\"]+)\"|<a[^>]*\shref=\"([^\"]+)\"")
 NUMBER = re.compile(r"(?<![\w.#/-])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?![\w])")
 SKIP_SPANS = re.compile(r"`[^`]*`|\]\([^)]*\)|<[^>]+>|https?://\S+|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}:\d{2}(?::\d{2})?\b|"
                         r"\b\d+(?:\.\d+){2,}\b|\br\d+\b|\d+(?:\s?[×x]\s?\d+)+")
 PRIVATE = [
-    # The README videos are GitHub attachments whose public URL ends in a GUID; any other GUID still fails.
+    # The README videos are GitHub attachments whose public URL ends in a GUID, and infra/main.bicep names a built-in
+    # role by its fixed definition id (see BUILT_IN_ROLE); any other GUID still fails.
     (re.compile(r"(?<!github\.com/user-attachments/assets/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I),
      "GUID (subscription, tenant or client id)"),
     (re.compile(r"[A-Za-z]:\\Users\\", re.I), "local Windows user path"),
     (re.compile(r"\b[\w.-]+@(microsoft|outlook|hotmail|gmail)\.com\b", re.I), "e-mail address"),
-    (re.compile(r"\b[a-z0-9-]+\.[a-z]+\.cloudapp\.azure\.com\b", re.I), "public VM host name"),
+    (re.compile(r"\b[a-z0-9-]+\.[a-z0-9]+\.cloudapp\.azure\.com\b", re.I), "public VM host name"),   # region names carry digits: eastus2
     # Placeholder resource names used by studio/tests (acme, host-res, ...) are allowed by name; any other host fails.
     (re.compile(r"https://(?!<|example\.invalid|(?:acme|acme-res|host-res|host-resource|test-resource|stale|a|mai)\.)"
                 r"[a-z0-9-]+\.(openai\.azure\.com|services\.ai\.azure\.com|cognitiveservices\.azure\.com)", re.I),
@@ -36,7 +38,9 @@ PRIVATE = [
     (re.compile(r"(api[_-]?key|password|secret)\s*[=:]\s*['\"]?[A-Za-z0-9+/]{24,}", re.I), "key-like value"),
 ]
 TEXT_SUFFIXES = {".md", ".py", ".js", ".mjs", ".cjs", ".html", ".css", ".json", ".txt", ".log", ".sh", ".ps1", ".conf", ".service",
-                 ".yml", ".example", ".gitignore", ".gitattributes"}
+                 ".yml", ".example", ".gitignore", ".gitattributes", ".bicep"}
+# Cognitive Services OpenAI User: a fixed id that is the same in every Azure tenant, not a private identifier.
+BUILT_IN_ROLE = "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"
 
 
 def read(rel: str) -> str:
@@ -183,7 +187,7 @@ class RepositoryTest(unittest.TestCase):
         ledger = json.loads(read("images/SOURCES.json"))
         machine = {float(x) for v in data["machine"].values() if isinstance(v, str) for x in re.findall(r"\d+(?:\.\d+)?", v)}
         allowed = displayed_forms(numeric_leaves(data, set()) | numeric_leaves(ledger["images"], set()) | machine)
-        quoted = [(page, i, line) for page, title in RESULT_HEADINGS.items() for i, line in section(read(page), title)]
+        quoted = [(page, i, line) for page, titles in RESULT_HEADINGS.items() for title in titles for i, line in section(read(page), title)]
         quoted += [(page, i, line) for page in ("docs/RESULTS.md", "docs/RESULTS_CN.md") for i, line in outside_fences(read(page))]
         missing = []
         for page, i, line in quoted:
@@ -208,6 +212,7 @@ class RepositoryTest(unittest.TestCase):
             if rel in ("studio/static/icons/lucide.min.js", "tests/test_repo.py"):
                 continue
             for i, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                line = line.replace(BUILT_IN_ROLE, "<built-in role>")
                 for pattern, what in PRIVATE:
                     if pattern.search(line):
                         findings.append(f"{rel}:{i}: {what}")

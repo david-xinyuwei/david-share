@@ -18,7 +18,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$tar = Join-Path $env:TEMP 'thermal-3d-studio.tar.gz'
+$tar = Join-Path ([IO.Path]::GetTempPath()) 'thermal-3d-studio.tar.gz'   # $env:TEMP exists only on Windows
 if (Test-Path $tar) { Remove-Item $tar -Force }
 
 Push-Location $root
