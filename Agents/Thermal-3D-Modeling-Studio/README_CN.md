@@ -330,7 +330,7 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 | `verify.ps1 -Full` | 10 项检查全部通过 | 2.1 |
 | `down.ps1 -Yes` | 通过：没有残留 | 4.4 |
 
-虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`，也就是本提交的上一个提交；它的 `studio/` 与本版本只差 `studio/deploy/deploy.ps1`，而这条路径不执行这个文件。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受，所以 GPT-6 按部署的默认推理强度运行。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
+虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`；它的 `studio/` 与本版本只差 `studio/deploy/deploy.ps1`，而这条路径不执行这个文件。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受，所以 GPT-6 按部署的默认推理强度运行。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
 
 ### 这些数字是怎么测的
 
