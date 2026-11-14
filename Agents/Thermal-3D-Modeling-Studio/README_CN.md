@@ -63,7 +63,7 @@
 | STEP（`.step`，ISO 10303） | CAD 软件之间交换模型的标准格式；把精确的 B-rep 和部件名带进 SolidWorks、NX、Creo |
 | STL、GLB（glTF） | 三角网格格式。STL 用于 3D 打印和预览；GLB 用于网页，带材质和部件树。工坊通过 STEP 导出的 GLB 来显示 STEP |
 | 工程渲染图 | 用 three.js 直接画出的 STEP 网格图片，不经过图像模型，和 STEP 对得上 |
-| 推理强度（reasoning effort） | GPT-6 回答前思考多久（`none` 到 `xhigh`）。`.env.example` 把服务器默认值设为 `none`；发送按钮旁的下拉框可以按次修改 |
+| 推理强度（reasoning effort） | GPT-6 回答前思考多久（`none` 到 `xhigh`，具体接受哪些由模型部署决定）。`.env.example` 把服务器默认值设为 `low`；发送按钮旁的下拉框可以按次修改 |
 | SSE（服务器推送事件） | 后端把 token、进度和心跳持续推给浏览器的通道 |
 | Bicep | Azure 用来声明资源的语言；`infra/main.bicep` 列出工坊需要的全部资源 |
 | 托管身份（managed identity） | Azure 分配给虚拟机的身份。工坊用它换取 Microsoft Entra 令牌来调用模型，所以任何地方都不存密钥 |
@@ -203,7 +203,7 @@ PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"
 
 1. 打开 `outputs.json` 里的地址，用户名 `studio`，密码在 `portal-password.txt` 里。
 2. 点一张场景卡片。徽标先显示 **预生成示例**，参考实体出现后变成 **预生成 B-rep 实体（与 STEP 一致）**；来源栏写着「当前模型：预生成示例（本次未调用 GPT-6）」：已记录的 GPT-6 回答和参考 STEP 实体直接打开，不调用模型。
-3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度（默认 `none`，来自 `.env.example`）；模型部署不接受的取值会被去掉，按部署自己的默认值运行，[部署记录](#部署记录)里的 `none` 就是这样。已记录的运行等了多久，见[附录](#这些数字是怎么测的)。
+3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度（默认 `low`，来自 `.env.example`）。接受哪些取值由模型部署决定：2026-11-14 gpt-6-astra 不接受 `none`。部署拒绝所选取值时，工坊改发部署接受的下一档（`none` 改成 `low`），来源栏显示实际使用的取值，下拉框不再提供被拒的那一档。已记录的运行等了多久，见[附录](#这些数字是怎么测的)。
 4. 点 **生成 STEP**。「CAD 实体」页显示尝试次数、OCCT 耗时和 B-rep 数据，可以下载 STEP、STL 和 CadQuery 脚本。
 
 虚拟机开着就计费。`az vm deallocate -g <资源组> -n thermal-vm` 停止计算资源的计费，`az vm start` 再启动，地址不变，工坊自动启动。模型部署按 token 计费，工坊空闲时模型侧不产生费用。
@@ -330,7 +330,7 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 | `verify.ps1 -Full` | 10 项检查全部通过 | 2.1 |
 | `down.ps1 -Yes` | 通过：没有残留 | 4.4 |
 
-虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`；它的 `studio/` 与本版本只差 `studio/deploy/deploy.ps1`，而这条路径不执行这个文件。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受，所以 GPT-6 按部署的默认推理强度运行。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
+虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`，在第 4 步所说的推理强度改动之前；它的 `studio/` 与本版本差在这项改动和 `studio/deploy/deploy.ps1`，而这条路径不执行后者。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受；那个提交的代码于是去掉这个参数重发，GPT-6 按部署的默认推理强度运行。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
 
 ### 这些数字是怎么测的
 

@@ -68,9 +68,12 @@ CAD_EXAMPLE = CAD_EXAMPLE_PATH.read_text(encoding="utf-8") if CAD_EXAMPLE_PATH.e
 AOAI_ENDPOINT = os.getenv("AOAI_ENDPOINT", "").rstrip("/")  # no default: a fresh environment must point at its own resource
 AOAI_DEPLOYMENT = os.getenv("AOAI_DEPLOYMENT", "gpt-6-astra")
 AOAI_REASONING_EFFORT = os.getenv("AOAI_REASONING_EFFORT", "medium").strip()
-# Values this deployment accepts (probed 2026-09-10 against gpt-6-astra-2026-09-03: 'minimal' is rejected). The UI offers
-# exactly these; AOAI_REASONING_EFFORT is the default when a request does not choose ("off"/"default" = send nothing).
+# Values a request may name, cheapest first; AOAI_REASONING_EFFORT is the default when a request does not choose ("off"/"default"
+# = send nothing). What the deployment accepts changes: on 2026-09-10 gpt-6-astra-2026-09-03 took all five ('minimal' was refused),
+# on 2026-11-14 it refused 'none' ("Supported values are: 'low', 'medium', 'high', and 'xhigh'."). The first such 400 narrows
+# supported_efforts; from then on the UI offers only those and a refused choice is sent as the nearest supported value.
 REASONING_EFFORTS = ("none", "low", "medium", "high", "xhigh")
+supported_efforts: tuple[str, ...] = REASONING_EFFORTS
 AOAI_MAX_TOKENS = int(os.getenv("AOAI_MAX_TOKENS", "24000"))
 # Photoreal render step (轨 C): an image-edit model turns the WebGL snapshot into a studio product shot. Empty → step hidden.
 # Probed 2026-09-11 on gpt-image-2.5-sunburst: images.edit accepts size/quality/n/output_format, rejects input_fidelity.
@@ -297,10 +300,37 @@ async def _single(aw: Any) -> AsyncIterator[Any]:
 
 
 def effective_effort(requested: str | None) -> str | None:
-    """Reasoning effort actually sent: the request's choice when given, else the server default.
-    None means the parameter is omitted (default/off), letting the deployment apply its own default."""
+    """Reasoning effort actually sent: the request's choice when given, else the server default, moved to the nearest value the
+    deployment supports. None means the parameter is omitted (default/off), letting the deployment apply its own default."""
     value = (requested or AOAI_REASONING_EFFORT or "").strip().lower()
-    return value if value in REASONING_EFFORTS else None
+    return nearest_effort(value) if value in REASONING_EFFORTS else None
+
+
+def nearest_effort(value: str) -> str:
+    """value when the deployment supports it, else the next supported one up the cost order, else the highest supported one."""
+    if value in supported_efforts:
+        return value
+    higher = [e for e in REASONING_EFFORTS[REASONING_EFFORTS.index(value) + 1:] if e in supported_efforts]
+    return higher[0] if higher else supported_efforts[-1]
+
+
+def retry_effort(kwargs: dict[str, Any], error: Exception) -> bool:
+    """After a 400 that names reasoning_effort: learn the values the error lists as supported and switch to the nearest one, or
+    drop the parameter (the deployment's own default) when it lists none we know. False when the error is about something else."""
+    global supported_efforts
+    message = str(error)
+    if "reasoning_effort" not in kwargs or "reasoning_effort" not in message:
+        return False
+    sent = kwargs.pop("reasoning_effort")
+    listed = re.search(r"Supported values are:([^.]*)", message)
+    known = tuple(e for e in REASONING_EFFORTS if listed and f"'{e}'" in listed.group(1))
+    if known:
+        if known != supported_efforts:
+            log.warning("the deployment supports reasoning_effort %s only (it refused %s)", ", ".join(known), sent)
+        supported_efforts = known
+        if nearest_effort(sent) != sent:
+            kwargs["reasoning_effort"] = nearest_effort(sent)
+    return True
 
 
 # ----------------------------------------------------------------------------- auth
@@ -449,8 +479,8 @@ async def me(request: Request):
         "endpoint_host": AOAI_ENDPOINT.split("//", 1)[-1],
         "host_auth": "api_key" if AOAI_API_KEY else "entra_id",
         "host_connection_for_all": HOST_CONNECTION_FOR_ALL,
-        "reasoning_effort": AOAI_REASONING_EFFORT,
-        "reasoning_efforts": list(REASONING_EFFORTS),
+        "reasoning_effort": effective_effort(None),
+        "reasoning_efforts": list(supported_efforts),
         "stats": stats,
         "cached": sorted(p.stem for p in CACHE_DIR.glob("*.json") if not p.stem.endswith(".en")),
         "cached_en": sorted(p.stem[:-3] for p in CACHE_DIR.glob("*.en.json")),
@@ -709,9 +739,7 @@ async def run_generation(body: GenerateBody, conn: ModelConnection | None = None
                     if "prediction" in kwargs and ("prediction" in msg or "predict" in msg.lower()):
                         kwargs.pop("prediction")
                         log.warning("request=%s predicted outputs rejected by deployment, retrying without", request_id)
-                    elif "reasoning_effort" in kwargs and "reasoning_effort" in msg:
-                        kwargs.pop("reasoning_effort")
-                    else:
+                    elif not retry_effort(kwargs, e):
                         raise
             return None
 
@@ -758,8 +786,9 @@ async def run_generation(body: GenerateBody, conn: ModelConnection | None = None
                         html = early_html("".join(chunks))
                         if html:
                             html_sent = True
+                            # The stream is open, so the effort is settled: a refused choice has already been replaced.
                             yield sse("html", {"html": html, "request_id": request_id, "source": "live",
-                                               "t": round(time.time() - t0, 1)})
+                                               "reasoning_effort": kwargs.get("reasoning_effort"), "t": round(time.time() - t0, 1)})
         raw = "".join(chunks)
         en = normalize_lang(body.lang) == "en"
         if finish_reason != "stop":
@@ -842,15 +871,13 @@ async def connection_test(request: Request, lang: str = "zh"):
     client = await conn.client()
     try:
         kwargs: dict[str, Any] = {"model": conn.deployment, "messages": [{"role": "user", "content": "Reply with the single word OK."}],
-                                  "max_completion_tokens": 64, "reasoning_effort": "none"}
+                                  "max_completion_tokens": 64, "reasoning_effort": supported_efforts[0]}
         try:
             resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 60)
         except BadRequestError as e:
-            if "reasoning_effort" in str(e):
-                kwargs.pop("reasoning_effort")
-                resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 60)
-            else:
+            if not retry_effort(kwargs, e):
                 raise
+            resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 60)
         return {"ok": True, "deployment": conn.deployment, "endpoint_host": conn.host, "actual_model": resp.model,
                 "latency_s": round(time.time() - t0, 1)}
     except Exception as e:  # noqa: BLE001 — the visitor needs the upstream message (401 / 404 deployment / DNS); the key never appears in it
@@ -984,11 +1011,9 @@ async def cad_model_call(messages: list[dict[str, Any]], effort: str | None = No
         try:
             resp = await client.chat.completions.create(**kwargs)
         except BadRequestError as e:
-            if "reasoning_effort" in kwargs and "reasoning_effort" in str(e):
-                kwargs.pop("reasoning_effort")
-                resp = await client.chat.completions.create(**kwargs)
-            else:
+            if not retry_effort(kwargs, e):
                 raise
+            resp = await client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         if choice.finish_reason != "stop":
             raise ValueError(f"模型输出未正常完成（finish_reason={choice.finish_reason}）")
@@ -1557,7 +1582,12 @@ async def write_narrative(body: ProposalBody, conn: ModelConnection) -> tuple[di
         effort = effective_effort(body.reasoning_effort)
         if effort:
             kwargs["reasoning_effort"] = effort
-        resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 240)
+        try:
+            resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 240)
+        except BadRequestError as e:
+            if not retry_effort(kwargs, e):
+                raise
+            resp = await asyncio.wait_for(client.chat.completions.create(**kwargs), 240)
     finally:
         await client.close()
     text = (resp.choices[0].message.content or "") if resp.choices else ""

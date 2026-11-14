@@ -100,7 +100,7 @@
       theme: '切换主题', logout: '退出', remove_image: '移除', upload_title: '上传图纸 / 照片',
       cache_fallback_en: '该场景暂无当前界面语言的已保存示例，显示的是另一语言的示例；点击“实时调用 GPT-6”可生成当前语言的结果。',
       effort_label: '推理强度', effort_none: '无 · 最快', effort_low: '低', effort_medium: '中', effort_high: '高', effort_xhigh: '极高',
-      effort_title: 'GPT-6 的 reasoning_effort。无：不做推理，首字约 10–20 s、整段 1.5–2.5 分钟，演示默认；低：多 40–60 s 推理；中：约 6 分钟；高 / 极高：几何更严谨但可能 10 分钟以上，仅在离线预生成时使用。选择随每次实时调用与 STEP 生成一起发送，结果来源栏会显示实际生效值。',
+      effort_title: 'GPT-6 的 reasoning_effort，只列出模型部署接受的取值。无：不做推理，首字约 10–20 s、整段 1.5–2.5 分钟；低：比“无”多 40–60 s 推理，演示默认；中：约 6 分钟；高 / 极高：几何更严谨但可能 10 分钟以上，仅在离线预生成时使用。选择随每次实时调用与 STEP 生成一起发送；部署不接受的取值会换成最接近的可用值，结果来源栏会显示实际生效值。',
       effort_eta: { none: '约 2 分钟', low: '约 2.5–3 分钟', medium: '约 6 分钟', high: '8–15 分钟', xhigh: '15 分钟以上' },
       effort_tag: (e) => `推理强度 ${e}`, effort_default: '（服务器默认）',
       sys_stages: '运行阶段', sys_parts: '部件索引 · 点击定位', sys_overview: '全局视角', sys_collapse: '收起', sys_expand: '展开',
@@ -230,7 +230,7 @@
       theme: 'Toggle theme', logout: 'Sign out', remove_image: 'Remove', upload_title: 'Upload a drawing / photo',
       cache_fallback_en: 'No English example saved for this scenario yet — showing the Chinese example. Click “Call GPT-6 live” for an English result.',
       effort_label: 'Reasoning', effort_none: 'None · fastest', effort_low: 'Low', effort_medium: 'Medium', effort_high: 'High', effort_xhigh: 'Extra high',
-      effort_title: 'GPT-6 reasoning_effort. None: no reasoning, first token in ~10–20 s, 1.5–2.5 min total (demo default); Low: +40–60 s of reasoning; Medium: ~6 min; High / Extra high: more rigorous geometry but possibly 10+ min — meant for offline pre-generation. The choice is sent with every live call and STEP job; the source bar shows the value actually applied.',
+      effort_title: 'GPT-6 reasoning_effort; only the values the model deployment accepts are listed. None: no reasoning, first token in ~10–20 s, 1.5–2.5 min total; Low: +40–60 s of reasoning over None (demo default); Medium: ~6 min; High / Extra high: more rigorous geometry but possibly 10+ min — meant for offline pre-generation. The choice is sent with every live call and STEP job; a value the deployment refuses is replaced by the nearest one it accepts, and the source bar shows the value actually applied.',
       effort_eta: { none: '2 min', low: '2.5–3 min', medium: '6 min', high: '8–15 min', xhigh: '15+ min' },
       effort_tag: (e) => `reasoning ${e}`, effort_default: '(server default)',
       sys_stages: 'Operating stages', sys_parts: 'Component index · click to locate', sys_overview: 'Overview', sys_collapse: 'Collapse', sys_expand: 'Expand',
@@ -562,6 +562,17 @@
     $('effort').value = value;
     $('effortWrap').classList.toggle('slow', value === 'high' || value === 'xhigh');
     if (persist) localStorage.setItem(EFFORT_KEY, value);
+  }
+
+  // The deployment refused the chosen effort and the server sent the nearest value it accepts: re-read the accepted
+  // values so the selector stops offering the refused one, and select the value actually applied. A choice the user
+  // changed while the request was running is left alone.
+  async function followAppliedEffort(requested, applied) {
+    if (!requested || !applied || applied === requested || state.effort !== requested) return;
+    let me; try { me = await api('/api/me'); } catch (_) { return; }
+    if (Array.isArray(me.reasoning_efforts) && me.reasoning_efforts.length) state.efforts = me.reasoning_efforts;
+    [...$('effort').options].forEach((o) => { o.hidden = !state.efforts.includes(o.value); });
+    if (state.effort === requested) setEffort(applied);
   }
 
   // ---- Model connection: server-managed by default; legacy BYOK remains available behind an explicit server flag.
@@ -1292,7 +1303,8 @@
       const imageNote = state.imageKind ? `\n${t(`image_${state.imageKind}`)}` : '';
       const refImage = state.image || (iterateExample || state.history.length ? state.refImage : null);
       addMessage('user', prompt + imageNote, state.image ? { imageThumb: state.image } : null);
-      const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', ...connHeaders() }, body: JSON.stringify({ scenario_id: s ? s.id : null, messages: history, lang: state.lang, reasoning_effort: state.effort || undefined }), signal: abort.signal });
+      const requestedEffort = state.effort;
+      const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', ...connHeaders() }, body: JSON.stringify({ scenario_id: s ? s.id : null, messages: history, lang: state.lang, reasoning_effort: requestedEffort || undefined }), signal: abort.signal });
       if (res.status === 401) { showAuth(); throw new Error('unauthorized'); }
       if (!res.ok) throw await httpError(res);
       const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let done = null; let lastTailUpdate = 0; let early = null; let liveModel = ''; let liveStart = {};
@@ -1317,7 +1329,8 @@
               state.previewing = true;
               // `model` is the deployment name reported by the server's `start` event — never a literal.
               const preview = { html: early, raw, summary: '', metrics: [], request_id: state.requestId, source: 'live', preview: true,
-                model: liveModel, key_source: liveStart.key_source, endpoint_host: liveStart.endpoint_host, reasoning_effort: liveStart.reasoning_effort,
+                model: liveModel, key_source: liveStart.key_source, endpoint_host: liveStart.endpoint_host,
+                reasoning_effort: 'reasoning_effort' in ev.data ? ev.data.reasoning_effort : liveStart.reasoning_effort,
                 created_at: new Date().toISOString().slice(0, 19) + 'Z', latency_s: ((performance.now() - t0) / 1000).toFixed(1) };
               showResult(preview, false, refImage, { keepProgress: true });
               $('progress').classList.add('progress-mini');
@@ -1340,6 +1353,7 @@
       addMessage('assistant', done.summary || '(no summary)', done);
       if (done.suggestions && done.suggestions.length) renderChips(done.suggestions);
       state.count += 1; $('statLatency').textContent = `${done.latency_s}s`; state.lastLatencyEffort = done.reasoning_effort || null;
+      followAppliedEffort(requestedEffort, done.reasoning_effort);
       addUsage(done.usage); renderSessionStats();
       $('prompt').value = ''; state.image = null; state.imageKind = null;
       $('imagePreview').classList.add('hidden'); $('imageInput').value = '';
@@ -1804,6 +1818,7 @@ parent.postMessage({ type: 'stl-viewer-ready', renderId: RID }, '*');
       if (!done || !done.ok || !done.files) throw new Error('stream ended without result');
       if (state.cadAbort !== abort) return; // reset happened meanwhile
       state.cad = done; state.cadStale = false; state.brepBuffer = null;
+      followAppliedEffort(body.reasoning_effort, done.reasoning_effort);
       logLine(t('cad_done', done));
       renderCad(done); $('cadProgress').classList.add('hidden');
       addMessage('assistant', t('cad_msg', done), { latency_s: done.latency_s, model: done.model, created_at: done.created_at, usage: done.usage });

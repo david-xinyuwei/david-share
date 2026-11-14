@@ -488,9 +488,81 @@ class GenerationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_me_lists_the_selectable_efforts(self):
         request = SimpleNamespace(cookies={app.COOKIE: app.make_session("test-user")})
-        me = await app.me(request)
+        with patch.object(app, "supported_efforts", app.REASONING_EFFORTS):
+            me = await app.me(request)
         self.assertEqual(me["reasoning_efforts"], ["none", "low", "medium", "high", "xhigh"])
         self.assertIn("reasoning_effort", me)
+
+    # ---- an effort the deployment refuses (2026-11-14: gpt-6-astra-2026-09-03 answers 'none' with this 400)
+
+    REFUSED_NONE = ("Error code: 400 - {'error': {'message': \"Unsupported value: 'reasoning_effort' does not support 'none' with this "
+                    "model. Supported values are: 'low', 'medium', 'high', and 'xhigh'.\", 'type': 'invalid_request_error', "
+                    "'param': 'reasoning_effort', 'code': 'unsupported_value'}}")
+
+    @staticmethod
+    def refused(message=REFUSED_NONE):
+        response = SimpleNamespace(status_code=400, headers={}, request=None)
+        return app.BadRequestError(message, response=response, body={"error": {"code": "unsupported_value", "param": "reasoning_effort"}})
+
+    def test_nearest_supported_effort(self):
+        with patch.object(app, "supported_efforts", ("low", "medium", "high", "xhigh")):
+            self.assertEqual([app.nearest_effort(e) for e in app.REASONING_EFFORTS], ["low", "low", "medium", "high", "xhigh"])
+            with patch.object(app, "AOAI_REASONING_EFFORT", "none"):
+                self.assertEqual(app.effective_effort(None), "low")
+            with patch.object(app, "AOAI_REASONING_EFFORT", "off"):
+                self.assertIsNone(app.effective_effort(None))
+        with patch.object(app, "supported_efforts", ("none", "low")):
+            self.assertEqual(app.nearest_effort("xhigh"), "low")
+
+    async def test_refused_effort_moves_to_the_nearest_supported_one_and_is_remembered(self):
+        request = SimpleNamespace(cookies={app.COOKIE: app.make_session("test-user")})
+        with patch.object(app, "supported_efforts", app.REASONING_EFFORTS), patch.object(app, "AOAI_REASONING_EFFORT", "none"):
+            create = AsyncMock(side_effect=[self.refused(), FakeStream()])
+            events, _ = await self.generate(create=create)
+            self.assertEqual([c.kwargs.get("reasoning_effort") for c in create.await_args_list], ["none", "low"])
+            self.assertEqual(events[-1][0], "done")
+            self.assertEqual(events[-1][1]["reasoning_effort"], "low")        # what was actually sent
+            names = [event for event, _ in events]
+            self.assertEqual(events[0][1]["reasoning_effort"], "none")        # announced before the deployment answered
+            self.assertEqual(events[names.index("html")][1]["reasoning_effort"], "low")  # the early render shows the applied value
+            self.assertEqual(app.supported_efforts, ("low", "medium", "high", "xhigh"))
+            create = AsyncMock(return_value=FakeStream())                     # later requests: no second 400
+            events, _ = await self.generate(create=create)
+            self.assertEqual(create.await_count, 1)
+            self.assertEqual(create.await_args.kwargs["reasoning_effort"], "low")
+            self.assertEqual(events[0][1]["reasoning_effort"], "low")
+            me = await app.me(request)
+            self.assertEqual((me["reasoning_efforts"], me["reasoning_effort"]), (["low", "medium", "high", "xhigh"], "low"))
+
+    async def test_refused_effort_without_a_list_is_dropped(self):
+        with patch.object(app, "supported_efforts", app.REASONING_EFFORTS), patch.object(app, "AOAI_REASONING_EFFORT", "none"):
+            create = AsyncMock(side_effect=[self.refused("Error code: 400 - 'reasoning_effort' is not supported with this model."),
+                                            FakeStream()])
+            events, _ = await self.generate(create=create)
+            self.assertNotIn("reasoning_effort", create.await_args_list[1].kwargs)
+            self.assertIsNone(events[-1][1]["reasoning_effort"])              # the deployment's own default
+            self.assertEqual(app.supported_efforts, app.REASONING_EFFORTS)
+
+    async def test_connection_test_step_and_narrative_follow_the_refusal(self):
+        answer = SimpleNamespace(model="gpt-6-astra-2026-09-03", id="chatcmpl-x", usage=None,
+                                 choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content='{"executive_summary": "ok"}'))])
+        request = SimpleNamespace(cookies={app.COOKIE: app.make_session("u")}, headers={})
+        for call in ("connection", "step", "narrative"):
+            create = AsyncMock(side_effect=[self.refused(), answer])
+            client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)), close=AsyncMock())
+            with patch.object(app, "supported_efforts", app.REASONING_EFFORTS), patch.object(app, "AOAI_REASONING_EFFORT", "none"), \
+                    patch.object(app.tokens, "get", AsyncMock(return_value="tok")), patch.object(app, "AsyncOpenAI", return_value=client):
+                if call == "connection":
+                    result = await app.connection_test(request)
+                    self.assertTrue(result["ok"], result)
+                elif call == "step":
+                    _, meta = await app.cad_model_call([{"role": "user", "content": "x"}], app.effective_effort("none"))
+                    self.assertEqual(meta["reasoning_effort"], "low")
+                else:
+                    body = app.ProposalBody(title="t", requirement="r", summary="s", reasoning_effort="none")
+                    narrative, _ = await app.write_narrative(body, app.host_connection())
+                    self.assertEqual(narrative, {"executive_summary": "ok"})
+            self.assertEqual([c.kwargs.get("reasoning_effort") for c in create.await_args_list], ["none", "low"], call)
 
     def test_precompressed_vendor_selection(self):
         with tempfile.TemporaryDirectory() as directory:

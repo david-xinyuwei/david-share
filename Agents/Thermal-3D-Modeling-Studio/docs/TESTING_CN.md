@@ -96,7 +96,7 @@ python pregen_engineering.py aidc aps cdu coldplate drawing2d exv fourway mchx m
 | 通过公网地址检查 | `verify.ps1 -Full` | 10 项全部通过 | 2.1 |
 | 删除 | `down.ps1 -Yes` | 资源组已删除，AI 资源已清除，没有残留 | 4.4 |
 
-**`verify.ps1 -Full` 里的实时生成 STEP。** 向 `/api/cad` 发了一个请求：带 6 道 S 形流道的铝制电池水冷板，要求推理强度 `none`。结果：用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB。部署没有接受 `none`：工坊回复里的推理强度为空（[`verify.json`](../evidence/deploy-20261114/verify.json) 里的 `"reasoning_effort": null`），而 `studio/app.py` 只有在部署拒绝这个参数、工坊去掉它重发请求之后才会留空。所以 GPT-6 是按部署的默认推理强度运行的，推理用了 1,472 个 token。这只是一个请求，用来确认这条路径走得通，不是典型耗时的测量。
+**`verify.ps1 -Full` 里的实时生成 STEP。** 向 `/api/cad` 发了一个请求：带 6 道 S 形流道的铝制电池水冷板，要求推理强度 `none`。结果：用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB。部署没有接受 `none`：工坊回复里的推理强度为空（[`verify.json`](../evidence/deploy-20261114/verify.json) 里的 `"reasoning_effort": null`），而 `d32e1e6e` 的 `studio/app.py` 只有在部署拒绝这个参数、工坊去掉它重发请求之后才会留空。所以 GPT-6 是按部署的默认推理强度运行的，推理用了 1,472 个 token。现在的 `studio/app.py` 改发部署接受的下一档（`none` 改成 `low`，见 README 第 4 步）。这只是一个请求，用来确认这条路径走得通，不是典型耗时的测量。
 
 **部署上的浏览器检查。** 在 `verify.ps1` 和 `down.ps1` 之间，作者用一个 Playwright 脚本（不在本仓库里）驱动无头 Microsoft Edge，在部署好的地址上走了一遍 README 第 4 步的开头。这个地址提供的前端与所装提交的文件逐字节一致，打开的是页面自带的登录表单，没有浏览器的身份验证弹窗；错误密码在页面上被拒绝；中英文界面的冷板和笔记本双风扇散热模组都以预生成示例打开，徽标、来源栏和部件与第 4 步的描述一致，下载链接背后是 STEP 文件。页面没有向模型接口发出请求，也没有报错。每项检查记录在 [`browser.json`](../evidence/deploy-20261114/browser.json)。
 
