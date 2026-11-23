@@ -1,0 +1,164 @@
+{
+ "icons": {
+  "package": "Microsoft Azure architecture icons V25",
+  "download_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V25.zip",
+  "terms_page": "https://learn.microsoft.com/azure/architecture/icons/",
+  "package_sha256": "f293d99252b3638557dd08ccbff9f2529083473d39b373fb2af29a7200351339",
+  "used_unmodified": [
+   {
+    "entry": "Azure_Public_Service_Icons/Icons/general/10787-icon-service-Code.svg",
+    "sha256": "a64b839802f7705f128e82e77620ed233d9f6ba45dad6d7e704da8581b81c849"
+   },
+   {
+    "entry": "Azure_Public_Service_Icons/Icons/general/10783-icon-service-Browser.svg",
+    "sha256": "d08afad9e64b5f69d5689bc831aefe7619150ba0a80583651bb5d75e4c033630"
+   },
+   {
+    "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/035746832-icon-service-AI-Foundry.svg",
+    "sha256": "fab039a771f72780ae34e59065d61c66a02d3c347d50923ef2956f34912ea02c"
+   },
+   {
+    "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/038470614-icon-service-Foundry-Models.svg",
+    "sha256": "9c671f141cb0e19b62e004628183ed8711ad16ec3b2e56b14c3cd035d5fac711"
+   },
+   {
+    "entry": "Azure_Public_Service_Icons/Icons/identity/10230-icon-service-Users.svg",
+    "sha256": "7c08aa6365b41e7f0b74833bfd420f174081f6e90ba278e0c01cd988027eb3ca"
+   }
+  ]
+ },
+ "images": [
+  {
+   "file": "images/architecture-en.png",
+   "sha256": "4e7581f3cd7d0697a91b7527c6cdf1c4386001d60d2d20bb732f0dfa072fc304",
+   "pixels": [
+    2400,
+    1680
+   ],
+   "language": "en",
+   "kind": "original explanatory diagram",
+   "shows": "Architecture: set up, train, deploy and call across your machine, your Azure subscription and capacity operated by Microsoft",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/architecture-zh.png",
+   "sha256": "b8e8b156dac11b11e4936ce1208fd07f3e426240c1dbced620a4d8424b8966b8",
+   "pixels": [
+    2400,
+    1680
+   ],
+   "language": "zh",
+   "kind": "original explanatory diagram",
+   "shows": "Architecture: set up, train, deploy and call across your machine, your Azure subscription and capacity operated by Microsoft",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/test-topology-en.png",
+   "sha256": "8873397b8d850dea96645880a46ff1e3dd24349aa27989eb44f08e5cae35bdff",
+   "pixels": [
+    2400,
+    1140
+   ],
+   "language": "en",
+   "kind": "original explanatory diagram",
+   "shows": "Test topology: test client, account endpoint, target deployment, and what each published number measures",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/test-topology-pt-en.png",
+   "sha256": "2f18e581b1dc346652147d179b39d1ed534d915a28405f2a951763d1f32a44ec",
+   "pixels": [
+    2400,
+    1140
+   ],
+   "language": "en",
+   "kind": "original explanatory diagram",
+   "shows": "Second test: the training loop on the test client, the Programmed Training session and the saved model in the project, the target deployment with the adapter, and the order of the four stages",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/test-topology-pt-zh.png",
+   "sha256": "22b1b49c953f0fb852f260d865cf3947414dfee1a6d5c347af27f9bbaed0c01e",
+   "pixels": [
+    2400,
+    1140
+   ],
+   "language": "zh",
+   "kind": "original explanatory diagram",
+   "shows": "Second test: the training loop on the test client, the Programmed Training session and the saved model in the project, the target deployment with the adapter, and the order of the four stages",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/test-topology-zh.png",
+   "sha256": "51d2178fe058daa38b99063a72f1dcd4c62dd3cc7d757fc5f6c42c32b945e454",
+   "pixels": [
+    2400,
+    1140
+   ],
+   "language": "zh",
+   "kind": "original explanatory diagram",
+   "shows": "Test topology: test client, account endpoint, target deployment, and what each published number measures",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+  },
+  {
+   "file": "images/portal-target-succeeded.png",
+   "sha256": "9c1e75422e8d89fe8fec0a3e3628d26cbed310ef9bf2fb32196607d9ec257572",
+   "pixels": [
+    1535,
+    1090
+   ],
+   "language": "en (portal UI)",
+   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
+   "shows": "Models > Deployments > Managed-compute: the target deployment, Status Succeeded, Global Managed Compute, H100_80GB",
+   "changes": "cropped to the page area; covered: account name prefix in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
+   "original_sha256": "6410e05dcde37930ab96b821eb840f62bd4ffaa7308d017c842861e4ff6e21b8"
+  },
+  {
+   "file": "images/portal-two-adapters.png",
+   "sha256": "80c656b2f26d5fe1f092b81c097ca5aeb47e7722ff14acae5cb92a9d0ad90c35",
+   "pixels": [
+    1535,
+    1200
+   ],
+   "language": "en (portal UI)",
+   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
+   "shows": "Models > Deployments > Adapter deployments: two adapter deployments Succeeded on one target deployment",
+   "changes": "cropped to the page area; covered: account name prefix in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
+   "original_sha256": "050b59f94ec9305df15738e11be2eeb0ad7d83b593864f2b63edeec3fd624112"
+  },
+  {
+   "file": "images/portal-playground.png",
+   "sha256": "d7846c2836682f5eb4470170cf8a0bd5c52dc8b287bcf458899dea272c38f7e2",
+   "pixels": [
+    1535,
+    1380
+   ],
+   "language": "en (portal UI)",
+   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
+   "shows": "Playground of the target deployment answering the test question",
+   "changes": "cropped to the page area; covered: subscription name in the portal header. No other pixel was changed.",
+   "original_sha256": "f8ec8825aa15d5db4c72dfd698aeebe245bb0f69b18869fc895f00159add7ed1"
+  },
+  {
+   "file": "images/learn-training-approaches.png",
+   "sha256": "5280abb1c01beb53510ba435f484f46e29ec55ae0d655b8e58ac700d06711280",
+   "pixels": [
+    1368,
+    798
+   ],
+   "language": "en (Microsoft Learn page)",
+   "kind": "screenshot of official Microsoft documentation",
+   "shows": "the table under \"Choose your training approach\": Managed Training compared with Programmed Training (preview)",
+   "source": {
+    "owner": "Microsoft",
+    "title": "Training in Microsoft Foundry (Microsoft Learn)",
+    "section": "Choose your training approach",
+    "url": "https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach",
+    "page_updated": "2026-11-17",
+    "captured": "2026-11-23"
+   },
+   "changes": "none: the table region as the page renders it (headless Microsoft Edge, 1280 px wide viewport, device scale factor 2)",
+   "original_sha256": "5280abb1c01beb53510ba435f484f46e29ec55ae0d655b8e58ac700d06711280"
+  }
+ ]
+}

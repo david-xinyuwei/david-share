@@ -25,6 +25,7 @@ Each folder is a self-contained project with its own README. Many recent project
 
 | Last updated | Project | Area |
 |---|---|---|
+| 2026-11-23 | [Qwen3.8-27B LoRA on Microsoft Foundry: Train the Adapter with Managed Training or Programmed Training, Serve It on Managed Compute](./Agents/Foundry-Model-Training-and-Inference/) | AI Agents |
 | 2026-11-14 | [Thermal 3D Modeling Studio: Azure OpenAI GPT-6 Astra Writes the Model Code, OpenCascade Builds the STEP](./Agents/Thermal-3D-Modeling-Studio/) | AI Agents |
 | 2026-11-05 | [Component Precision and Deployment Guide for Large MoE Models](./Deep-Learning/Large-MoE-Precision-and-Deployment-Guide/) | Deep Learning |
 | 2026-11-03 | [Decision Model on the Edge: Fine-Tuning and Inference Optimization](./Deep-Learning/AIPC-Decision-Model-Finetune/) | Deep Learning |

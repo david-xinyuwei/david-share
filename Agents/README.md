@@ -58,6 +58,7 @@ For the Voice Live building blocks (speech recognition, models and voices), see 
 
 | Project | What it covers |
 |---|---|
+| [Foundry-Model-Training-and-Inference](Foundry-Model-Training-and-Inference/) | Qwen3.8-27B LoRA on Microsoft Foundry: train the adapter with Managed Training or Programmed Training and serve it on Managed compute; includes Bicep and Python deployment scripts, a base-versus-adapter comparison and offline tests |
 | [Model-And-Router-Benchmark](Model-And-Router-Benchmark/) | Three candidate models and Model Router measured for a latency-sensitive assistant across reasoning effort, API path and deployment capacity |
 | [Claude-Foundry-LiteLLM-Performance](Claude-Foundry-LiteLLM-Performance/) | Claude Opus, Sonnet and Haiku 5.5 on Microsoft Foundry: thinking, effort, prompt caching, latency and coding accuracy |
 | [AOAI-Model-Migration-Benchmark](AOAI-Model-Migration-Benchmark/) | Migrating a low-latency assistant from gpt-4o-mini to newer model families: benchmark and PTU traffic management |
