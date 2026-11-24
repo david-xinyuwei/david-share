@@ -14,9 +14,9 @@
 
 想让开放权重的模型按自己的格式作答，团队通常要找两次 GPU：一次用来微调，一次用来部署微调结果。对 **Qwen3.8-27B**（预览），Microsoft Foundry 把这两件事都做成了托管服务。**Managed Training**（托管训练）用 Microsoft 分配的 GPU 跑监督微调任务，交回一个 LoRA 适配器。**Programmed Training**（预览）训练的是同一种适配器，训练循环是你自己写、自己运行的 Python 代码。**Managed compute**（托管计算）用独占 GPU 部署基础模型，并把适配器挂到上面。从训练到部署之间有几处细节，出错就要花钱：适配器要先登记到项目里才能部署；推理部署必须用支持 LoRA 的部署模板，基础模型版本要和训练适配器时一致；GPU 从部署建好到删除，每小时都在计费；删除还有先后顺序。
 
-<img src="images/architecture-zh.png" width="900" alt="架构图，分三个区域。你的电脑：infra/up.py 负责准备和部署；在 Foundry 门户提交 Managed Training 任务（选项 A）；训练循环 programmed_training_sft.py 驱动一个 Programmed Training 会话（选项 B）；你的应用或 infra/verify.py 调用端点。你的 Azure 订阅：一个资源组，里面是禁用密钥、给你分配 Foundry User 角色的 Foundry 账户；账户里的 Foundry 项目存放训练文件（449 行训练数据、50 行验证数据）、训练任务或会话，以及它产出的 LoRA 适配器；账户的 Managed compute 部署包括一个目标部署（基础模型 Qwen3.8-27B，支持 LoRA 的部署模板）和每个适配器一个的适配器部署，最多 8 个，不增加 GPU；账户端点提供兼容 OpenAI 的 chat completions，model 字段写目标部署或某个适配器部署的名称。由 Microsoft 运营：Microsoft Entra ID 签发每次调用都要带的令牌；Foundry 训练用 Microsoft 分配的 GPU 运行 Managed Training 任务，或执行 Programmed Training 循环发来的每一步，按训练 token 计费；Global managed compute 用同一组 GPU 运行目标部署和它的适配器，每个实例 2 块 H100 80 GB，目标部署存在期间按 GPU 小时计费。编号 1 到 6 对应“一次请求怎么走”里的步骤；最后一步 infra/down.py 先删适配器部署、再删目标部署，GPU 计费随即停止。">
+<img src="images/architecture-zh.png" width="900" alt="架构图，从左到右的流程。1 你的数据：由你提供 JSONL 格式的对话样例，例如 GSM8K 示例，由 infra/up.py 上传到 Microsoft Foundry。2 训练，两种方式任选其一：A，Managed Training，你在 Foundry 门户提交一个任务，由 Foundry 运行整个任务；B，Programmed Training（预览），由 Python 循环 programmed_training_sft.py 发出每一步。训练用的 GPU 由 Microsoft 提供，按训练 token 计费。两种方式的产出都是列在项目里的 LoRA 适配器。3 用 infra/up.py --deploy 部署到 Managed compute：目标部署在一个实例的 2 块 H100 80 GB GPU 上运行基础模型 Qwen3.8-27B，适配器部署挂在同一组 GPU 上，最多 8 个，不增加 GPU；目标部署存在期间按 GPU 小时计费，目录价每小时 15.82 美元。4 你的应用把请求发到同一个端点，model 字段选择基础模型或适配器；infra/verify.py 检查两者。6 infra/down.py 先删适配器部署，再删目标部署，GPU 计费随即停止。">
 
-图里画的是：哪些在你的电脑上运行，你的 Azure 订阅里创建了什么，哪些服务由 Microsoft 替你运营。编号 1 到 6 就是[一次请求怎么走](#一次请求怎么走)里的步骤。两种训练方式最后落在同一处：项目模型里的一个 LoRA 适配器，由适配器部署把它挂到目标部署上。这是原创解释图；本页数字是在哪里测的，见[实现效果](#示例适配器改变了什么)。
+图里画的是从数据到回答的整条路径。训练数据由你提供（1）。Foundry 用 Managed Training 或 Programmed Training 两种方式之一，在 Microsoft 提供的 GPU 上训练出 LoRA 适配器，按训练 token 计费（2）。`infra/up.py --deploy` 在 Managed compute 上部署基础模型 Qwen3.8-27B，一个实例、2 块 H100 80 GB，再把每个适配器挂到同一组 GPU 上，最多 8 个，不增加 GPU（3）。你的应用用 `model` 字段选择基础模型或某个适配器（4）。编号就是[一次请求怎么走](#一次请求怎么走)里的步骤。这是原创解释图；本页数字背后的测试环境见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
 
 本仓库把两种训练方式的这条路径都做成了脚本，每个计费的步骤都要你明确执行：
 
@@ -26,7 +26,7 @@
 - **调用。** 一个 OpenAI 兼容端点。请求里的 `model` 字段决定谁来回答：填目标部署的名称是基础模型，填适配器部署的名称是基础模型加适配器。
 - **删除。** `infra/down.py` 删除适配器部署和目标部署，GPU 计费随即停止。
 
-**两种方式都用同一份数据实际跑过。** 449 行数据在一个 Managed Training 任务里训练出一个适配器，又在一个 Programmed Training 会话里训练出第二个。两个适配器都部署到了 Managed compute，并在同样的 50 行验证数据上和基础模型做了对比。方法和数字见[示例适配器改变了什么](#示例适配器改变了什么)和[同一份数据用 Programmed Training 训练](#同一份数据用-programmed-training-训练)。
+**两种方式都用同一份数据实际跑过。** 449 行数据在一个 Managed Training 任务里训练出一个适配器，又在一个 Programmed Training 会话里训练出第二个。两个适配器都部署到了 Managed compute，并在同样的 50 行验证数据上和基础模型做了对比。各自的结果见[实现效果](#实现效果)；测试环境、方法和完整表格见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
 
 **部署由本仓库的脚本完成：**[`infra/up.py`](#2-创建-foundry-资源不开-gpu) 创建资源和部署，[`training/programmed_training_sft.py`](#3-训练适配器) 用 Programmed Training 训练，[`infra/verify.py`](#5-检查) 从公网端点检查部署，[`infra/down.py`](#7-删除) 负责删除。
 
@@ -42,7 +42,7 @@
 
 它不是什么：
 
-- 它不证明微调让 Qwen3.8-27B 的算术更好。示例任务只有 6 个优化步，Programmed Training 会话有 56 个。在 50 行验证数据上，两个适配器都改变了每个回答的风格和长度；答对行数的差别，两个都在随机波动范围内（见[实现效果](#示例适配器改变了什么)）。
+- 它不证明微调让 Qwen3.8-27B 的算术更好。示例任务只有 6 个优化步，Programmed Training 会话有 56 个。在 50 行验证数据上，两个适配器都改变了每个回答的风格和长度；答对行数的差别，两个都在随机波动范围内（见[结果 4](#结果-4适配器改变的是回答方式不是答对率)）。
 - 它不能替你拿到 Programmed Training 的使用资格。这项预览功能要先为订阅[申请访问权限](https://aka.ms/foundry-interactive-training-signup)，获批之后才能开会话；它的脚本还要用 [Foundry 微调 cookbook](https://github.com/microsoft-foundry/fine-tuning) 的 Python 环境，其他脚本不需要。
 - Qwen3.8-27B 的微调和 [Managed compute 上的 LoRA 适配器](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute)都是预览功能：没有服务级别协议，Microsoft 不建议用于生产负载。
 - 它不是生产环境的网络和内容安全方案。账户可以从公网访问，只接受 Microsoft Entra 登录；Managed compute [没有内置内容过滤](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview)。
@@ -106,36 +106,75 @@ Foundry 有两种训练方式。**Managed Training**（托管训练）：你提�
 
 ## 实现效果
 
-本节的截图和数字来自在 East US 2 做的两次测试。第一次测试在 2026 年 11 月 22、23 日，用的是 Managed Training：GSM8K 示例数据、默认训练设置、seed 42、一个目标部署和两个适配器部署。其中第二个适配器用同样的设置训练，数据是 [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning) 里的另一套示例 `Text-Bug-Detection`；对比和测速针对的都是 GSM8K 适配器。第二次测试在 2026 年 11 月 23 日，在另一个 Foundry 账户里用 Programmed Training 训练同一份 GSM8K 数据，[单独有一节](#同一份数据用-programmed-training-训练)。那一节之外的截图和数字，除非句子里点明是第二次测试，都属于第一次测试。
+按工作的先后顺序，四个结果：
+
+1. [Qwen3.8-27B 部署到 Managed compute](#结果-1qwen38-27b-部署到-managed-compute)：一个实例、2 × H100 80 GB，请求发出 21 分钟后 `Succeeded`。
+2. [两种训练方式都训练出了适配器，损失在下降](#结果-2两种训练方式都训练出了适配器损失在下降)：验证损失用 Managed Training 从 0.91 降到 0.52，用 Programmed Training 从 0.91 降到 0.41。
+3. [适配器部署在同一组 GPU 上](#结果-3适配器部署在同一组-gpu-上)：每个适配器部署第一次测试用了 64 秒，第二次 78 秒，不增加 GPU。
+4. [适配器改变的是回答方式，不是答对率](#结果-4适配器改变的是回答方式不是答对率)：回答变短，换成训练数据的格式；答对行数的差别在随机波动范围内。
+
+数据来源：2026 年 11 月 22、23 日在 East US 2 做的两次测试，各用一个 Foundry 账户，都用本仓库的 GSM8K 示例数据。适配器 A 是第一次测试里用 Managed Training 训练的，适配器 B 是第二次测试里用 Programmed Training 训练的。测试环境、方法、完整表格和局限见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
+
+### 结果 1：Qwen3.8-27B 部署到 Managed compute
 
 <table>
 <tr>
 <td width="50%"><img src="images/portal-target-succeeded.png" alt="Foundry 门户，Models，Deployments，Managed-compute 标签页：一个 qwen--qwen3.8-27b 部署，状态 Succeeded，部署类型 Global Managed Compute，算力 H100_80GB。"></td>
-<td width="50%"><img src="images/portal-two-adapters.png" alt="Foundry 门户，Models，Deployments，Adapter deployments 标签页：两个适配器部署，部署状态都是 Succeeded，目标部署是同一个，类型为 Managed compute。"></td>
+<td width="50%"><img src="images/portal-playground.png" alt="Foundry 门户里目标部署的 Playground：问 Tom 有几个苹果，回答 8。"></td>
 </tr>
 <tr>
-<td>目标部署：状态 Succeeded，Global Managed Compute，H100_80GB。</td>
-<td>同一个目标部署上的两个适配器部署，都是 Succeeded。</td>
+<td>Deployments 页面的 Managed compute 标签页：基础模型 <code>qwen--qwen3.8-27b</code>，状态 Succeeded，Global Managed Compute，H100_80GB。</td>
+<td>同一个部署的 Playground：基础模型在回答一道测试题。</td>
 </tr>
 </table>
 
-<img src="images/portal-playground.png" width="440" alt="Foundry 门户里目标部署的 Playground：问 Tom 有几个苹果，回答 8。">
+基础模型是 Foundry 模型目录里开放权重的 Qwen3.8-27B，按原样部署，没有经过训练。`infra/up.py --deploy` 用支持 LoRA 的部署模板，在一个实例、2 × H100 80 GB 上创建它的部署；适配器就挂在这个目标部署上。部署在请求发出 21 分钟后变为 `Succeeded`，8 秒后第一次调用返回 HTTP 200；第二次测试里，第一次成功调用等了 553 秒（见[耗时与费用](#耗时与费用)）。GPU 在目标部署上，按小时计费的也只有它：按目录价每小时 15.82 美元，有没有请求都一样。
+
+### 结果 2：两种训练方式都训练出了适配器，损失在下降
+
+<img src="images/training-loss-zh.png" width="900" alt="两栏折线图，损失轴相同，从 0.2 到 1.0，越低越好。左边 A，第一次测试的 Managed Training 任务，batch size 128，6 个优化步：训练损失从 0.85 降到 0.48；50 行验证数据上的验证损失，第 1 步 0.91，第 3 步（第 1 个 epoch 结束）0.62，第 6 步 0.52。右边 B，第二次测试的 Programmed Training 会话，batch size 16，56 个优化步：训练损失从 0.90 降下来后逐步起伏；验证损失训练前 0.91，第 1 个 epoch 结束（第 28 步）0.42，第 56 步之后 0.41。">
+
+| 用 GSM8K 示例的 449 行训练 2 个 epoch，LoRA rank 32 | 适配器 A：Managed Training（第一次测试） | 适配器 B：Programmed Training（第二次测试） |
+|---|---|---|
+| 怎么运行 | 在门户的 Training 页面提交一个监督微调任务，由 Foundry 运行整个任务（[第 3 步选项 A](#3-训练适配器)） | 运行 `training/programmed_training_sft.py`：你的 Python 循环发出每一步，由 Foundry 在它的 GPU 上执行（[第 3 步选项 B](#3-训练适配器)） |
+| batch size 和优化步数 | 128，服务默认值；6 步 | 16，在循环里设定；56 步 |
+| 50 行验证数据上的验证损失，报告的第一个值 → 最后一个值 | 0.91 → 0.52 | 0.91 → 第一个 epoch 之后 0.42 → 0.41 |
+| 训练 token 及其按目录价的费用 | 计费 213,000 个，0.64 美元 | 循环自己统计 219,652 个，约 0.90 美元 |
+| 用时 | 从创建到结束 5.3 分钟 | 从启动脚本到退出 9 分钟 |
+| 产出 | 一个 LoRA 适配器，作为模型列在项目里，部署为适配器 A | 同上，部署为适配器 B |
 
 看什么：
 
-1. 左图只有一个 Managed compute 部署。GPU 在它上面，按小时计费的也只有它。
-2. 右图有两个适配器，Target deployment 一列的值相同。它们共用目标部署的两块 GPU，[不单独计价](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview)。
-3. Playground 截图是目标部署在回答一道测试题。
+- **两次训练的验证损失都在下降。** 验证损失是在 50 行验证数据上算的，两次训练都不用这些行训练：训练之后，适配器对没见过的题目的参考答案，预测得比基础模型好。这说明训练起了作用；它在实际回答里改变了什么，见[结果 4](#结果-4适配器改变的是回答方式不是答对率)。
+- **两边都从 0.91 开始。** 同一个基础模型、同样的 50 行，在两个服务里得到同一个起点；两个服务计算损失的方法是否相同，除了这一点吻合，没有另外核对。
+- **B 降得更低是因为步数多，不说明这种方式更好。** 两次训练的数据、基础模型、2 个 epoch、LoRA rank 32 和学习率的变化方式都相同。不同的是 batch size，16 对 128，优化步数也就不同，56 对 6。用 batch size 16 的 Managed Training 没有跑过。
+- **训练损失**（蓝线）是每一步所训练那批数据上的损失。B 每批只有 16 行，所以逐步起伏；要比较的是验证损失（橙色）。
 
-以上是真实的门户截图，做过裁剪，订阅名和 Created by 一列的值已遮盖。图里的部署名属于那次测试部署。你的部署叫 `qwen38-lora` 和 `qwen38-lora-<显示名>`，除非传了 `--target`。
+### 结果 3：适配器部署在同一组 GPU 上
 
-### 同一道题，带不带适配器的回答
+<img src="images/portal-two-adapters.png" width="700" alt="Foundry 门户，Models，Deployments，Adapter deployments 标签页：两个适配器部署，部署状态都是 Succeeded，目标部署是同一个，类型为 Managed compute。">
 
-两次请求的 system 消息相同（`Reply user's question as accurately as possible.`），user 消息也相同，是验证文件的第 7 行（题意：三个女生一小时各做了若干道数学题，问两小时一共做了多少道）：
+第一次测试的 Adapter deployments 标签页：同一个目标部署上的两个适配器部署，都是 Succeeded。
+
+每个适配器部署指定一个训练好的适配器和结果 1 的目标部署。第一次测试里，每个适配器部署在请求发出 64 秒后变为 `Succeeded`；第二次测试里，适配器 B 用了 78 秒。适配器部署不增加 GPU，[不单独计价](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview)；一个目标部署最多挂 8 个。之后你的应用在同一个端点上，用 `model` 字段选择基础模型或某个适配器。
+
+截图来自第一次测试，所以图里两个适配器都是用 Managed Training 训练的：一个是用 GSM8K 示例训练的适配器 A；另一个用同样的设置训练，数据是 [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning) 里的另一套示例 `Text-Bug-Detection`，部署在同一个目标部署上。和基础模型做对比的只有适配器 A。
+
+结果 1 和结果 3 的截图都是真实的门户截图，做过裁剪，订阅名和 Created by 一列的值已遮盖。图里的部署名属于那次测试部署。你的部署叫 `qwen38-lora` 和 `qwen38-lora-<显示名>`，除非传了 `--target`。
+
+### 结果 4：适配器改变的是回答方式，不是答对率
+
+同一道题分别发给基础模型和两个适配器，请求里只有 `model` 字段不同。题目是验证文件的第 7 行（题意：三个女生一小时各做了若干道数学题，问两小时一共做了多少道），system 消息用这一行自带的 `Reply user's question as accurately as possible.`：
 
 > Fiona completed 36 math questions in an hour. Shirley was able to complete twice as many math questions within that same time, and Kiana completed half of the sum of Fiona and Shirley's math questions. If they each did the same number of questions the following hour, how many math questions did all three girls complete in 2 hours?
 
-用目标部署的名称调用，基础模型的回答有 385 个 completion tokens，开头和结尾如下：
+| 第 7 行，作答的是 | 基础模型 Qwen3.8-27B | 适配器 A，Managed Training | 适配器 B，Programmed Training |
+|---|---|---|---|
+| 答案 | 324，正确 | 324，正确 | 324，正确 |
+| 长度，completion tokens | 385 | 65 | 149 |
+| 最后一行 | 一句说出 324 的话 | `#### 324` 之后的 `The answer is: 324` | `#### 324!!!`，和每个训练答案一样 |
+
+**基础模型**，回答的开头和结尾：
 
 ```text
 Here is the step-by-step solution:
@@ -150,7 +189,7 @@ Here is the step-by-step solution:
 All three girls completed **324** math questions in 2 hours.
 ```
 
-用适配器部署的名称调用，适配器的回答有 65 个 completion tokens，全文如下：
+**适配器 A**，完整回答：
 
 ```text
 36*2=72
@@ -162,76 +201,7 @@ All three girls completed **324** math questions in 2 hours.
 The answer is: 324
 ```
 
-看什么：两个回答都对（324）。适配器学到了训练数据那种只列算式的写法，还用上了训练数据的 `####` 标记，基础模型一次也没用过这个标记。训练数据每个答案末尾的 `!!!` 它没有学到。带标记的适配器回答一共 6 个，这一行是其中之一。
-
-### 示例适配器改变了什么
-
-**问题。** 用适配器部署的名称调用，到达的是不是和目标部署名称不同的模型？只用 449 行数据训练出来的适配器，改变了什么？
-
-<img src="images/test-topology-zh.png" width="900" alt="测试拓扑。测试客户端：Azure 之外的一台 Windows 笔记本，Python 3.13，使用 Azure CLI 取得的 Microsoft Entra 令牌；50 行对比同时发 4 个请求，测速一次发 1 个流式请求。它通过 HTTPS 调用 East US 2 的 Foundry 账户端点，端点把请求转给目标部署：Qwen3.8-27B 模型版本 3 加 LoRA 部署模板，Global managed compute，1 个实例、2 块 H100 80 GB，同时提供基础模型和 LoRA rank 32 的 GSM8K 适配器。GPU 实际所在区域，这些测试无法确定。计时都在测试客户端上。">
-
-**方法。** 输入是 `chat_validation.jsonl` 的 50 行，也就是 `up.py` 上传的那个固定文件。每行的 system 和 user 消息原样发送，参考答案不发。每一行分别发给基础模型（`model` 填目标部署的名称）和 GSM8K 适配器（`model` 填适配器部署的名称）各一次，共 100 次调用，同时发 4 个，`temperature` 为 0，`reasoning_effort` 为 `"none"`，`max_tokens` 为 800。两边唯一的差别是 `model` 字段。判分在测试客户端上做，有两种：自动判分，把回答里的最后一个数字和参考答案比较；人工判分，把自动检查对任意一边判错的行逐一读一遍（共 12 行）。测速时把同一条提示词每边发 3 次，一次 1 个流式请求，思考（reasoning）保持默认，`max_tokens` 为 600。
-
-| 在 50 行验证数据上测得 | 基础模型（目标部署的名称） | 基础模型 + GSM8K 适配器（适配器部署的名称） |
-|---|---|---|
-| 返回 HTTP 200 的行数 | 50 行中的 50 行 | 50 行中的 50 行 |
-| 与另一边完全相同的回答 | 50 行中的 0 行 | 50 行中的 0 行 |
-| 平均回答长度，completion tokens | 310.2 | 158.7 |
-| 在 800 token 上限处被截断的回答 | 50 行中的 2 行 | 50 行中的 0 行 |
-| 带训练数据 `####` 标记的回答 | 50 行中的 0 行 | 50 行中的 6 行 |
-| 结尾与训练数据一致（`#### <数字>!!!`）的回答 | 50 行中的 0 行 | 50 行中的 0 行 |
-| 答对，自动判分（回答里的最后一个数字） | 50 行中的 39 行 | 50 行中的 45 行 |
-| 答对，人工读过 12 个被标记的行之后 | 50 行中的 44 行 | 50 行中的 46 行 |
-
-| 流式速度：同一条提示词每边发 3 次，一次 1 个请求 | 基础模型 | 基础模型 + GSM8K 适配器 |
-|---|---|---|
-| 首 token 之后的每秒 token 数（含思考和正文 token） | 72.5 / 72.1 / 72.6 | 53.4 / 53.4 / 53.4 |
-| 到第一个流式 token 的秒数（思考或正文） | 2.16 / 1.15 / 1.28 | 1.63 / 1.38 / 1.30 |
-
-这些数字说明什么：
-
-- **适配器确实在起作用。** 两边没有一个回答完全相同；适配器的回答大约短一半（158.7 对 310.2 个 completion tokens）；`####` 标记只有适配器会用。响应里的 `model` 字段也不同：基础模型返回 `qwen--qwen3.8-27b`，适配器返回形如 `rp-<hash>-1` 的内部 ID，不是部署名。
-- **不能说准确率有差别。** 人工读过被标记的行之后，基础模型答对 44 行，适配器答对 46 行。只有适配器答对的有 3 行，只有基础模型答对的有 1 行；对这 4 行做双侧符号检验，p = 0.625。自动判分的 39 对 45 夸大了差距：它取的是文本里的最后一个数字，而基础模型有 5 个正确回答的末句里还有别的数字，比如上面例子里的 “in 2 hours”。
-- **格式只学到了一部分。** 示例任务只有 6 个优化步（449 行，2 个 epoch，batch size 128）。适配器学到了简短的写法，50 个回答里有 6 个用了标记，完整的结尾一次也没有出现。
-- **适配器会降低速度。** 在这条提示词上，同一组 GPU 带适配器时每秒生成 53.4 个 token，基础模型是 72.5 个，少了约 26%。第一个 token 两边都在 1.15 到 2.16 秒之间到达。
-
-局限：一个适配器、一个训练种子、50 行、每行只请求一次、一个目标部署、一台客户端；两边是依次测的（先基础模型），没有交替。测速是单用户测量，不是容量测试；token 数包含思考 token，六个回答里有一个全部是思考。判分细节见 [`docs/TESTING_CN.md`](docs/TESTING_CN.md)。
-
-### 同一份数据用 Programmed Training 训练
-
-**问题。** Programmed Training 训练出来的适配器，能不能像 Managed Training 任务的适配器那样部署到 Managed compute？同样的 449 行数据，优化步从 6 个变成 56 个，回答有什么变化？
-
-<img src="images/test-topology-pt-zh.png" width="900" alt="第二次测试。测试客户端：Azure 之外的一台 Windows 笔记本，Python 3.13，Foundry 微调 cookbook，使用 Azure CLI 取得的 Microsoft Entra 令牌；它运行训练循环（449 行，batch size 16，2 个 epoch），并做 50 行对比，同时发 4 个请求。它通过 HTTPS 访问 East US 2 的第二个 Foundry 账户和项目，里面有 Qwen/Qwen3.8-27B 的 Programmed Training 会话、作为项目模型保存下来的检查点（LoRA rank 32，基础模型版本 3）和账户端点。端点把请求转给目标部署：Qwen3.8-27B 模型版本 3 加 LoRA 部署模板，Global managed compute，1 个实例、2 块 H100 80 GB，同时提供基础模型和 Programmed Training 适配器。依次是：训练（56 批数据，每批 16 行；验证损失训练前 0.91，训练后 0.41），保存最后一个检查点，部署（目标部署 21 分钟后 Succeeded，再过 553 秒第一次返回 HTTP 200；适配器部署 78 秒后 Succeeded），对比（50 行验证数据先发给基础模型，再发给适配器）。GPU 实际所在区域，这些测试无法确定。">
-
-**方法。** 第二次测试在 East US 2 的另一个 Foundry 账户里做，所在订阅已获得 Programmed Training 的访问权限。训练按 Foundry 微调 cookbook 里的监督对话数据配方（[`programmed_training/docs/custom-data.md`](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/custom-data.md)）进行。测试客户端上的一个 Python 循环读取同样两个固定版本的 GSM8K 文件，用 cookbook 为这个模型提供的渲染器（`qwen3_8_low_reasoning`）把每一行渲染成模型的对话格式，再一批一批发给 `Qwen/Qwen3.8-27B` 的训练会话。这个循环现在就是 [`training/programmed_training_sft.py`](training/programmed_training_sft.py)：准备数据和运行会话的函数，就是这次测试里跑的那些。设置：LoRA rank 32，2 个 epoch，batch size 16，学习率从 0.0001 开始线性降到零，种子 42，只对助手的回答计算损失。第一步之前、第一个 epoch 之后和训练结束时，循环各在 50 行验证数据上算一次损失，不更新适配器。循环保存了最后一个检查点，项目随后把它列为一个 LoRA 模型（rank 32），基础模型版本是 3。这个模型的 ID 和 Managed Training 适配器的 ID 形式相同：`azureai://accounts/<account>/projects/<project>/models/<model name>/versions/1`。
-
-部署用的是[一次请求怎么走](#一次请求怎么走)第 3 步的两个请求：先建目标部署，部署模板、模型版本和 GPU 与第一次测试相同；再建一个适配器部署，用上面那个 ID 指向保存下来的模型。这次测试里，两个请求是另一个脚本发的；`infra/up.py --deploy --adapter-model` 发的是同样的两个请求。cookbook 自带一个部署脚本 `scripts/deploy_to_foundry.py`，说明见 [`docs/deployment-and-inference.md`](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/deployment-and-inference.md)。在这个提交上，它唯一的部署目标是 `Fireworks`，这是一种预配置（provisioned）部署，要另外申请预览权限；它没有 Managed compute 这个目标，本次测试也没有用它。
-
-对比沿用上一节的方法，同样的 50 行、同样的请求设置：共 100 次调用，同时发 4 个，先测基础模型。自动判分把基础模型的 11 个回答判为错：其中 8 个的文本和第一次测试里已经人工读过的回答一字不差，沿用当时的结论；另外 3 个重新读过。适配器有 7 个回答被判错；这些回答都以 `#### <数字>!!!` 结尾，所以拿去比较的数字就是适配器的最终答案。
-
-| 在 449 行数据上训练 2 个 epoch | Managed Training 任务（第一次测试） | Programmed Training 会话（第二次测试） |
-|---|---|---|
-| batch size | 128，服务默认值 | 16，在循环里设定 |
-| 优化步数 | 6 | 56 |
-| 学习率 | 从 0.0001 开始，线性降到零 | 从 0.0001 开始，线性降到零 |
-| 50 行验证数据上的验证损失，报告的第一个值 | 0.91 | 0.91 |
-| 50 行验证数据上的验证损失，报告的最后一个值 | 0.53 | 0.41 |
-| 训练 token | 计费 213,000 个 | 循环自己统计 219,652 个 |
-| 这些 token 按目录价的费用，美元 | 0.64 | 0.90，估算值 |
-| 用时 | 从创建到结束 5.3 分钟 | 循环本身 6 分钟，从启动脚本到退出 9 分钟 |
-
-| 在 50 行验证数据上测得 | 基础模型（第二次测试） | 基础模型 + Programmed Training 适配器（第二次测试） | 对照：基础模型 + Managed Training 适配器（第一次测试，取自上一张表） |
-|---|---|---|---|
-| 返回 HTTP 200 的行数 | 50 行中的 50 行 | 50 行中的 50 行 | 50 行中的 50 行 |
-| 与同一次测试里基础模型完全相同的回答 | 不适用 | 50 行中的 0 行 | 50 行中的 0 行 |
-| 平均回答长度，completion tokens | 311.2 | 115.7 | 158.7 |
-| 在 800 token 上限处被截断的回答 | 50 行中的 2 行 | 50 行中的 0 行 | 50 行中的 0 行 |
-| 带训练数据 `####` 标记的回答 | 50 行中的 0 行 | 50 行中的 50 行 | 50 行中的 6 行 |
-| 结尾与训练数据一致（`#### <数字>!!!`）的回答 | 50 行中的 0 行 | 50 行中的 50 行 | 50 行中的 0 行 |
-| 答对，自动判分（回答里的最后一个数字） | 50 行中的 39 行 | 50 行中的 43 行 | 50 行中的 45 行 |
-| 答对，人工读过被标记的行之后 | 50 行中的 44 行 | 50 行中的 43 行 | 50 行中的 46 行 |
-
-第 7 行，也就是[上面](#同一道题带不带适配器的回答)展示的那道题，这个适配器用 149 个 completion tokens 作答。基础模型对这道题的回答和第一次测试一字不差。下面是适配器的完整回答：
+**适配器 B**，完整回答：
 
 ```text
 Shirley completed 36*2=<<36*2=72>>72 math questions.
@@ -242,17 +212,24 @@ In 2 hours, they completed 162*2=<<162*2=324>>324 math questions.
 #### 324!!!
 ```
 
-看什么：最后一行。上面 Managed Training 适配器的回答停在 `#### 324`，后面还跟了一句话。这个回答的结尾和训练数据里的每个答案完全一样，每步计算也用了训练数据的 `<<...>>` 写法。
+在全部 50 行验证数据上，`temperature` 为 0，每行发给每一边各一次：
+
+| 在 50 行验证数据上 | 基础模型，第一次测试 | 适配器 A | 基础模型，第二次测试 | 适配器 B |
+|---|---|---|---|---|
+| 平均回答长度，completion tokens | 310.2 | 158.7 | 311.2 | 115.7 |
+| 结尾与训练数据一致（`#### <数字>!!!`）的回答 | 50 行中的 0 行 | 50 行中的 0 行 | 50 行中的 0 行 | 50 行中的 50 行 |
+| 带训练数据 `####` 标记的回答 | 50 行中的 0 行 | 50 行中的 6 行 | 50 行中的 0 行 | 50 行中的 50 行 |
+| 在 800 token 上限处被截断的回答 | 50 行中的 2 行 | 50 行中的 0 行 | 50 行中的 2 行 | 50 行中的 0 行 |
+| 答对，人工读过自动判分判错的每个回答之后 | 50 行中的 44 行 | 50 行中的 46 行 | 50 行中的 44 行 | 50 行中的 43 行 |
 
 这些数字说明什么：
 
-- **部署和调用的方式与 Managed Training 的适配器相同。** 适配器部署 78 秒后变为 `Succeeded`，第一次调用返回 HTTP 200。响应的 `model` 字段同样是形如 `rp-<hash>-1` 的内部 ID。
-- **这个适配器的每个回答都是训练数据的格式。** 50 个回答全部以 `#### <数字>!!!` 结尾。Managed Training 的适配器只有 6 个回答用了标记（共 50 个），完整的结尾一次也没有出现。回答平均 115.7 个 completion tokens，比基础模型 311.2 个的三分之一略多。
-- **不能说准确率有差别。** 基础模型答对 44 行，适配器答对 43 行。只有适配器答对的有 2 行，只有基础模型答对的有 3 行；对这 5 行做双侧符号检验，p = 1.0。自动判分的 39 对 43 低估了基础模型，原因和上一节相同：它有 5 个正确回答的末句里还有别的数字。
-- **验证损失比示例任务降得更低。** 第一个 epoch 之后从 0.91 降到 0.42，第二个 epoch 之后是 0.41；只有 6 步的示例任务结束时是 0.53。两边都从 0.91 开始：同一个基础模型、同样的 50 行，如果两个服务计算损失的方法相同，起点就应该一样；除了这一点吻合，两者的算法是否相同没有另外核对。
-- **两个适配器的差别，不能当成两种训练方式的优劣结论。** 两次训练的数据、基础模型及其版本、2 个 epoch、LoRA rank 32 和学习率的变化方式都相同。不同的是 batch size，16 对 128，优化步数也就不同，56 对 6。Managed Training 任务内部怎么做（优化器设置、提示词渲染），从外部看不到；用 batch size 16 的 Managed Training 也没有跑过。
+- **两个适配器都在起作用。** 50 行里，没有一行的适配器回答和同一次测试里基础模型的回答相同；`####` 标记也只有适配器会用。
+- **优化步越多，学到的训练格式越多。** 适配器 A（6 步）学到了简短的写法，但 50 个回答里只有 6 个用了标记，完整的结尾一次也没有。适配器 B（56 步）50 个回答全部按训练数据的方式结尾；回答平均 115.7 个 completion tokens，比基础模型 311.2 个的三分之一略多。
+- **不能说准确率有差别。** 只有适配器 A 答对的有 3 行，只有它的基础模型答对的有 1 行（双侧符号检验，p = 0.625）；适配器 B 是 2 行对 3 行（p = 1.0）。GSM8K 示例教的是回答格式；本页不证明微调能让模型的算术更好。
+- **适配器会降低速度。** 带适配器 A 时，同一组 GPU 每秒流式生成 53.4 个 token，基础模型是 72.5 个，少了约 26%（同一条提示词，每边 3 次）。适配器 B 没有重测速度。
 
-局限：一个会话、一个种子、50 行、每行只请求一次；先测基础模型，没有交替。Managed Training 的适配器是在另一个账户的另一个目标部署上测的，没有和这个适配器放在一起测；`temperature` 为 0 时，基础模型自己的回答在两次测试之间也有 8 行不同（共 50 行）。这个适配器没有重测速度。第二次测试的费用是按 token 数和目录价估算的，没有读账单。
+局限：每种方式一个适配器、一个种子、50 行、每行只请求一次；先测基础模型，没有交替。两个适配器在不同账户的不同目标部署上测；`temperature` 为 0 时，基础模型自己的回答在两次测试之间也有 8 行不同（共 50 行）。方法、判分和完整表格见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
 
 ### 耗时与费用
 
@@ -291,6 +268,7 @@ In 2 hours, they completed 162*2=<<162*2=324>>324 math questions.
 | 你想 | 读这里 |
 |---|---|
 | 在自己的订阅里部署 | [操作步骤](#操作步骤) |
+| 看这些结果背后的测试环境、方法、完整表格和局限 | [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md) |
 | 了解每项检查证明了什么、回答怎么判分、哪些没有测 | [`docs/TESTING_CN.md`](docs/TESTING_CN.md) |
 | 查 Foundry 训练支持哪些模型、训练类型、部署选项和区域 | [`docs/FOUNDRY_TRAINING_CN.md`](docs/FOUNDRY_TRAINING_CN.md) |
 | 了解示例数据、图标和截图的来源 | [`NOTICE.md`](NOTICE.md) |
@@ -301,8 +279,8 @@ In 2 hours, they completed 162*2=<<162*2=324>>324 math questions.
 | `training/` | `programmed_training_sft.py`，用示例数据做 Programmed Training 的训练循环；要在 cookbook 的 Python 环境里运行 |
 | `examples/` | `chat.py`，一个最小的客户端 |
 | `tests/` | 脚本逻辑的离线测试 |
-| `docs/` | 测试说明，以及 Microsoft Learn 上 Foundry 训练一文的摘要，各有中英文两版 |
-| `images/` | 三张示意图、三张门户截图和一张 Microsoft Learn 表格截图，来源记录在 `SOURCES.json` |
+| `docs/` | 结果详情、测试说明，以及 Microsoft Learn 上 Foundry 训练一文的摘要，各有中英文两版 |
+| `images/` | 三张示意图、一张训练损失图、三张门户截图和一张 Microsoft Learn 表格截图，来源记录在 `SOURCES.json` |
 
 ## 操作步骤
 
@@ -407,7 +385,7 @@ RESULT: PASS   receipt: <home>/.foundry-lora/<name>/up-receipt.json
 | 训练在哪里跑 | 一个任务，从头到尾由 Foundry 运行，GPU 由 Microsoft 分配 | 循环在你的电脑上；循环发来的每一步由 Foundry 执行，GPU 由 Microsoft 运行 |
 | 你能设置什么 | 数据，以及向导里提供的设置 | 每一步：脚本定了 batch size 16、2 个 epoch、学习率和什么时候算验证损失 |
 | 除了第 2 步，还需要什么 | 不需要别的 | 访问权限和 cookbook 的 Python 环境，见前提条件 |
-| 示例数据会跑成什么样（数字是[实现效果](#同一份数据用-programmed-training-训练)里测到的） | 6 个优化步；213,000 个训练 token，按目录价 0.64 美元；5.3 分钟 | 56 个优化步；219,652 个训练 token，按目录价约 0.90 美元；9 分钟 |
+| 示例数据会跑成什么样（数字是[结果 2](#结果-2两种训练方式都训练出了适配器损失在下降)里测到的） | 6 个优化步；213,000 个训练 token，按目录价 0.64 美元；5.3 分钟 | 56 个优化步；219,652 个训练 token，按目录价约 0.90 美元；9 分钟 |
 | 第 4 步怎么找到适配器 | 通过它的训练任务 | 按你用 `--adapter-model` 传入的模型名称 |
 
 #### A. Managed Training：在门户里操作
@@ -539,7 +517,7 @@ python infra/verify.py --resource-group <name>
 RESULT: PASS   report: <home>/.foundry-lora/<name>/verify-report.json
 ```
 
-加 `--full` 会在你的部署上重做[实现效果](#示例适配器改变了什么)里的对比：50 行验证数据分别经过基础模型和适配器，然后测流式速度。
+加 `--full` 会在你的部署上重做[结果 4](#结果-4适配器改变的是回答方式不是答对率)里的对比：50 行验证数据分别经过基础模型和适配器，然后测流式速度。
 
 ```text
 <time> [PASS] Held-out rows through qwen38-lora: 50/50 answered; correct by last number <n>; mean <n> completion tokens; <n> cut at 800 tokens; <n> with '####'

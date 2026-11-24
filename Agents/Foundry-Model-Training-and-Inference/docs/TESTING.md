@@ -95,7 +95,7 @@ To score your own comparison, read `verify-rows-<time>.jsonl`: each line holds t
 
 ## How the numbers in the README were measured
 
-The test topology is shown in the README under [What the sample adapter changes](../README.md#what-the-sample-adapter-changes). All clocks are on the test client.
+The test topology of each test is shown in [RESULTS.md](RESULTS.md): under [adapter A](RESULTS.md#adapter-a-managed-training-first-test) for the first test and [adapter B](RESULTS.md#adapter-b-programmed-training-second-test) for the second. All clocks are on the test client.
 
 | Number | How it was taken |
 |---|---|
@@ -111,7 +111,7 @@ The test topology is shown in the README under [What the sample adapter changes]
 | Prices | the public Azure Retail Prices API, meters `Mngd H100_80GB Gl` and `Qwen38 27b SFT Gl 1M Tokens`, in USD |
 | Second test: Programmed Training settings | read from the configuration that the loop saved before its first step: batch size 16, 2 epochs, learning rate 0.0001 with a linear schedule, LoRA rank 32, seed 42, at most 2,048 tokens per row. The 449 rows give 28 batches per epoch, so each epoch trains 448 rows and leaves 1 out |
 | Second test: learning rate of both runs | the value logged at every optimizer step: the 6 values in the job's result file and the 56 values in the loop's metrics file all lie on a straight line from 0.0001 at the first step to zero one step after the last |
-| Second test: validation loss | computed by the loop: the mean negative log-likelihood per answer token over the 50 validation rows (6,170 answer tokens), in a forward pass that does not update the adapter, before the first step, after 28 steps and after all 56. The Managed Training values are the `eval_loss` column of the job's result file |
+| Second test: validation loss | computed by the loop: the mean negative log-likelihood per answer token over the 50 validation rows (6,170 answer tokens), in a forward pass that does not update the adapter, before the first step, after 28 steps and after all 56. The Managed Training values are the `eval_loss` column of the result file of the job submitted in the portal, whose adapter is adapter A |
 | Second test: token counts and cost | counted by the loop from the batches it sent: 219,652 training tokens in 56 steps and 36,042 tokens in 3 validation passes. The cost is the training tokens at the list price of the meter `Qwen38 27b Train Gl 1M Tokens`. Whether this meter is the one applied, how validation passes are charged and the bill itself were not checked |
 | Second test: duration of the training | the loop's wall clock for the 56 steps and the 3 validation passes (363 seconds), and the time from starting the script to its exit (532 seconds), which adds preparing the data, creating the session and closing it |
 | Second test: first call after `Succeeded` | a process on the test client sent one chat call about every 30 seconds, the first one 6 seconds after the first read that showed `Succeeded`. 25 calls returned HTTP 404 `The specified endpoint does not exist` (17 on `/openai/v1/chat/completions`, 8 on two other routes tried along the way); the call at 553 seconds returned HTTP 200 |

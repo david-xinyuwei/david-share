@@ -14,9 +14,9 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 A team that wants an open-weight model to answer in its own format usually has to find GPUs twice: once to fine-tune the model and once to serve the result. Microsoft Foundry covers both for **Qwen3.8-27B** (preview). **Managed Training** runs a supervised fine-tuning job on GPUs that Microsoft allocates and returns a LoRA adapter. **Programmed Training** (preview) trains the same kind of adapter from a Python loop that you write and run. **Managed compute** serves the base model on dedicated GPUs and attaches adapters to it. The path from training to serving has details that cost money when they go wrong: an adapter has to be registered in the project before it can be deployed, the serving deployment has to use a LoRA-enabled template and the base-model version the adapter was trained on, the GPUs are billed for every hour the deployment exists, and deletion has an order.
 
-<img src="images/architecture-en.png" width="900" alt="Architecture in three areas. Your machine: infra/up.py sets up and deploys, the Foundry portal starts a Managed Training job (option A), the training loop programmed_training_sft.py drives a Programmed Training session (option B), and your application or infra/verify.py calls the endpoint. Your Azure subscription: one resource group with a Foundry account that has keys disabled and gives you the Foundry User role; inside the account, a Foundry project holds the training files (449 training rows, 50 validation rows), the training job or session and the LoRA adapter it produces; the account's Managed compute deployments are a target deployment of the base model Qwen3.8-27B with a LoRA-enabled template and one adapter deployment per adapter, up to 8, with no extra GPU; the account endpoint serves OpenAI-compatible chat completions, and the model field names the target or an adapter deployment. Operated by Microsoft: Microsoft Entra ID issues the token that every call carries; Foundry training runs the Managed Training job or each step of the Programmed Training loop on GPUs that Microsoft allocates, billed per training token; Global managed compute runs the target and its adapters on one set of GPUs, 2 H100 80 GB per instance, billed per GPU-hour while the target exists. Numbers 1 to 6 mark the steps under How a request moves; the last one, infra/down.py, deletes the adapter deployments and then the target deployment, which stops the GPU charge.">
+<img src="images/architecture-en.png" width="900" alt="Architecture as a flow from left to right. 1 Your data: you provide chat examples in JSONL, for example the GSM8K sample, and infra/up.py uploads them to Microsoft Foundry. 2 Train, in one of two ways: A, Managed Training, where you submit a job in the Foundry portal and Foundry runs the whole job; B, Programmed Training (preview), where the Python loop programmed_training_sft.py sends each step. Microsoft provides the training GPUs and bills per training token. Either way the output is a LoRA adapter listed in the project. 3 Deploy on Managed compute with infra/up.py --deploy: the target deployment runs the base model Qwen3.8-27B on one instance with 2 H100 80 GB GPUs, and adapter deployments, up to 8, attach to the same GPUs without adding a GPU; billing is per GPU-hour while the target exists, 15.82 USD per hour at list price. 4 Your app sends requests to one endpoint, and the model field picks the base model or an adapter; infra/verify.py checks both. 6 infra/down.py deletes the adapter deployments, then the target deployment, and the GPU charge stops.">
 
-What the figure shows: what runs on your machine, what is created in your Azure subscription, and which services Microsoft operates for you. The numbers 1 to 6 are the steps under [How a request moves](#how-a-request-moves). Both training approaches end in the same place: a LoRA adapter listed among the project's models, which an adapter deployment attaches to the target deployment. It is an original explanatory diagram; where the numbers on this page were measured is shown under [Results](#what-the-sample-adapter-changes).
+What the figure shows: the path from your data to an answer. You provide the training data (1). Foundry trains a LoRA adapter from it in one of two ways, Managed Training or Programmed Training, on GPUs that Microsoft provides and bills per training token (2). `infra/up.py --deploy` deploys the base model Qwen3.8-27B on Managed compute, one instance with 2 × H100 80 GB, and attaches each adapter to the same GPUs, up to 8, without adding a GPU (3). Your application picks the base model or an adapter with the `model` field (4). The numbers are the steps under [How a request moves](#how-a-request-moves). It is an original explanatory diagram; the test setup behind the numbers on this page is in [`docs/RESULTS.md`](docs/RESULTS.md).
 
 This repository automates that path for both training approaches and makes every billed step explicit:
 
@@ -26,7 +26,7 @@ This repository automates that path for both training approaches and makes every
 - **Call.** One OpenAI-compatible endpoint. The `model` field selects the base model (the target deployment's name) or the base model with an adapter (the adapter deployment's name).
 - **Remove.** `infra/down.py` deletes the adapter deployments and the target deployment, which stops the GPU charge.
 
-**Both approaches were run on the same data.** The 449 rows trained one adapter in a Managed Training job and a second one in a Programmed Training session. Each adapter was deployed on Managed compute and compared with the base model on the same 50 validation rows. Methods and numbers: [What the sample adapter changes](#what-the-sample-adapter-changes) and [The same data trained with Programmed Training](#the-same-data-trained-with-programmed-training).
+**Both approaches were run on the same data.** The 449 rows trained one adapter in a Managed Training job and a second one in a Programmed Training session. Each adapter was deployed on Managed compute and compared with the base model on the same 50 validation rows. What each produced: [Results](#results); setup, method and full tables: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 **The repository deploys it for you:** [`infra/up.py`](#2-create-the-foundry-resources-no-gpu) creates the resources and the deployments, [`training/programmed_training_sft.py`](#3-train-the-adapter) trains with Programmed Training, [`infra/verify.py`](#5-check-it) checks the deployment through its public endpoint, and [`infra/down.py`](#7-remove-it) removes it.
 
@@ -42,7 +42,7 @@ This repository automates that path for both training approaches and makes every
 
 What it is not:
 
-- It does not show that fine-tuning makes Qwen3.8-27B better at arithmetic. The sample job takes 6 optimizer steps and the Programmed Training session 56. On the 50 validation rows each adapter changed the style and length of every answer; the difference in correct answers was within noise for both (see [Results](#what-the-sample-adapter-changes)).
+- It does not show that fine-tuning makes Qwen3.8-27B better at arithmetic. The sample job takes 6 optimizer steps and the Programmed Training session 56. On the 50 validation rows each adapter changed the style and length of every answer; the difference in correct answers was within noise for both (see [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right)).
 - It does not give you access to Programmed Training. That preview needs an [access approval](https://aka.ms/foundry-interactive-training-signup) for your subscription before a session can start, and its script needs the Python environment of the [Foundry fine-tuning cookbook](https://github.com/microsoft-foundry/fine-tuning), which the other scripts do not need.
 - Fine-tuning Qwen3.8-27B and [LoRA adapters on Managed compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute) are preview features: no service-level agreement, and Microsoft does not recommend them for production workloads.
 - It is not a production network or safety design. The account is reachable from the internet with Microsoft Entra sign-in only, and Managed compute [has no built-in content filtering](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview).
@@ -106,36 +106,75 @@ The whole article, with all 18 models, the 27 regions, the serverless deployment
 
 ## Results
 
-The screenshots and numbers in this section come from two tests in East US 2. The first test, on 22 and 23 November 2026, used Managed Training: the GSM8K sample data, default training settings with seed 42, one target deployment and two adapter deployments. Its second adapter was trained with the same settings on `Text-Bug-Detection`, another sample set of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning); the comparison and the speed test are those of the GSM8K adapter. The second test, on 23 November 2026, trained the same GSM8K data with Programmed Training in another Foundry account and has [its own section](#the-same-data-trained-with-programmed-training). Screenshots and numbers outside that section belong to the first test unless a line names the second.
+Four results, in the order of the work:
+
+1. [Qwen3.8-27B deploys on Managed compute](#result-1-qwen38-27b-deploys-on-managed-compute): one instance with 2 × H100 80 GB, `Succeeded` 21 minutes after the request.
+2. [Both training approaches produce an adapter, and the loss falls](#result-2-both-training-approaches-produce-an-adapter-and-the-loss-falls): the validation loss goes from 0.91 to 0.52 with Managed Training and from 0.91 to 0.41 with Programmed Training.
+3. [The adapters deploy on the same GPUs](#result-3-the-adapters-deploy-on-the-same-gpus): 64 seconds per adapter deployment in the first test and 78 in the second, with no GPU added.
+4. [The adapter changes how the model answers, not how often it is right](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right): shorter answers in the format of the training data; the difference in correct answers is within noise.
+
+Where they come from: two tests in East US 2 on 22 and 23 November 2026, each in its own Foundry account, both on the GSM8K sample data of this repository. Adapter A was trained with Managed Training in the first test, adapter B with Programmed Training in the second. Test setup, method, full tables and limits: [`docs/RESULTS.md`](docs/RESULTS.md).
+
+### Result 1: Qwen3.8-27B deploys on Managed compute
 
 <table>
 <tr>
 <td width="50%"><img src="images/portal-target-succeeded.png" alt="Foundry portal, Models, Deployments, Managed-compute tab: one deployment of qwen--qwen3.8-27b with status Succeeded, deployment type Global Managed Compute, compute H100_80GB."></td>
-<td width="50%"><img src="images/portal-two-adapters.png" alt="Foundry portal, Models, Deployments, Adapter deployments tab: two adapter deployments, both with deployment status Succeeded, both with the same target deployment of type Managed compute."></td>
+<td width="50%"><img src="images/portal-playground.png" alt="Foundry portal, Playground of the target deployment: the question about Tom's apples and the answer 8."></td>
 </tr>
 <tr>
-<td>The target deployment: status Succeeded, Global Managed Compute, H100_80GB.</td>
-<td>Two adapter deployments on that one target deployment, both Succeeded.</td>
+<td>Deployments page, Managed compute tab: the base model <code>qwen--qwen3.8-27b</code>, status Succeeded, Global Managed Compute, H100_80GB.</td>
+<td>Playground of the same deployment: the base model answers a test question.</td>
 </tr>
 </table>
 
-<img src="images/portal-playground.png" width="440" alt="Foundry portal, Playground of the target deployment: the question about Tom's apples and the answer 8.">
+The base model is the open-weight Qwen3.8-27B from the Foundry model catalog, as published, with no training. `infra/up.py --deploy` creates its deployment with the LoRA-enabled template on one instance with 2 × H100 80 GB; this is the target deployment that adapters attach to. It reached `Succeeded` 21 minutes after the request, and the first call, 8 seconds later, returned HTTP 200; in the second test that first successful call came after 553 seconds (see [Time and cost](#time-and-cost)). The target deployment holds the GPUs and is the only item billed per hour: 15.82 USD at list price, with or without requests.
+
+### Result 2: both training approaches produce an adapter, and the loss falls
+
+<img src="images/training-loss-en.png" width="900" alt="Line chart in two panels with the same loss axis from 0.2 to 1.0; lower is better. Left, A, the Managed Training job of the first test, batch size 128, 6 optimizer steps: the training loss falls from 0.85 to 0.48; the validation loss on the 50 validation rows is 0.91 at step 1, 0.62 at step 3, the end of epoch 1, and 0.52 at step 6. Right, B, the Programmed Training session of the second test, batch size 16, 56 optimizer steps: the training loss falls from 0.90 and then moves from step to step; the validation loss is 0.91 before training, 0.42 after epoch 1 at step 28 and 0.41 after step 56.">
+
+| Training on the 449 rows of the GSM8K sample, 2 epochs, LoRA rank 32 | Adapter A: Managed Training (first test) | Adapter B: Programmed Training (second test) |
+|---|---|---|
+| How you run it | submit a supervised fine-tuning job on the portal's Training page; Foundry runs the whole job ([step 3, option A](#3-train-the-adapter)) | run `training/programmed_training_sft.py`; your Python loop sends each step and Foundry executes it on its GPUs ([step 3, option B](#3-train-the-adapter)) |
+| Batch size and optimizer steps | 128, the service default; 6 steps | 16, set in the loop; 56 steps |
+| Validation loss on the 50 validation rows, first → last value reported | 0.91 → 0.52 | 0.91 → 0.42 after epoch 1 → 0.41 |
+| Training tokens and their cost at list price | 213,000 billed, 0.64 USD | 219,652 counted by the loop, about 0.90 USD |
+| Duration | 5.3 minutes from created to finished | 9 minutes from starting the script to its exit |
+| Output | a LoRA adapter listed as a model in the project, deployed as adapter A | the same, deployed as adapter B |
 
 What to look at:
 
-1. The left screenshot lists one Managed compute deployment. That deployment holds the GPUs and is the only item billed per hour.
-2. The right screenshot lists two adapters with the same value in the Target deployment column. They share the target's two GPUs and are [not priced separately](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview).
-3. The Playground screenshot shows the target deployment answering a test question.
+- **The validation loss falls in both runs.** It is computed on the 50 validation rows, which neither run trains on: after training, the adapter predicts the reference answers of questions it has not seen better than the base model does. That is the evidence that training worked; what it changes in actual answers is [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right).
+- **Both start at 0.91.** The same base model on the same 50 rows gives the same starting value in both services; that the two services compute the loss in the same way was not checked beyond this agreement.
+- **B goes lower because it takes more steps; that does not make the approach better.** The two runs share the data, the base model, 2 epochs, LoRA rank 32 and the learning-rate schedule. They differ in batch size, 16 against 128, and so in optimizer steps, 56 against 6. Managed Training with batch size 16 was not run.
+- **The training loss** (blue) is the loss on the batch that each step trains on. B's batches hold 16 rows, so it moves from step to step; the validation loss (orange) is the measure to compare.
 
-These are real portal screenshots, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them belong to the test deployment. Yours are `qwen38-lora` and `qwen38-lora-<display name>` unless you pass `--target`.
+### Result 3: the adapters deploy on the same GPUs
 
-### The same question with and without the adapter
+<img src="images/portal-two-adapters.png" width="700" alt="Foundry portal, Models, Deployments, Adapter deployments tab: two adapter deployments, both with deployment status Succeeded, both with the same target deployment of type Managed compute.">
 
-Both requests carried the same system turn (`Reply user's question as accurately as possible.`) and the same user turn, row 7 of the validation file:
+Adapter deployments tab, first test: two adapter deployments on the same target deployment, both Succeeded.
+
+Each adapter deployment names a trained adapter and the target deployment of result 1. In the first test each one reached `Succeeded` 64 seconds after the request; adapter B reached it in 78 seconds in the second test. An adapter deployment adds no GPU and is [not priced separately](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview); one target deployment takes up to 8. Your application then picks the base model or an adapter with the `model` field of the same endpoint.
+
+The screenshot is from the first test, so both adapters in it were trained with Managed Training: adapter A on the GSM8K sample, and a second adapter trained with the same settings on `Text-Bug-Detection`, another sample set of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning), deployed on the same target deployment. Only adapter A was compared with the base model.
+
+The screenshots of results 1 and 3 are real portal screenshots, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them belong to the test deployment. Yours are `qwen38-lora` and `qwen38-lora-<display name>` unless you pass `--target`.
+
+### Result 4: the adapter changes how the model answers, not how often it is right
+
+The same question went to the base model and to each adapter; only the `model` field of the request differed. It is row 7 of the validation file, sent with the row's system turn (`Reply user's question as accurately as possible.`):
 
 > Fiona completed 36 math questions in an hour. Shirley was able to complete twice as many math questions within that same time, and Kiana completed half of the sum of Fiona and Shirley's math questions. If they each did the same number of questions the following hour, how many math questions did all three girls complete in 2 hours?
 
-The base model, called by the target deployment's name, answered in 385 completion tokens. Its answer starts and ends like this:
+| Row 7, answered by | Base model Qwen3.8-27B | Adapter A, Managed Training | Adapter B, Programmed Training |
+|---|---|---|---|
+| Answer | 324, correct | 324, correct | 324, correct |
+| Length, completion tokens | 385 | 65 | 149 |
+| Last line | a sentence that states 324 | `The answer is: 324`, after `#### 324` | `#### 324!!!`, as in every training answer |
+
+**Base model**, beginning and end of its answer:
 
 ```text
 Here is the step-by-step solution:
@@ -150,7 +189,7 @@ Here is the step-by-step solution:
 All three girls completed **324** math questions in 2 hours.
 ```
 
-The adapter, called by the adapter deployment's name, answered in 65 completion tokens. This is its complete answer:
+**Adapter A**, complete answer:
 
 ```text
 36*2=72
@@ -162,76 +201,7 @@ The adapter, called by the adapter deployment's name, answered in 65 completion 
 The answer is: 324
 ```
 
-What to look at: both answers are correct (324). The adapter answers in the short calculation style of the training data and uses its `####` marker, which the base model never produced. It does not reproduce the `!!!` that ends every training answer. This row is one of the 6 adapter answers that carry the marker.
-
-### What the sample adapter changes
-
-**Question.** Does the adapter deployment's name reach a different model than the target deployment's name, and what does an adapter trained on 449 rows change?
-
-<img src="images/test-topology-en.png" width="900" alt="Test topology. Test client: a Windows laptop outside Azure with Python 3.13 and a Microsoft Entra token from Azure CLI; 4 requests at a time for the 50-row comparison, 1 streamed request at a time for the speed test. It calls the account endpoint of a Foundry account in East US 2 over HTTPS. The endpoint forwards to the target deployment: Qwen3.8-27B model version 3 with the LoRA template on Global managed compute, 1 instance with 2 H100 80 GB GPUs, serving the base model and the GSM8K adapter of LoRA rank 32. The region where the GPUs run was not established by these tests. All clocks are on the test client.">
-
-**Method.** The input is the 50 rows of `chat_validation.jsonl`, the same pinned file that `up.py` uploads. Each row's system and user turns were sent unchanged, and the reference answer was held back. Every row went once to the base model (`model` = the target deployment's name) and once to the GSM8K adapter (`model` = the adapter deployment's name): 100 calls, 4 at a time, with `temperature` 0, `reasoning_effort` `"none"` and `max_tokens` 800. The `model` field was the only difference between the two sides. Answers were scored on the test client in two ways: automatically, by comparing the last number in the answer with the reference answer, and by reading every row that an automatic check marked wrong for either side (12 rows). The speed test sent the same prompt 3 times per side, one streamed request at a time, with reasoning left at its default and `max_tokens` 600.
-
-| Measured on the 50 validation rows | Base model (target deployment's name) | Base model + GSM8K adapter (adapter deployment's name) |
-|---|---|---|
-| Rows answered with HTTP 200 | 50 of 50 | 50 of 50 |
-| Answers identical to the other side's | 0 of 50 | 0 of 50 |
-| Mean answer length, completion tokens | 310.2 | 158.7 |
-| Answers cut off at the 800-token limit | 2 of 50 | 0 of 50 |
-| Answers that contain the training data's `####` marker | 0 of 50 | 6 of 50 |
-| Answers that end like the training data (`#### <number>!!!`) | 0 of 50 | 0 of 50 |
-| Correct, automatic score (last number in the answer) | 39 of 50 | 45 of 50 |
-| Correct, after reading the 12 flagged rows | 44 of 50 | 46 of 50 |
-
-| Streaming speed: the same prompt 3 times per side, one request at a time | Base model | Base model + GSM8K adapter |
-|---|---|---|
-| Tokens per second after the first token (reasoning and answer tokens) | 72.5 / 72.1 / 72.6 | 53.4 / 53.4 / 53.4 |
-| Seconds to the first streamed token (reasoning or answer) | 2.16 / 1.15 / 1.28 | 1.63 / 1.38 / 1.30 |
-
-What the numbers mean:
-
-- **The adapter is active.** No answer is identical between the two sides, the adapter's answers are about half as long (158.7 against 310.2 completion tokens), and only the adapter uses the `####` marker. The response's `model` field differs too: the base model reports `qwen--qwen3.8-27b`, the adapter an internal ID of the form `rp-<hash>-1`, not the deployment name.
-- **Accuracy is not shown to differ.** After reading the flagged rows, the base model has 44 correct answers and the adapter 46. The adapter alone is correct on 3 rows and the base model alone on 1; a two-sided sign test on those 4 rows gives p = 0.625. The automatic score of 39 against 45 overstates the gap: it takes the last number in the text, and 5 correct base-model answers end with a sentence that contains another number, as in the example above ("in 2 hours").
-- **The format is learned in part.** The sample job takes 6 optimizer steps (449 rows, 2 epochs, batch size 128). The adapter picked up the short style, used the marker in 6 of 50 answers and never produced the complete ending.
-- **The adapter costs speed.** On this prompt the same GPUs generated 53.4 tokens per second with the adapter against 72.5 for the base model, about 26% fewer. The first token arrived after 1.15 to 2.16 seconds on both sides.
-
-Limits: one adapter, one training seed, 50 rows, one request per row, one target deployment, one client; the two sides were measured one after the other (base model first), not interleaved. The speed test is a single-user measurement, not a capacity test; its token counts include reasoning tokens, and one of the six answers consisted of reasoning only. Scoring details are in [`docs/TESTING.md`](docs/TESTING.md).
-
-### The same data trained with Programmed Training
-
-**Question.** Does an adapter trained with Programmed Training deploy on Managed compute like one from a Managed Training job, and what changes in the answers when the same 449 rows train the adapter for 56 optimizer steps instead of 6?
-
-<img src="images/test-topology-pt-en.png" width="900" alt="Second test. Test client: a Windows laptop outside Azure with Python 3.13, the Foundry fine-tuning cookbook and a Microsoft Entra token from Azure CLI; it runs the training loop (449 rows, batch size 16, 2 epochs) and the 50-row comparison with 4 requests at a time. Over HTTPS it reaches a second Foundry account and project in East US 2, which hold the Programmed Training session for Qwen/Qwen3.8-27B, the saved checkpoint as a model in the project (LoRA rank 32, base model version 3) and the account endpoint. The endpoint forwards to the target deployment: Qwen3.8-27B model version 3 with the LoRA template on Global managed compute, 1 instance with 2 H100 80 GB GPUs, serving the base model and the Programmed Training adapter. In order: train (56 batches of 16 rows; validation loss 0.91 before and 0.41 after), save the final checkpoint, deploy (target deployment Succeeded after 21 minutes, first HTTP 200 after 553 more seconds; adapter deployment Succeeded after 78 seconds), compare (the 50 validation rows go to the base model, then to the adapter). The region where the GPUs run was not established by these tests.">
-
-**Method.** The second test ran in another Foundry account in East US 2, in a subscription that has Programmed Training access. Training followed the supervised chat-data recipe of the Foundry fine-tuning cookbook ([`programmed_training/docs/custom-data.md`](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/custom-data.md)). A Python loop on the test client read the same two pinned GSM8K files, rendered each row with the cookbook's renderer for this model (`qwen3_8_low_reasoning`) and sent the batches to a training session for `Qwen/Qwen3.8-27B`. That loop is published as [`training/programmed_training_sft.py`](training/programmed_training_sft.py): the functions that prepare the data and run the session are the ones that ran here. Settings: LoRA rank 32, 2 epochs, batch size 16, a learning rate that starts at 0.0001 and falls linearly to zero, seed 42, loss on the assistant's answer only. Before the first step, after the first epoch and at the end, the loop computed the loss on the 50 validation rows without updating the adapter. It saved the final checkpoint, which the project then listed as a LoRA model (rank 32) on base-model version 3. The model's ID has the same form as the ID of a Managed Training adapter: `azureai://accounts/<account>/projects/<project>/models/<model name>/versions/1`.
-
-Deployment used the two requests of step 3 in [How a request moves](#how-a-request-moves): a target deployment with the same template, model version and GPUs as in the first test, then one adapter deployment that names the saved model by that ID. In this test a separate script sent the two requests; `infra/up.py --deploy --adapter-model` sends the same two. The cookbook has a deployment script of its own, `scripts/deploy_to_foundry.py`, described in [`docs/deployment-and-inference.md`](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/deployment-and-inference.md). At that commit its only target is `Fireworks`, a provisioned deployment that needs a separate preview access; it has no Managed compute target, and this test did not use it.
-
-The comparison repeated the method of the previous section on the same 50 rows with the same request settings: 100 calls, 4 at a time, base model first. The automatic score marked 11 answers of the base model wrong: 8 of them were, character for character, answers already read in the first test and kept that reading, and the other 3 were read. It marked 7 answers of the adapter wrong; each ends with `#### <number>!!!`, so the number compared is the adapter's final answer.
-
-| Training on the 449 rows for 2 epochs | Managed Training job (first test) | Programmed Training session (second test) |
-|---|---|---|
-| Batch size | 128, the service default | 16, set in the loop |
-| Optimizer steps | 6 | 56 |
-| Learning rate | starts at 0.0001, falls linearly to zero | starts at 0.0001, falls linearly to zero |
-| Validation loss on the 50 validation rows, first value reported | 0.91 | 0.91 |
-| Validation loss on the 50 validation rows, last value reported | 0.53 | 0.41 |
-| Training tokens | 213,000 billed | 219,652 counted by the loop |
-| Cost of those tokens at list price, USD | 0.64 | 0.90, an estimate |
-| Duration | 5.3 minutes from created to finished | 6 minutes for the loop, 9 minutes from starting the script to its exit |
-
-| Measured on the 50 validation rows | Base model (second test) | Base model + Programmed Training adapter (second test) | For comparison: base model + Managed Training adapter (first test, from the table above) |
-|---|---|---|---|
-| Rows answered with HTTP 200 | 50 of 50 | 50 of 50 | 50 of 50 |
-| Answers identical to the base model's in the same test | not applicable | 0 of 50 | 0 of 50 |
-| Mean answer length, completion tokens | 311.2 | 115.7 | 158.7 |
-| Answers cut off at the 800-token limit | 2 of 50 | 0 of 50 | 0 of 50 |
-| Answers that contain the training data's `####` marker | 0 of 50 | 50 of 50 | 6 of 50 |
-| Answers that end like the training data (`#### <number>!!!`) | 0 of 50 | 50 of 50 | 0 of 50 |
-| Correct, automatic score (last number in the answer) | 39 of 50 | 43 of 50 | 45 of 50 |
-| Correct, after reading the flagged rows | 44 of 50 | 43 of 50 | 46 of 50 |
-
-Row 7, the question shown [above](#the-same-question-with-and-without-the-adapter), answered by this adapter in 149 completion tokens. The base model's answer to it was the same text as in the first test. This is the adapter's complete answer:
+**Adapter B**, complete answer:
 
 ```text
 Shirley completed 36*2=<<36*2=72>>72 math questions.
@@ -242,17 +212,24 @@ In 2 hours, they completed 162*2=<<162*2=324>>324 math questions.
 #### 324!!!
 ```
 
-What to look at: the last line. The Managed Training adapter's answer above stops at `#### 324` and adds a sentence. This answer ends exactly as every training answer does, and it writes each calculation in the training data's `<<...>>` notation.
+On all 50 validation rows, with `temperature` 0 and each row sent once to each side:
+
+| On the 50 validation rows | Base model, first test | Adapter A | Base model, second test | Adapter B |
+|---|---|---|---|---|
+| Mean answer length, completion tokens | 310.2 | 158.7 | 311.2 | 115.7 |
+| Answers that end like the training data (`#### <number>!!!`) | 0 of 50 | 0 of 50 | 0 of 50 | 50 of 50 |
+| Answers that contain the training data's `####` marker | 0 of 50 | 6 of 50 | 0 of 50 | 50 of 50 |
+| Answers cut off at the 800-token limit | 2 of 50 | 0 of 50 | 2 of 50 | 0 of 50 |
+| Correct, after reading every answer that the automatic score marked wrong | 44 of 50 | 46 of 50 | 44 of 50 | 43 of 50 |
 
 What the numbers mean:
 
-- **The adapter deploys and is called like a Managed Training adapter.** The adapter deployment reached `Succeeded` in 78 seconds, and its first call returned HTTP 200. The response's `model` field again carried an internal ID of the form `rp-<hash>-1`.
-- **This adapter reproduces the training format in every answer.** All 50 answers end with `#### <number>!!!`. The Managed Training adapter used the marker in 6 of 50 answers and never produced the complete ending. The answers average 115.7 completion tokens, a little over one third of the base model's 311.2.
-- **Accuracy is not shown to differ.** The base model has 44 correct answers and the adapter 43. The adapter alone is correct on 2 rows and the base model alone on 3; a two-sided sign test on those 5 rows gives p = 1.0. The automatic score of 39 against 43 undercounts the base model for the reason given in the previous section: 5 of its correct answers end with a sentence that contains another number.
-- **The validation loss fell further than in the sample job.** It went from 0.91 to 0.42 after the first epoch and to 0.41 after the second; the 6-step job ended at 0.53. Both start at 0.91, as the same base model on the same 50 rows should if the two services compute the loss in the same way; that was not checked beyond this agreement.
-- **The difference between the two adapters is not a verdict on the two approaches.** The two runs share the data, the base model and its version, 2 epochs, LoRA rank 32 and the learning-rate schedule. They differ in batch size, 16 against 128, and so in optimizer steps, 56 against 6. What a Managed Training job does inside (optimizer settings, prompt rendering) is not visible from outside, and Managed Training with batch size 16 was not run.
+- **Both adapters are active.** On none of the 50 rows did an adapter give the same answer as the base model in the same test, and only the adapters use the training data's marker.
+- **More optimizer steps, more of the training format.** Adapter A (6 steps) took on the short style, but used the marker in 6 of 50 answers and never the complete ending. Adapter B (56 steps) ends all 50 answers like the training data; its answers average 115.7 completion tokens, a little over one third of the base model's 311.2.
+- **Accuracy is not shown to differ.** Adapter A alone is correct on 3 rows and its base model alone on 1 (two-sided sign test, p = 0.625); for adapter B the counts are 2 and 3 (p = 1.0). The GSM8K sample teaches an answer format; this page does not show that fine-tuning makes the model better at arithmetic.
+- **The adapter costs speed.** With adapter A the same GPUs streamed 53.4 tokens per second against 72.5 for the base model, about 26% fewer (one prompt, 3 runs per side). The speed test was not repeated for adapter B.
 
-Limits: one session, one seed, 50 rows, one request per row, base model first and not interleaved. The Managed Training adapter was measured on another target deployment in another account, not side by side with this one; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. The speed test was not repeated for this adapter. The cost figures of the second test are estimates from token counts and list prices; its bill was not read.
+Limits: one adapter per approach, one seed, 50 rows, one request per row, base model first and not interleaved. The two adapters were measured on different target deployments in different accounts; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. Method, scoring and full tables: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ### Time and cost
 
@@ -291,6 +268,7 @@ One hour of serving plus one Managed Training job comes to 16.46 USD at list pri
 | You want to | Read |
 |---|---|
 | Deploy it in your subscription | [Steps](#steps) |
+| See the test setup, method, full tables and limits behind these results | [`docs/RESULTS.md`](docs/RESULTS.md) |
 | Know what each check proves, how answers were scored and what was not tested | [`docs/TESTING.md`](docs/TESTING.md) |
 | See which models, training types, deployment options and regions Foundry training supports | [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md) |
 | Know where the sample data, the icons and the screenshots come from | [`NOTICE.md`](NOTICE.md) |
@@ -301,8 +279,8 @@ One hour of serving plus one Managed Training job comes to 16.46 USD at list pri
 | `training/` | `programmed_training_sft.py`, the Programmed Training loop for the sample data; it runs in the cookbook's Python environment |
 | `examples/` | `chat.py`, a minimal client |
 | `tests/` | offline tests of the scripts' logic |
-| `docs/` | test notes and a summary of the Microsoft Learn article on training in Foundry, each in English and Chinese |
-| `images/` | the three diagrams, the three portal screenshots and the Microsoft Learn table, with their provenance in `SOURCES.json` |
+| `docs/` | the results in detail, test notes and a summary of the Microsoft Learn article on training in Foundry, each in English and Chinese |
+| `images/` | the three diagrams, the training-loss chart, the three portal screenshots and the Microsoft Learn table, with their provenance in `SOURCES.json` |
 
 ## Steps
 
@@ -407,7 +385,7 @@ Choose one option, or do both: one target deployment serves up to 8 adapters.
 | Where the training runs | a job that Foundry runs from start to end on GPUs that Microsoft allocates | a loop on your machine; Foundry executes each step the loop sends, on GPUs that Microsoft operates |
 | What you set | the data and the settings that the wizard offers | every step: the script sets batch size 16, 2 epochs, the learning rate and when to validate |
 | What it needs beyond step 2 | nothing | the access approval and the cookbook's Python environment, see Prerequisites |
-| What to expect for the sample data, as measured under [Results](#the-same-data-trained-with-programmed-training) | 6 optimizer steps; 213,000 training tokens, 0.64 USD at list price; 5.3 minutes | 56 optimizer steps; 219,652 training tokens, about 0.90 USD at list price; 9 minutes |
+| What to expect for the sample data, as measured under [result 2](#result-2-both-training-approaches-produce-an-adapter-and-the-loss-falls) | 6 optimizer steps; 213,000 training tokens, 0.64 USD at list price; 5.3 minutes | 56 optimizer steps; 219,652 training tokens, about 0.90 USD at list price; 9 minutes |
 | How step 4 finds the adapter | through its training job | by the model name that you pass with `--adapter-model` |
 
 #### A. Managed Training, in the portal
@@ -539,7 +517,7 @@ python infra/verify.py --resource-group <name>
 RESULT: PASS   report: <home>/.foundry-lora/<name>/verify-report.json
 ```
 
-`--full` adds the comparison of [Results](#what-the-sample-adapter-changes) on your deployment: the 50 validation rows through the base model and through the adapter, then the streaming speed test.
+`--full` repeats the comparison of [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right) on your deployment: the 50 validation rows through the base model and through the adapter, then the streaming speed test.
 
 ```text
 <time> [PASS] Held-out rows through qwen38-lora: 50/50 answered; correct by last number <n>; mean <n> completion tokens; <n> cut at 800 tokens; <n> with '####'

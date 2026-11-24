@@ -6,12 +6,6 @@
     "download_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V25.zip",
     "terms_page": "https://learn.microsoft.com/azure/architecture/icons/",
     "package_sha256": "f293d99252b3638557dd08ccbff9f2529083473d39b373fb2af29a7200351339"
-   },
-   {
-    "package": "Microsoft Entra architecture icons (October 2023)",
-    "download_url": "https://download.microsoft.com/download/3/1/a/31a56038-856a-4489-88e4-ee5a1c4352be/Microsoft%20Entra%20architecture%20icons%20-%20Oct%202023.zip",
-    "terms_page": "https://learn.microsoft.com/entra/architecture/architecture-icons",
-    "package_sha256": "4e07536706a2d092e6524e5417e2c861333fdbdb41c36f78d44dfa07ccc5eedc"
    }
   ],
   "used_unmodified": [
@@ -27,38 +21,23 @@
    },
    {
     "package": "Microsoft Azure architecture icons V25",
-    "entry": "Azure_Public_Service_Icons/Icons/general/10002-icon-service-Subscriptions.svg",
-    "sha256": "d69843a70bd38eefa5b70a4d0b803502f95cdf061c59aed48b435170a15919b4"
-   },
-   {
-    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/035746832-icon-service-AI-Foundry.svg",
     "sha256": "fab039a771f72780ae34e59065d61c66a02d3c347d50923ef2956f34912ea02c"
    },
    {
     "package": "Microsoft Azure architecture icons V25",
-    "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/036509415-icon-service-Foundry-Project.svg",
-    "sha256": "152187174d7d632cd91fd7d17b37316c423e008a84a889241163af832c8c3dec"
-   },
-   {
-    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/038470614-icon-service-Foundry-Models.svg",
     "sha256": "9c671f141cb0e19b62e004628183ed8711ad16ec3b2e56b14c3cd035d5fac711"
-   },
-   {
-    "package": "Microsoft Entra architecture icons (October 2023)",
-    "entry": "Microsoft Entra architecture icons - Oct 2023/Microsoft Entra color icons SVG/Microsoft Entra ID color icon.svg",
-    "sha256": "efd9f54562bfb78bf3c77aecdd5fc31b61fce8a1cec78c4370b41fc470e54eda"
    }
   ]
  },
  "images": [
   {
    "file": "images/architecture-en.png",
-   "sha256": "59708441aedc182a30c7a64510bd9fdd6ba66ac0085d3fbf2b610ae802d78666",
+   "sha256": "fefe94f80198f4e9ddacfd62fc9eac04457d3b3c00c983a5861950b0a049d6f3",
    "pixels": [
-    1950,
-    1368
+    1770,
+    849
    ],
    "language": "en",
    "kind": "original explanatory diagram",
@@ -67,10 +46,10 @@
   },
   {
    "file": "images/architecture-zh.png",
-   "sha256": "635b17afd22b562e144c65704b5a5b8a2903c2d4336e2287158f095336c42eaf",
+   "sha256": "0992374f871188e83e0203ccf87cde9e7ba8e61db9f3378641c32705f4bc4623",
    "pixels": [
-    1950,
-    1368
+    1770,
+    849
    ],
    "language": "zh",
    "kind": "original explanatory diagram",
@@ -124,6 +103,30 @@
    "kind": "original explanatory diagram",
    "shows": "Test topology: test client, account endpoint, target deployment, and what each published number measures",
    "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
+  },
+  {
+   "file": "images/training-loss-en.png",
+   "sha256": "a0293635a6954b32ac03ece8324006feb78e9401f850c627468a5be3d1438162",
+   "pixels": [
+    1770,
+    870
+   ],
+   "language": "en",
+   "kind": "original chart of measured values",
+   "shows": "Training loss and validation loss of adapter A (Managed Training job, 6 optimizer steps) and adapter B (Programmed Training session, 56 optimizer steps), per optimizer step, as the two runs reported them",
+   "made_with": "an HTML page with an SVG chart, rendered by headless Microsoft Edge from the loss values in the result file of the Managed Training job and the metrics file of the Programmed Training loop"
+  },
+  {
+   "file": "images/training-loss-zh.png",
+   "sha256": "53b4c66bc2df2a57d5c4707795bdf2c04c126dc4dc600a0a621c0e2f258de235",
+   "pixels": [
+    1770,
+    870
+   ],
+   "language": "zh",
+   "kind": "original chart of measured values",
+   "shows": "Training loss and validation loss of adapter A (Managed Training job, 6 optimizer steps) and adapter B (Programmed Training session, 56 optimizer steps), per optimizer step, as the two runs reported them",
+   "made_with": "an HTML page with an SVG chart, rendered by headless Microsoft Edge from the loss values in the result file of the Managed Training job and the metrics file of the Programmed Training loop"
   },
   {
    "file": "images/portal-target-succeeded.png",

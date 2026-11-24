@@ -95,7 +95,7 @@ python -m unittest discover -s tests -v
 
 ## README 里的数字是怎么测的
 
-测试拓扑图在 README 的[示例适配器改变了什么](../README_CN.md#示例适配器改变了什么)一节。计时都在测试客户端上。
+两次测试的测试拓扑图都在 [RESULTS_CN.md](RESULTS_CN.md)：第一次测试见[适配器 A](RESULTS_CN.md#适配器-a用-managed-training-训练第一次测试)，第二次见[适配器 B](RESULTS_CN.md#适配器-b用-programmed-training-训练第二次测试)。计时都在测试客户端上。
 
 | 数字 | 取法 |
 |---|---|
@@ -111,7 +111,7 @@ python -m unittest discover -s tests -v
 | 价格 | 公开的 Azure Retail Prices API，计量项 `Mngd H100_80GB Gl` 和 `Qwen38 27b SFT Gl 1M Tokens`，单位美元 |
 | 第二次测试：Programmed Training 的设置 | 取自循环在第一步之前保存的配置：batch size 16，2 个 epoch，学习率 0.0001、线性变化，LoRA rank 32，种子 42，每行最多 2,048 个 token。449 行数据每个 epoch 分成 28 批，所以每个 epoch 训练 448 行，剩下 1 行不参与 |
 | 第二次测试：两次训练的学习率 | 每个优化步记录的值：任务结果文件里的 6 个值和循环指标文件里的 56 个值，都落在一条直线上：第一步是 0.0001，最后一步的下一步降到零 |
-| 第二次测试：验证损失 | 由循环计算：50 行验证数据（6,170 个回答 token）上每个回答 token 的平均负对数似然；只做前向计算，不更新适配器；在第一步之前、28 步之后和全部 56 步之后各算一次。Managed Training 的数值取自任务结果文件的 `eval_loss` 列 |
+| 第二次测试：验证损失 | 由循环计算：50 行验证数据（6,170 个回答 token）上每个回答 token 的平均负对数似然；只做前向计算，不更新适配器；在第一步之前、28 步之后和全部 56 步之后各算一次。Managed Training 的数值取自在门户提交的那个任务（训练出适配器 A）的结果文件的 `eval_loss` 列 |
 | 第二次测试：token 数和费用 | 由循环按它发送的批次统计：56 步共 219,652 个训练 token，3 次验证共 36,042 个 token。费用是训练 token 乘以计量项 `Qwen38 27b Train Gl 1M Tokens` 的目录价。实际用的是不是这个计量项、验证怎么计费、账单本身，都没有核对 |
 | 第二次测试：训练用时 | 循环自己记录的 56 步加 3 次验证的用时（363 秒），以及从启动脚本到退出的时间（532 秒），后者还包括准备数据、创建会话和关闭会话 |
 | 第二次测试：`Succeeded` 之后的第一次调用 | 测试客户端上的一个进程大约每 30 秒发一次 chat 调用，第一次在首次读到 `Succeeded` 之后 6 秒。有 25 次调用返回 HTTP 404 `The specified endpoint does not exist`（17 次在 `/openai/v1/chat/completions` 上，8 次在顺带尝试的另外两条路由上）；第 553 秒的那次调用返回 HTTP 200 |
