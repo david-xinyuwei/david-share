@@ -14,6 +14,10 @@
 
 想让开放权重的模型按自己的格式作答，团队通常要找两次 GPU：一次用来微调，一次用来部署微调结果。对 **Qwen3.8-27B**（预览），Microsoft Foundry 把这两件事都做成了托管服务。**Managed Training**（托管训练）用 Microsoft 分配的 GPU 跑监督微调任务，交回一个 LoRA 适配器。**Programmed Training**（预览）训练的是同一种适配器，训练循环是你自己写、自己运行的 Python 代码。**Managed compute**（托管计算）用独占 GPU 部署基础模型，并把适配器挂到上面。从训练到部署之间有几处细节，出错就要花钱：适配器要先登记到项目里才能部署；推理部署必须用支持 LoRA 的部署模板，基础模型版本要和训练适配器时一致；GPU 从部署建好到删除，每小时都在计费；删除还有先后顺序。
 
+<img src="images/architecture-zh.png" width="900" alt="架构图，分三个区域。你的电脑：infra/up.py 负责准备和部署；在 Foundry 门户提交 Managed Training 任务（选项 A）；训练循环 programmed_training_sft.py 驱动一个 Programmed Training 会话（选项 B）；你的应用或 infra/verify.py 调用端点。你的 Azure 订阅：一个资源组，里面是禁用密钥、给你分配 Foundry User 角色的 Foundry 账户；账户里的 Foundry 项目存放训练文件（449 行训练数据、50 行验证数据）、训练任务或会话，以及它产出的 LoRA 适配器；账户的 Managed compute 部署包括一个目标部署（基础模型 Qwen3.8-27B，支持 LoRA 的部署模板）和每个适配器一个的适配器部署，最多 8 个，不增加 GPU；账户端点提供兼容 OpenAI 的 chat completions，model 字段写目标部署或某个适配器部署的名称。由 Microsoft 运营：Microsoft Entra ID 签发每次调用都要带的令牌；Foundry 训练用 Microsoft 分配的 GPU 运行 Managed Training 任务，或执行 Programmed Training 循环发来的每一步，按训练 token 计费；Global managed compute 用同一组 GPU 运行目标部署和它的适配器，每个实例 2 块 H100 80 GB，目标部署存在期间按 GPU 小时计费。编号 1 到 6 对应“一次请求怎么走”里的步骤；最后一步 infra/down.py 先删适配器部署、再删目标部署，GPU 计费随即停止。">
+
+图里画的是：哪些在你的电脑上运行，你的 Azure 订阅里创建了什么，哪些服务由 Microsoft 替你运营。编号 1 到 6 就是[一次请求怎么走](#一次请求怎么走)里的步骤。两种训练方式最后落在同一处：项目模型里的一个 LoRA 适配器，由适配器部署把它挂到目标部署上。这是原创解释图；本页数字是在哪里测的，见[实现效果](#示例适配器改变了什么)。
+
 本仓库把两种训练方式的这条路径都做成了脚本，每个计费的步骤都要你明确执行：
 
 - **准备，不开 GPU。** `infra/up.py` 检查登录、区域、GPU 配额和当前目录价，用 `infra/main.bicep` 创建禁用密钥认证的 Foundry 账户和项目，给你分配 Foundry User 角色，并上传 GSM8K 示例文件（449 行训练数据，50 行验证数据）。
@@ -50,10 +54,6 @@
 | 推理 | 基础权重、LoRA 部署模板、GPU、端点 | 按顺序创建目标部署和适配器部署，固定基础模型版本 | 准备 GPU 配额；删除目标部署之前按 GPU 小时付费 |
 | 访问控制 | Microsoft Entra ID 和 Azure 角色 | 禁用账户密钥，给你分配 Foundry User | 登录；给你的应用身份分配同一角色 |
 | 内容安全与网络 | Managed compute 没有内置内容过滤 | 不包含 | 按业务场景补上内容过滤和网络隔离 |
-
-<img src="images/architecture-zh.png" width="900" alt="架构图，四行三列：你的电脑、你的 Azure 订阅、Microsoft 负责运行的算力。准备：infra/up.py 创建 Foundry 账户和项目并上传训练文件。训练有两种做法：你在 Foundry 门户发起微调任务，由 Managed Training 用 Microsoft 的 GPU 运行；或者由你电脑上 programmed_training_sft.py 的 Python 循环驱动一个 Programmed Training 会话，会话执行循环发来的每一步；两种做法得到的 LoRA 适配器都列在项目的模型里。部署：infra/up.py --deploy 查找 Managed Training 任务登记的适配器，加上 --adapter-model 指定的、会话保存的适配器，创建目标部署和适配器部署，用到模型目录和 Global managed compute，每个实例 2 块 H100。调用：你的应用向账户端点发请求，model 字段填部署名；基础模型和适配器由同一组 GPU 回答。">
-
-图里画的是：四个阶段，哪些由本仓库的脚本完成、哪些由你自己操作，你的订阅里创建了什么，哪些由 Microsoft 运行。这是原创解释图；本页数字是在哪里测的，见[实现效果](#示例适配器改变了什么)。“训练”一行画了两种方式：在门户里发起 Managed Training 任务，或者运行 `training/programmed_training_sft.py`，由它在你电脑上的循环驱动一个 Programmed Training 会话。“部署”一行是 `infra/up.py --deploy` 做的事：Managed Training 任务的适配器它自己能找到，Programmed Training 的适配器按你用 `--adapter-model` 传入的名称来取。
 
 ### 一次请求怎么走
 

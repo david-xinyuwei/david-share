@@ -1,56 +1,81 @@
 {
  "icons": {
-  "package": "Microsoft Azure architecture icons V25",
-  "download_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V25.zip",
-  "terms_page": "https://learn.microsoft.com/azure/architecture/icons/",
-  "package_sha256": "f293d99252b3638557dd08ccbff9f2529083473d39b373fb2af29a7200351339",
+  "packages": [
+   {
+    "package": "Microsoft Azure architecture icons V25",
+    "download_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V25.zip",
+    "terms_page": "https://learn.microsoft.com/azure/architecture/icons/",
+    "package_sha256": "f293d99252b3638557dd08ccbff9f2529083473d39b373fb2af29a7200351339"
+   },
+   {
+    "package": "Microsoft Entra architecture icons (October 2023)",
+    "download_url": "https://download.microsoft.com/download/3/1/a/31a56038-856a-4489-88e4-ee5a1c4352be/Microsoft%20Entra%20architecture%20icons%20-%20Oct%202023.zip",
+    "terms_page": "https://learn.microsoft.com/entra/architecture/architecture-icons",
+    "package_sha256": "4e07536706a2d092e6524e5417e2c861333fdbdb41c36f78d44dfa07ccc5eedc"
+   }
+  ],
   "used_unmodified": [
    {
+    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/general/10787-icon-service-Code.svg",
     "sha256": "a64b839802f7705f128e82e77620ed233d9f6ba45dad6d7e704da8581b81c849"
    },
    {
+    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/general/10783-icon-service-Browser.svg",
     "sha256": "d08afad9e64b5f69d5689bc831aefe7619150ba0a80583651bb5d75e4c033630"
    },
    {
+    "package": "Microsoft Azure architecture icons V25",
+    "entry": "Azure_Public_Service_Icons/Icons/general/10002-icon-service-Subscriptions.svg",
+    "sha256": "d69843a70bd38eefa5b70a4d0b803502f95cdf061c59aed48b435170a15919b4"
+   },
+   {
+    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/035746832-icon-service-AI-Foundry.svg",
     "sha256": "fab039a771f72780ae34e59065d61c66a02d3c347d50923ef2956f34912ea02c"
    },
    {
+    "package": "Microsoft Azure architecture icons V25",
+    "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/036509415-icon-service-Foundry-Project.svg",
+    "sha256": "152187174d7d632cd91fd7d17b37316c423e008a84a889241163af832c8c3dec"
+   },
+   {
+    "package": "Microsoft Azure architecture icons V25",
     "entry": "Azure_Public_Service_Icons/Icons/ai + machine learning/038470614-icon-service-Foundry-Models.svg",
     "sha256": "9c671f141cb0e19b62e004628183ed8711ad16ec3b2e56b14c3cd035d5fac711"
    },
    {
-    "entry": "Azure_Public_Service_Icons/Icons/identity/10230-icon-service-Users.svg",
-    "sha256": "7c08aa6365b41e7f0b74833bfd420f174081f6e90ba278e0c01cd988027eb3ca"
+    "package": "Microsoft Entra architecture icons (October 2023)",
+    "entry": "Microsoft Entra architecture icons - Oct 2023/Microsoft Entra color icons SVG/Microsoft Entra ID color icon.svg",
+    "sha256": "efd9f54562bfb78bf3c77aecdd5fc31b61fce8a1cec78c4370b41fc470e54eda"
    }
   ]
  },
  "images": [
   {
    "file": "images/architecture-en.png",
-   "sha256": "4e7581f3cd7d0697a91b7527c6cdf1c4386001d60d2d20bb732f0dfa072fc304",
+   "sha256": "59708441aedc182a30c7a64510bd9fdd6ba66ac0085d3fbf2b610ae802d78666",
    "pixels": [
-    2400,
-    1680
+    1950,
+    1368
    ],
    "language": "en",
    "kind": "original explanatory diagram",
-   "shows": "Architecture: set up, train, deploy and call across your machine, your Azure subscription and capacity operated by Microsoft",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "shows": "Architecture: what runs on your machine, what is created in your Azure subscription (resource group, Foundry account, project, Managed compute deployments, endpoint) and the services Microsoft operates (Microsoft Entra ID, Foundry training, Global managed compute), with steps 1 to 6 of How a request moves",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/architecture-zh.png",
-   "sha256": "b8e8b156dac11b11e4936ce1208fd07f3e426240c1dbced620a4d8424b8966b8",
+   "sha256": "635b17afd22b562e144c65704b5a5b8a2903c2d4336e2287158f095336c42eaf",
    "pixels": [
-    2400,
-    1680
+    1950,
+    1368
    ],
    "language": "zh",
    "kind": "original explanatory diagram",
-   "shows": "Architecture: set up, train, deploy and call across your machine, your Azure subscription and capacity operated by Microsoft",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "shows": "Architecture: what runs on your machine, what is created in your Azure subscription (resource group, Foundry account, project, Managed compute deployments, endpoint) and the services Microsoft operates (Microsoft Entra ID, Foundry training, Global managed compute), with steps 1 to 6 of How a request moves",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/test-topology-en.png",
@@ -62,7 +87,7 @@
    "language": "en",
    "kind": "original explanatory diagram",
    "shows": "Test topology: test client, account endpoint, target deployment, and what each published number measures",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/test-topology-pt-en.png",
@@ -74,7 +99,7 @@
    "language": "en",
    "kind": "original explanatory diagram",
    "shows": "Second test: the training loop on the test client, the Programmed Training session and the saved model in the project, the target deployment with the adapter, and the order of the four stages",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/test-topology-pt-zh.png",
@@ -86,7 +111,7 @@
    "language": "zh",
    "kind": "original explanatory diagram",
    "shows": "Second test: the training loop on the test client, the Programmed Training session and the saved model in the project, the target deployment with the adapter, and the order of the four stages",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/test-topology-zh.png",
@@ -98,7 +123,7 @@
    "language": "zh",
    "kind": "original explanatory diagram",
    "shows": "Test topology: test client, account endpoint, target deployment, and what each published number measures",
-   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above"
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the packages above"
   },
   {
    "file": "images/portal-target-succeeded.png",
