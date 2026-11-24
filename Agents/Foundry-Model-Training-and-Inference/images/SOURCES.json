@@ -34,7 +34,7 @@
  "images": [
   {
    "file": "images/architecture-en.png",
-   "sha256": "fefe94f80198f4e9ddacfd62fc9eac04457d3b3c00c983a5861950b0a049d6f3",
+   "sha256": "4df4a9268e9f4015f58d90661a573042a46af677ec25298d9e3b38868535dde8",
    "pixels": [
     1770,
     849
@@ -46,7 +46,7 @@
   },
   {
    "file": "images/architecture-zh.png",
-   "sha256": "0992374f871188e83e0203ccf87cde9e7ba8e61db9f3378641c32705f4bc4623",
+   "sha256": "ddd1ccce4dc87e244de30573ebf0369ec5dc7020c5d79bf57a5ec2365255cc62",
    "pixels": [
     1770,
     849

@@ -12,97 +12,20 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 ## Purpose
 
-A team that wants an open-weight model to answer in its own format usually has to find GPUs twice: once to fine-tune the model and once to serve the result. Microsoft Foundry covers both for **Qwen3.8-27B** (preview). **Managed Training** runs a supervised fine-tuning job on GPUs that Microsoft allocates and returns a LoRA adapter. **Programmed Training** (preview) trains the same kind of adapter from a Python loop that you write and run. **Managed compute** serves the base model on dedicated GPUs and attaches adapters to it. The path from training to serving has details that cost money when they go wrong: an adapter has to be registered in the project before it can be deployed, the serving deployment has to use a LoRA-enabled template and the base-model version the adapter was trained on, the GPUs are billed for every hour the deployment exists, and deletion has an order.
+A team that wants an open-weight model to answer in its own format usually has to find GPUs twice: once to fine-tune the model and once to serve the result. This test checks whether Microsoft Foundry takes over both for **Qwen3.8-27B** (preview): train a LoRA adapter with **Managed Training** or **Programmed Training** (preview), then serve it on **Managed compute** and call it. Both training approaches were run on the same data to answer four questions:
 
-<img src="images/architecture-en.png" width="900" alt="Architecture as a flow from left to right. 1 Your data: you provide chat examples in JSONL, for example the GSM8K sample, and infra/up.py uploads them to Microsoft Foundry. 2 Train, in one of two ways: A, Managed Training, where you submit a job in the Foundry portal and Foundry runs the whole job; B, Programmed Training (preview), where the Python loop programmed_training_sft.py sends each step. Microsoft provides the training GPUs and bills per training token. Either way the output is a LoRA adapter listed in the project. 3 Deploy on Managed compute with infra/up.py --deploy: the target deployment runs the base model Qwen3.8-27B on one instance with 2 H100 80 GB GPUs, and adapter deployments, up to 8, attach to the same GPUs without adding a GPU; billing is per GPU-hour while the target exists, 15.82 USD per hour at list price. 4 Your app sends requests to one endpoint, and the model field picks the base model or an adapter; infra/verify.py checks both. 6 infra/down.py deletes the adapter deployments, then the target deployment, and the GPU charge stops.">
+1. Does Qwen3.8-27B deploy on Managed compute? On how many GPUs, and how soon can it answer?
+2. Does each training approach produce an adapter, and does the training work?
+3. Do the adapters attach to the same GPUs and answer under their own names?
+4. What does an adapter change in the model's answers?
 
-What the figure shows: the path from your data to an answer. You provide the training data (1). Foundry trains a LoRA adapter from it in one of two ways, Managed Training or Programmed Training, on GPUs that Microsoft provides and bills per training token (2). `infra/up.py --deploy` deploys the base model Qwen3.8-27B on Managed compute, one instance with 2 × H100 80 GB, and attaches each adapter to the same GPUs, up to 8, without adding a GPU (3). Your application picks the base model or an adapter with the `model` field (4). The numbers are the steps under [How a request moves](#how-a-request-moves). It is an original explanatory diagram; the test setup behind the numbers on this page is in [`docs/RESULTS.md`](docs/RESULTS.md).
+The answers are under [Results](#results). How the two training approaches differ, with prices, regions and the adapters each supports, is under [Managed Training and Programmed Training](#managed-training-and-programmed-training). To reproduce the test in your own subscription, follow the [Steps](#steps).
 
-This repository automates that path for both training approaches and makes every billed step explicit:
+<img src="images/architecture-en.png" width="900" alt="Architecture as a flow from left to right; the numbers are the step numbers under Steps. 2 Your data: you provide chat examples in JSONL, for example the GSM8K sample, and infra/up.py uploads them to Microsoft Foundry. 3 Train, in one of two ways: A, Managed Training, where you submit a job in the Foundry portal and Foundry runs the whole job; B, Programmed Training (preview), where the Python loop programmed_training_sft.py sends each step. Microsoft provides the training GPUs and bills per training token. Either way the output is a LoRA adapter listed in the project. 4 Deploy on Managed compute with infra/up.py --deploy: the target deployment runs the base model Qwen3.8-27B on one instance with 2 H100 80 GB GPUs, and adapter deployments, up to 8, attach to the same GPUs without adding a GPU; billing is per GPU-hour while the target exists, 15.82 USD per hour at list price. 6 Your app sends requests to one endpoint, and the model field picks the base model or an adapter; examples/chat.py is a minimal client. 7 infra/down.py deletes the adapter deployments, then the target deployment, and the GPU charge stops.">
 
-- **Set up, no GPU.** `infra/up.py` checks your sign-in, region, GPU quota and the current list price, creates a Foundry account and project from `infra/main.bicep` with key authentication disabled, gives you the Foundry User role, and uploads the GSM8K sample files (449 training rows, 50 validation rows).
-- **Train, billed per training token.** Two ways to train the sample adapter. With Managed Training you submit one supervised fine-tuning job on the portal's Training page. With Programmed Training, `training/programmed_training_sft.py` runs the training loop on your machine and Foundry executes its 56 optimizer steps in one session; with `--prepare` the script shows the plan and the list price first and starts no session. Either way the project lists the adapter as a LoRA model.
-- **Deploy, billed per GPU-hour.** `infra/up.py --deploy` creates one target deployment of Qwen3.8-27B on 2 × H100 80 GB and one adapter deployment for each trained adapter, then calls both. `--adapter-model` names an adapter that a Programmed Training session saved.
-- **Call.** One OpenAI-compatible endpoint. The `model` field selects the base model (the target deployment's name) or the base model with an adapter (the adapter deployment's name).
-- **Remove.** `infra/down.py` deletes the adapter deployments and the target deployment, which stops the GPU charge.
+What the figure shows: the whole path, with the number in each circle being the step number under [Steps](#steps). Step 2 uploads your training data. In step 3, Managed Training or Programmed Training trains a LoRA adapter on GPUs that Microsoft provides and bills per training token. In step 4, `infra/up.py --deploy` deploys the base model Qwen3.8-27B on Managed compute, one instance with 2 × H100 80 GB, and attaches each adapter to the same GPUs, up to 8, without adding a GPU. In step 6, your application picks the base model or an adapter with the `model` field. Step 7 removes the deployments, and the GPU charge stops. It is an original explanatory diagram.
 
-**Both approaches were run on the same data.** The 449 rows trained one adapter in a Managed Training job and a second one in a Programmed Training session. Each adapter was deployed on Managed compute and compared with the base model on the same 50 validation rows. What each produced: [Results](#results); setup, method and full tables: [`docs/RESULTS.md`](docs/RESULTS.md).
-
-**The repository deploys it for you:** [`infra/up.py`](#2-create-the-foundry-resources-no-gpu) creates the resources and the deployments, [`training/programmed_training_sft.py`](#3-train-the-adapter) trains with Programmed Training, [`infra/verify.py`](#5-check-it) checks the deployment through its public endpoint, and [`infra/down.py`](#7-remove-it) removes it.
-
-| Deliverable | Where | Use it to |
-|---|---|---|
-| Deployment automation | `infra/up.py`, `infra/main.bicep`, `infra/foundry.py` | create the account, project and role, upload the sample data and, with `--deploy`, create the target and adapter deployments; `--adapter-model` adds an adapter saved by Programmed Training |
-| Programmed Training loop | `training/programmed_training_sft.py` | train the sample adapter from a Python loop on your machine; `--prepare` checks the data and prints the plan and the list price without starting a session |
-| Deployment check | `infra/verify.py` | confirm that the base model and each adapter answer; `--full` compares them on the 50 validation rows and measures streaming speed |
-| Teardown | `infra/down.py` | stop the GPU charge; with `--all`, delete and purge the account |
-| Client example | `examples/chat.py` | send your own question to a deployment with the Python standard library |
-| Offline tests | `tests/test_offline.py` | check the adapter selection and naming, the reading of a session's result, the scoring and the receipt logic without Azure |
-| Test notes | [`docs/TESTING.md`](docs/TESTING.md) | see what each check proves and what was not tested |
-
-What it is not:
-
-- It does not show that fine-tuning makes Qwen3.8-27B better at arithmetic. The sample job takes 6 optimizer steps and the Programmed Training session 56. On the 50 validation rows each adapter changed the style and length of every answer; the difference in correct answers was within noise for both (see [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right)).
-- It does not give you access to Programmed Training. That preview needs an [access approval](https://aka.ms/foundry-interactive-training-signup) for your subscription before a session can start, and its script needs the Python environment of the [Foundry fine-tuning cookbook](https://github.com/microsoft-foundry/fine-tuning), which the other scripts do not need.
-- Fine-tuning Qwen3.8-27B and [LoRA adapters on Managed compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute) are preview features: no service-level agreement, and Microsoft does not recommend them for production workloads.
-- It is not a production network or safety design. The account is reachable from the internet with Microsoft Entra sign-in only, and Managed compute [has no built-in content filtering](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview).
-- It is not free to leave on. The target deployment costs 15.82 USD per hour at list price whether or not it receives requests.
-
-| Responsibility | Microsoft Foundry | This repository | You |
-|---|---|---|---|
-| Training | allocates the GPUs; runs the Managed Training job, or executes each step that a Programmed Training loop sends; lists the adapter in the project | uploads the sample data, provides the Programmed Training loop, finds the adapter | submit the job on the Training page, or run the training script; pay per training token |
-| Serving | base weights, LoRA deployment template, GPUs, the endpoint | creates the target and adapter deployments in order and keeps the base-model version fixed | hold the GPU quota; pay per GPU-hour until you remove the target |
-| Access | Microsoft Entra ID and Azure roles | disables keys on the account, assigns Foundry User to you | sign in; give your application's identity the same role |
-| Safety and network | no built-in content filtering on Managed compute | not included | add the filtering and network isolation your scenario needs |
-
-### How a request moves
-
-1. **Set up.** `infra/up.py` reads your Azure CLI sign-in, the region, the Global managed compute quota for H100 and the list price. It then deploys `infra/main.bicep`: a Foundry account with key authentication disabled, a project, and the Foundry User role for you on the account. It downloads the two GSM8K sample files from a pinned commit of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning), checks their SHA-256 and uploads them to the project.
-2. **Train.** On the portal's Training page you select Supervised, qwen3.8-27b, Global and the two uploaded files. Managed Training queues the job, trains on GPUs that Microsoft allocates, and registers the result on the project's Models page as a LoRA model (rank 32). The job's `metadata.deployment_options` then carries the adapter's ID. `up.py` looks for exactly this: a succeeded job whose adapter is registered in the project. With Programmed Training, `training/programmed_training_sft.py` opens one session for `Qwen/Qwen3.8-27B`, sends each batch of 16 rows as one optimizer step, saves the final checkpoint and closes the session. The project lists that checkpoint as a LoRA model too, with the session in its tags. No job points to it, so you pass its name to `up.py` with `--adapter-model`.
-3. **Deploy.** `infra/up.py --deploy` reads the base-model version from the registered adapter and checks the quota again. It sends `PUT .../managedComputeDeployments/qwen38-lora` with the `GlobalManagedCompute` SKU, the LoRA deployment template, `H100_80GB` and `NoAutoUpgrade`, so that the base model stays at the version the adapter fits. When the target is `Succeeded`, it sends `PUT .../adapterDeployments/<name>` for each adapter with the adapter's ID and the target's name.
-4. **Call.** Your application posts to `https://<account>.services.ai.azure.com/openai/v1/chat/completions`. With `"model": "qwen38-lora"` the base model answers. With `"model": "qwen38-lora-gsm8k"` the same GPUs answer with the adapter applied. An unknown name returns HTTP 404 `DeploymentNotFound`.
-5. **Sign-in and keys.** Every call carries a Microsoft Entra token: for `https://management.azure.com` when it creates or deletes resources, for `https://ai.azure.com` when it uploads files, lists jobs or asks the model. The scripts take the token from your Azure CLI sign-in. The account has no keys, and the scripts store nothing in the repository.
-6. **Remove.** `infra/down.py` deletes the adapter deployments first and the target deployment last, one at a time, and reads each one back until it is gone.
-
-### Managed Training and Programmed Training
-
-Foundry has two training approaches. With **Managed Training** you submit data and settings, and Foundry runs the training job. With **Programmed Training** (preview), your own Python loop decides each sampling and update step, and Foundry executes those operations. [Step 3](#3-train-the-adapter) offers both: option A submits a Managed Training job in the portal, and option B runs the loop in `training/programmed_training_sft.py`. What each produced on the same data is under [Results](#results).
-
-<img src="images/learn-training-approaches.png" width="684" alt="Table from Microsoft Learn with the columns Managed Training and Programmed Training (preview) and the rows How it works, Best for, Your control, Training methods and Example use cases. Managed Training: submit data and settings; Foundry runs the training job. Programmed Training: write a Python loop; Foundry executes training and sampling operations.">
-
-Source: Microsoft Learn, [Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach), section "Choose your training approach". This is a screenshot of the table as the page showed it on 23 November 2026 (page last updated 17 November 2026).
-
-What to look at: the row **Your control**. Managed Training lets you choose the data and the supported hyperparameters, which is all the sample job in [step 3](#3-train-the-adapter) needs. With Programmed Training the loop sets every step itself: the script of this repository uses batch size 16, which gives 56 optimizer steps on the 449 rows, where the sample job ran with the service's default of 128 and took 6. Programmed Training needs an [access approval](https://aka.ms/foundry-interactive-training-signup) first.
-
-The article goes on to four more choices. For each one, the table gives what the article lists, what it lists for this model, and what this repository uses:
-
-| Choice | What the article lists | For `Qwen3.8-27B` (preview) | In this repository |
-|---|---|---|---|
-| Training approach | Managed Training and Programmed Training (preview). Both run on training infrastructure that Foundry manages: you provision no training GPU | Both | Both, as options A and B of [step 3](#3-train-the-adapter) |
-| Customization method | Three predefined methods, which belong to Managed Training: supervised fine-tuning (SFT), preference fine-tuning (DPO) and reinforcement fine-tuning (RFT). Programmed Training has no predefined method; its samples repository has recipes | SFT and RFT | SFT in the job; the supervised recipe in the session |
-| Training type | Standard, Data zone, Global and Developer. The type sets where training runs, the price and the guarantees | Global and Developer | Global for the job; the session's loop has no such setting |
-| Deployment option | Serverless, where Foundry hosts the fine-tuned model, or Managed compute, where dedicated GPUs run the base model with one or more LoRA adapters (preview) | Managed compute only | Managed compute: one target deployment, and one adapter deployment for each adapter |
-| Region of the Foundry project | 27 regions for Global training | 10 of them for Managed Training, 11 for Programmed Training | East US 2 |
-
-The whole article, with all 18 models, the 27 regions, the serverless deployment types and the limits to plan for, is summarized in [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md).
-
-### Terms used on this page
-
-| Term | Meaning here |
-|---|---|
-| Managed Training | Foundry's fine-tuning service: you submit a job, Microsoft runs it on its own GPUs and bills per training token |
-| Programmed Training (preview) | Foundry's second training approach: a Python loop on your machine decides each step, Foundry executes the training and sampling operations, and you provision no GPU |
-| Session | one Programmed Training run in a project. A checkpoint that the loop saves is listed among the project's models as a LoRA model |
-| Supervised fine-tuning (SFT) | training on example conversations, each with the answer you expect |
-| Optimizer step | one update of the adapter's weights, computed from one batch of training rows. Smaller batches give more steps on the same data |
-| LoRA adapter | a small set of extra weights trained on top of a frozen base model. It works only with the base model and version it was trained on |
-| Managed compute | the Foundry deployment type that runs a model on dedicated GPUs and bills per GPU-hour, not per token |
-| Target deployment | the Managed compute deployment of the base model that adapters attach to. Here: `qwen38-lora` |
-| Adapter deployment | one registered adapter attached to a target deployment under its own name. It adds no GPU. Here: `qwen38-lora-<display name of the training job>`, or `qwen38-lora-<label>` for a model named with `--adapter-model` |
-| Global | the `GlobalManagedCompute` SKU of the target deployment and the Global training type of the job. This page does not establish in which region either of them runs |
-| GSM8K | grade-school arithmetic word problems. The Foundry sample has 449 training rows and 50 validation rows; every reference answer ends with `#### <number>!!!` |
-| Validation rows | the 50 rows the job computes a validation loss on and does not train on. This page uses them to compare the base model with the adapter |
-| Completion tokens | the tokens a model generates for one answer, as reported in the `usage` field of the response |
+Three things to know before you start: fine-tuning Qwen3.8-27B and [LoRA adapters on Managed compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute) are preview features, with no service-level agreement, and Microsoft does not recommend them for production workloads; Managed compute [has no built-in content filtering](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview); and the target deployment is billed per GPU-hour from creation until you delete it, with or without requests.
 
 ## Results
 
@@ -160,7 +83,7 @@ Each adapter deployment names a trained adapter and the target deployment of res
 
 The screenshot is from the first test, so both adapters in it were trained with Managed Training: adapter A on the GSM8K sample, and a second adapter trained with the same settings on `Text-Bug-Detection`, another sample set of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning), deployed on the same target deployment. Only adapter A was compared with the base model.
 
-The screenshots of results 1 and 3 are real portal screenshots, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them belong to the test deployment. Yours are `qwen38-lora` and `qwen38-lora-<display name>` unless you pass `--target`.
+The screenshots of results 1 and 3 are real portal screenshots, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them belong to the test deployment. Yours are `qwen38-lora` and `qwen38-lora-<display name>` unless you pass `--target`. Where the sample data, the icons and the screenshots come from: [`NOTICE.md`](NOTICE.md).
 
 ### Result 4: the adapter changes how the model answers, not how often it is right
 
@@ -254,35 +177,47 @@ The second test, with the Programmed Training adapter, differed in one stage tha
 | Deleting the adapter deployment and the target deployment | 5 minutes |
 | Requests sent to the deployment while it existed | 127: 102 answered with HTTP 200, and 25 with HTTP 404 before the first success |
 
-| Item | List price in USD, Azure Retail Prices API, read 23 November 2026 | Charged |
+Cost: one hour of serving plus one Managed Training job comes to 16.46 USD at list price; every list price is under [Price and regions](#price-and-regions). `up.py` reads the current list price before it creates anything and prints it.
+
+## Managed Training and Programmed Training
+
+The two training approaches differ first in who runs the training loop. With **Managed Training** you submit data and settings, and Foundry runs the whole training job. With **Programmed Training** (preview) the loop runs on your own machine: your Python code decides how each step samples and updates the weights, and Foundry executes those operations on its GPUs. Neither approach needs a training GPU of yours, both produce a LoRA adapter, and the adapters deploy and are billed the same way. [Step 3](#3-train-the-adapter) offers both: option A submits a Managed Training job in the portal, and option B runs `training/programmed_training_sft.py`.
+
+<img src="images/learn-training-approaches.png" width="684" alt="Table from Microsoft Learn with the columns Managed Training and Programmed Training (preview) and the rows How it works, Best for, Your control, Training methods and Example use cases. Managed Training: submit data and settings; Foundry runs the training job. Programmed Training: write a Python loop; Foundry executes training and sampling operations.">
+
+Source: Microsoft Learn, [Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach), section "Choose your training approach". This is a screenshot of the table as the page showed it on 23 November 2026 (page last updated 17 November 2026).
+
+### Price and regions
+
+The table covers Qwen3.8-27B (preview) only. Methods, training types and regions come from that Microsoft Learn article, checked again on 24 November 2026 with no change; list prices come from the Azure Retail Prices API, read on 24 November 2026, in USD.
+
+| Aspect, for Qwen3.8-27B (preview) | Managed Training | Programmed Training (preview) |
 |---|---|---|
-| Target deployment | 7.91 per H100 GPU-hour × 2 GPUs = 15.82 per hour, or 379.68 per day | for as long as the target deployment exists, with or without requests |
-| Adapter deployments | no separate price | not charged |
-| Requests | no price per token on Managed compute | not charged |
-| Managed Training job on the sample data | 3.00 per million training tokens; 213,000 tokens billed = 0.64 | once per job |
-| Programmed Training session on the sample data | 4.10 per million training tokens; 219,652 tokens counted by the loop = 0.90 | per token that the loop sends. This figure is an estimate: the bill of the second test was not read |
-| Account, project, uploaded files | no hourly price | the test resource group's bill showed only GPU-hours and training tokens |
+| Training methods | SFT and RFT. This repository uses SFT | no predefined method, you write the loop; the [samples repository](https://github.com/microsoft-foundry/fine-tuning/tree/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training) has recipes for SFT, reinforcement learning, preference learning, distillation and custom losses. This repository uses SFT |
+| Access | no request needed | your subscription needs an [access approval](https://aka.ms/foundry-interactive-training-signup) before a session can start |
+| Training type | Global or Developer. Global uses Microsoft's global capacity and does not guarantee data residency; Developer uses spare capacity, costs less, and a job can be preempted and resumed. This repository uses Global | Global only for now: the samples repository's [training.md](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/training.md#training-type) lists `GlobalStandard` as available and `DatazoneStandard` and `DeveloperTier` as unavailable |
+| Regions for the Foundry project | 10: Australia East, East US, East US 2, Korea Central, North Central US, Sweden Central, Switzerland North, UAE North, UK South, West US 3 | 11: the 10 on the left and Canada East |
+| How it is billed | SFT per training token times the number of epochs; RFT per hour of training, with the grader model's tokens on top | four token categories, each at its own price: training, sampling, prefill and cached prefill |
+| List price | SFT: 3.00 per million training tokens on Global, 1.50 on Developer. RFT: 80 per training hour on Global | Global, per million tokens: training 4.10, sampling 5.60, prefill 1.86, cached prefill 0.37 |
+| Training cost of this repository's sample data (449 rows, 2 epochs) | 213,000 training tokens billed, 0.64, from the bill | 219,652 training tokens counted by the loop, about 0.90 at list price; the bill of the second test was not read |
+| Deployment and inference | Managed compute only, no Serverless. This repository's target deployment runs on 2 × H100 80 GB with the Global deployment scope, at 7.91 per GPU-hour, 15.82 per hour; adapter deployments are not priced separately; requests are not priced per token | the same |
 
-One hour of serving plus one Managed Training job comes to 16.46 USD at list price. `up.py` reads the current list price before it creates anything and prints it.
+Apart from training and the target deployment, the test resource group's bill showed no other charge: the account, the project and the uploaded files have no hourly price. The rest of the article, with all 18 models, the 27 regions and the serverless deployment types, is summarized in [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md).
 
-| You want to | Read |
-|---|---|
-| Deploy it in your subscription | [Steps](#steps) |
-| See the test setup, method, full tables and limits behind these results | [`docs/RESULTS.md`](docs/RESULTS.md) |
-| Know what each check proves, how answers were scored and what was not tested | [`docs/TESTING.md`](docs/TESTING.md) |
-| See which models, training types, deployment options and regions Foundry training supports | [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md) |
-| Know where the sample data, the icons and the screenshots come from | [`NOTICE.md`](NOTICE.md) |
+### Which adapters can be deployed
 
-| Directory | What it holds |
-|---|---|
-| `infra/` | `main.bicep` (account, project, role), `up.py`, `verify.py`, `down.py` and the shared helpers in `foundry.py` |
-| `training/` | `programmed_training_sft.py`, the Programmed Training loop for the sample data; it runs in the cookbook's Python environment |
-| `examples/` | `chat.py`, a minimal client |
-| `tests/` | offline tests of the scripts' logic |
-| `docs/` | the results in detail, test notes and a summary of the Microsoft Learn article on training in Foundry, each in English and Chinese |
-| `images/` | the three diagrams, the training-loss chart, the three portal screenshots and the Microsoft Learn table, with their provenance in `SOURCES.json` |
+| Where the adapter comes from | Can it be deployed on Managed compute | Source |
+|---|---|---|
+| a LoRA adapter trained by a Managed Training job in the same project | yes; adapter A of this repository, rank 32 | this repository's test, [result 3](#result-3-the-adapters-deploy-on-the-same-gpus) |
+| a LoRA checkpoint saved by a Programmed Training session in the same project | yes; adapter B of this repository, rank 32 | this repository's test, [result 3](#result-3-the-adapters-deploy-on-the-same-gpus) |
+| a LoRA adapter trained outside Foundry, for example on your own GPUs | not yet: Foundry cannot import an adapter trained elsewhere. At Ignite 2026 the product team said it plans to open the import of your own LoRA adapters very soon; no date was given | Microsoft Learn, [Adapter deployment overview](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview): "You can't yet import your own adapters"; Q&A of the Ignite 2026 session [BRK246](https://ignite.microsoft.com/en-US/sessions/BRK246) |
+| full model weights, not an adapter | not through an adapter deployment. BRK246 showed full weights in safetensors format being imported and deployed the same way as catalog models; the product team also said it plans to support merging an adapter into the base model. This repository tested neither | Ignite 2026 session [BRK246](https://ignite.microsoft.com/en-US/sessions/BRK246) |
+
+An adapter that can be deployed must also match the base model and version it was trained on, run on a target deployment with a LoRA-enabled template, and fit the template's limits on adapter count, LoRA rank and memory; one target deployment takes up to 8 adapter deployments ([Deploy fine-tuned LoRA adapters to managed compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute)).
 
 ## Steps
+
+These steps reproduce the test above in your own subscription.
 
 | Order | Where | What | Command | Takes about |
 |---|---|---|---|---|
@@ -527,7 +462,7 @@ RESULT: PASS   report: <home>/.foundry-lora/<name>/verify-report.json
 <time> [PASS] Streaming speed of qwen38-lora-gsm8k: tokens per second <n> / <n> / <n>; first token after <n> / <n> / <n> s
 ```
 
-The exit code is 0 when every check passes and 1 otherwise. The report lists each check; with `--full`, every answer is saved next to it so that you can read the rows yourself. "Correct by last number" is the automatic score described under Results and understates long answers.
+The exit code is 0 when every check passes and 1 otherwise. The report lists each check; with `--full`, every answer is saved next to it so that you can read the rows yourself. "Correct by last number" is the automatic score described under Results and understates long answers. What each check proves and what was not tested: [`docs/TESTING.md`](docs/TESTING.md).
 
 ### 6. Call it from your code
 

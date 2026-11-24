@@ -12,97 +12,20 @@
 
 ## 目的
 
-想让开放权重的模型按自己的格式作答，团队通常要找两次 GPU：一次用来微调，一次用来部署微调结果。对 **Qwen3.8-27B**（预览），Microsoft Foundry 把这两件事都做成了托管服务。**Managed Training**（托管训练）用 Microsoft 分配的 GPU 跑监督微调任务，交回一个 LoRA 适配器。**Programmed Training**（预览）训练的是同一种适配器，训练循环是你自己写、自己运行的 Python 代码。**Managed compute**（托管计算）用独占 GPU 部署基础模型，并把适配器挂到上面。从训练到部署之间有几处细节，出错就要花钱：适配器要先登记到项目里才能部署；推理部署必须用支持 LoRA 的部署模板，基础模型版本要和训练适配器时一致；GPU 从部署建好到删除，每小时都在计费；删除还有先后顺序。
+想让开放权重的模型按自己的格式作答，团队通常要准备两次 GPU：一次用来微调，一次用来部署。这次测试要验证，对 **Qwen3.8-27B**（预览），Microsoft Foundry 能不能把这两件事都接过去：用 **Managed Training**（托管训练）或 **Programmed Training**（预览）训练出 LoRA 适配器，再部署到 **Managed compute**（托管计算）上调用。两种训练方式用同一份数据各跑了一遍，要回答四个问题：
 
-<img src="images/architecture-zh.png" width="900" alt="架构图，从左到右的流程。1 你的数据：由你提供 JSONL 格式的对话样例，例如 GSM8K 示例，由 infra/up.py 上传到 Microsoft Foundry。2 训练，两种方式任选其一：A，Managed Training，你在 Foundry 门户提交一个任务，由 Foundry 运行整个任务；B，Programmed Training（预览），由 Python 循环 programmed_training_sft.py 发出每一步。训练用的 GPU 由 Microsoft 提供，按训练 token 计费。两种方式的产出都是列在项目里的 LoRA 适配器。3 用 infra/up.py --deploy 部署到 Managed compute：目标部署在一个实例的 2 块 H100 80 GB GPU 上运行基础模型 Qwen3.8-27B，适配器部署挂在同一组 GPU 上，最多 8 个，不增加 GPU；目标部署存在期间按 GPU 小时计费，目录价每小时 15.82 美元。4 你的应用把请求发到同一个端点，model 字段选择基础模型或适配器；infra/verify.py 检查两者。6 infra/down.py 先删适配器部署，再删目标部署，GPU 计费随即停止。">
+1. Qwen3.8-27B 能不能部署到 Managed compute？要几块 GPU，多久能用？
+2. 两种训练方式能不能训练出适配器？训练有没有效果？
+3. 适配器能不能挂到同一组 GPU 上，用自己的名称调用？
+4. 适配器改变了模型回答的什么？
 
-图里画的是从数据到回答的整条路径。训练数据由你提供（1）。Foundry 用 Managed Training 或 Programmed Training 两种方式之一，在 Microsoft 提供的 GPU 上训练出 LoRA 适配器，按训练 token 计费（2）。`infra/up.py --deploy` 在 Managed compute 上部署基础模型 Qwen3.8-27B，一个实例、2 块 H100 80 GB，再把每个适配器挂到同一组 GPU 上，最多 8 个，不增加 GPU（3）。你的应用用 `model` 字段选择基础模型或某个适配器（4）。编号就是[一次请求怎么走](#一次请求怎么走)里的步骤。这是原创解释图；本页数字背后的测试环境见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
+四个问题的答案在[实现效果](#实现效果)。两种训练方式的区别，包括价格、区域和各自支持哪些适配器，在 [Managed Training 和 Programmed Training](#managed-training-和-programmed-training)。要在自己的订阅里复现，按[操作步骤](#操作步骤)做。
 
-本仓库把两种训练方式的这条路径都做成了脚本，每个计费的步骤都要你明确执行：
+<img src="images/architecture-zh.png" width="900" alt="架构图，从左到右的流程，编号是操作步骤的序号。2 你的数据：由你提供 JSONL 格式的对话样例，例如 GSM8K 示例，由 infra/up.py 上传到 Microsoft Foundry。3 训练，两种方式任选其一：A，Managed Training，你在 Foundry 门户提交一个任务，由 Foundry 运行整个任务；B，Programmed Training（预览），由 Python 循环 programmed_training_sft.py 发出每一步。训练用的 GPU 由 Microsoft 提供，按训练 token 计费。两种方式的产出都是列在项目里的 LoRA 适配器。4 用 infra/up.py --deploy 部署到 Managed compute：目标部署在一个实例的 2 块 H100 80 GB GPU 上运行基础模型 Qwen3.8-27B，适配器部署挂在同一组 GPU 上，最多 8 个，不增加 GPU；目标部署存在期间按 GPU 小时计费，目录价每小时 15.82 美元。6 你的应用把请求发到同一个端点，model 字段选择基础模型或适配器；examples/chat.py 是一个最小的客户端。7 infra/down.py 先删适配器部署，再删目标部署，GPU 计费随即停止。">
 
-- **准备，不开 GPU。** `infra/up.py` 检查登录、区域、GPU 配额和当前目录价，用 `infra/main.bicep` 创建禁用密钥认证的 Foundry 账户和项目，给你分配 Foundry User 角色，并上传 GSM8K 示例文件（449 行训练数据，50 行验证数据）。
-- **训练，按训练 token 计费。** 示例适配器有两种训练方法。用 Managed Training，你在门户的 Training 页面提交一个监督微调任务。用 Programmed Training，`training/programmed_training_sft.py` 在你的电脑上运行训练循环，Foundry 在一个会话里执行它的 56 个优化步；加 `--prepare` 时，脚本先给出训练计划和目录价，不开会话。两种方法训练出的适配器，都会作为 LoRA 模型列在项目里。
-- **部署，按 GPU 小时计费。** `infra/up.py --deploy` 创建一个目标部署（Qwen3.8-27B，2 × H100 80 GB），再为每个训练好的适配器创建一个适配器部署，然后各调用一次。Programmed Training 会话保存的适配器，用 `--adapter-model` 指定。
-- **调用。** 一个 OpenAI 兼容端点。请求里的 `model` 字段决定谁来回答：填目标部署的名称是基础模型，填适配器部署的名称是基础模型加适配器。
-- **删除。** `infra/down.py` 删除适配器部署和目标部署，GPU 计费随即停止。
+图里画的是整条路径，圆圈里的数字就是[操作步骤](#操作步骤)的序号。第 2 步上传你的训练数据。第 3 步用 Managed Training 或 Programmed Training 训练出 LoRA 适配器，训练用的 GPU 由 Microsoft 提供，按训练 token 计费。第 4 步，`infra/up.py --deploy` 在 Managed compute 上部署基础模型 Qwen3.8-27B，一个实例、2 块 H100 80 GB，再把每个适配器挂到同一组 GPU 上，最多 8 个，不增加 GPU。第 6 步，你的应用用 `model` 字段选择基础模型或某个适配器。第 7 步删除部署，GPU 计费随即停止。这是原创解释图。
 
-**两种方式都用同一份数据实际跑过。** 449 行数据在一个 Managed Training 任务里训练出一个适配器，又在一个 Programmed Training 会话里训练出第二个。两个适配器都部署到了 Managed compute，并在同样的 50 行验证数据上和基础模型做了对比。各自的结果见[实现效果](#实现效果)；测试环境、方法和完整表格见 [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md)。
-
-**部署由本仓库的脚本完成：**[`infra/up.py`](#2-创建-foundry-资源不开-gpu) 创建资源和部署，[`training/programmed_training_sft.py`](#3-训练适配器) 用 Programmed Training 训练，[`infra/verify.py`](#5-检查) 从公网端点检查部署，[`infra/down.py`](#7-删除) 负责删除。
-
-| 交付物 | 位置 | 用途 |
-|---|---|---|
-| 部署自动化 | `infra/up.py`、`infra/main.bicep`、`infra/foundry.py` | 创建账户、项目和角色，上传示例数据；加 `--deploy` 时创建目标部署和适配器部署；`--adapter-model` 把 Programmed Training 保存的适配器也部署上 |
-| Programmed Training 训练循环 | `training/programmed_training_sft.py` | 在你的电脑上用 Python 循环训练示例适配器；加 `--prepare` 时只检查数据、给出训练计划和目录价，不开会话 |
-| 部署检查 | `infra/verify.py` | 确认基础模型和每个适配器都能回答；加 `--full` 时在 50 行验证数据上对比两者，并测流式速度 |
-| 删除 | `infra/down.py` | 停止 GPU 计费；加 `--all` 时删除并清除账户 |
-| 客户端示例 | `examples/chat.py` | 只用 Python 标准库，向某个部署发送你自己的问题 |
-| 离线测试 | `tests/test_offline.py` | 不连 Azure，检查选适配器和命名、读取会话结果、判分和回执的逻辑 |
-| 测试说明 | [`docs/TESTING_CN.md`](docs/TESTING_CN.md) | 每项检查证明了什么，哪些没有测 |
-
-它不是什么：
-
-- 它不证明微调让 Qwen3.8-27B 的算术更好。示例任务只有 6 个优化步，Programmed Training 会话有 56 个。在 50 行验证数据上，两个适配器都改变了每个回答的风格和长度；答对行数的差别，两个都在随机波动范围内（见[结果 4](#结果-4适配器改变的是回答方式不是答对率)）。
-- 它不能替你拿到 Programmed Training 的使用资格。这项预览功能要先为订阅[申请访问权限](https://aka.ms/foundry-interactive-training-signup)，获批之后才能开会话；它的脚本还要用 [Foundry 微调 cookbook](https://github.com/microsoft-foundry/fine-tuning) 的 Python 环境，其他脚本不需要。
-- Qwen3.8-27B 的微调和 [Managed compute 上的 LoRA 适配器](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute)都是预览功能：没有服务级别协议，Microsoft 不建议用于生产负载。
-- 它不是生产环境的网络和内容安全方案。账户可以从公网访问，只接受 Microsoft Entra 登录；Managed compute [没有内置内容过滤](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview)。
-- 它不能一直开着不管。目标部署按目录价每小时 15.82 美元，有没有请求都收。
-
-| 分工 | Microsoft Foundry | 本仓库 | 你 |
-|---|---|---|---|
-| 训练 | 分配 GPU；运行 Managed Training 任务，或执行 Programmed Training 循环发来的每一步；把适配器列到项目里 | 上传示例数据，提供 Programmed Training 的训练循环，找到适配器 | 在 Training 页面提交任务，或运行训练脚本；按训练 token 付费 |
-| 推理 | 基础权重、LoRA 部署模板、GPU、端点 | 按顺序创建目标部署和适配器部署，固定基础模型版本 | 准备 GPU 配额；删除目标部署之前按 GPU 小时付费 |
-| 访问控制 | Microsoft Entra ID 和 Azure 角色 | 禁用账户密钥，给你分配 Foundry User | 登录；给你的应用身份分配同一角色 |
-| 内容安全与网络 | Managed compute 没有内置内容过滤 | 不包含 | 按业务场景补上内容过滤和网络隔离 |
-
-### 一次请求怎么走
-
-1. **准备。** `infra/up.py` 读取 Azure CLI 的登录状态、区域、H100 的 Global managed compute 配额和目录价，然后部署 `infra/main.bicep`：一个禁用密钥认证的 Foundry 账户、一个项目，以及你在该账户上的 Foundry User 角色。它从 [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning) 的固定提交下载两个 GSM8K 示例文件，核对 SHA-256 后上传到项目。
-2. **训练。** 你在门户的 Training 页面选择 Supervised、qwen3.8-27b、Global 和上传好的两个文件。Managed Training 让任务排队，用 Microsoft 分配的 GPU 训练，把结果登记到项目的 Models 页面，类型是 LoRA 模型（rank 32）。任务的 `metadata.deployment_options` 里随后会带上适配器的 ID。`up.py` 找的就是这个：一个已成功、适配器已登记到项目的任务。用 Programmed Training 时，`training/programmed_training_sft.py` 为 `Qwen/Qwen3.8-27B` 开一个会话，每批 16 行数据作为一个优化步发过去，保存最后一个检查点，然后关闭会话。项目同样把这个检查点列为 LoRA 模型，标签里记着会话。没有任务指向它，所以要用 `--adapter-model` 把它的名称告诉 `up.py`。
-3. **部署。** `infra/up.py --deploy` 从已登记的适配器读出基础模型版本，再查一次配额，然后发送 `PUT .../managedComputeDeployments/qwen38-lora`：SKU 为 `GlobalManagedCompute`，使用 LoRA 部署模板、`H100_80GB` 和 `NoAutoUpgrade`，让基础模型停在适配器对应的版本上。目标部署变为 `Succeeded` 后，再为每个适配器发送 `PUT .../adapterDeployments/<name>`，带上适配器 ID 和目标部署的名称。
-4. **调用。** 你的应用向 `https://<账户>.services.ai.azure.com/openai/v1/chat/completions` 发请求。`"model": "qwen38-lora"` 由基础模型回答；`"model": "qwen38-lora-gsm8k"` 由同一组 GPU 加上适配器回答。名称不存在时返回 HTTP 404 `DeploymentNotFound`。
-5. **登录与密钥。** 每次调用都带 Microsoft Entra 令牌：创建和删除资源时面向 `https://management.azure.com`，上传文件、列出任务和调用模型时面向 `https://ai.azure.com`。脚本从 Azure CLI 的登录取令牌。账户没有密钥，脚本也不往仓库里写任何东西。
-6. **删除。** `infra/down.py` 先删适配器部署，最后删目标部署，一次删一个，并逐个读回确认已经不存在。
-
-### Managed Training 和 Programmed Training
-
-Foundry 有两种训练方式。**Managed Training**（托管训练）：你提交数据和设置，训练任务由 Foundry 运行。**Programmed Training**（预览）：每一步采样和参数更新由你自己的 Python 循环决定，Foundry 负责执行这些操作。[第 3 步](#3-训练适配器)两种都有：选项 A 在门户里提交 Managed Training 任务，选项 B 运行 `training/programmed_training_sft.py` 里的循环。两种方式在同一份数据上各自的结果见[实现效果](#实现效果)。
-
-<img src="images/learn-training-approaches.png" width="684" alt="Microsoft Learn 上的对比表，两列是 Managed Training 和 Programmed Training（预览），五行依次是怎么运作、适合谁、你能控制什么、训练方法、典型用途。Managed Training：提交数据和设置，由 Foundry 运行训练任务。Programmed Training：自己写 Python 循环，由 Foundry 执行训练和采样操作。">
-
-来源：Microsoft Learn，[Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach) 的 “Choose your training approach” 一节。这是 2026 年 11 月 23 日该页面上这张表的截图（页面最后更新于 2026 年 11 月 17 日）。表里五行依次是：怎么运作、适合谁、你能控制什么、训练方法、典型用途。
-
-看什么：**Your control**（你能控制什么）一行。用 Managed Training 时，你选数据和它支持的超参数，[第 3 步](#3-训练适配器)的示例任务只需要这些。用 Programmed Training 时，每一步怎么做都由循环自己定：本仓库的脚本把 batch size 设为 16，这样 449 行数据有 56 个优化步；示例任务用的是服务默认值 128，只有 6 个。Programmed Training 要先[申请访问权限](https://aka.ms/foundry-interactive-training-signup)。
-
-文章接下来还有四项选择。下表逐项列出：文章列了什么，对这个模型列了什么，本仓库用的是什么：
-
-| 选项 | 文章列出的 | 对 `Qwen3.8-27B`（预览） | 本仓库 |
-|---|---|---|---|
-| 训练方式 | Managed Training 和 Programmed Training（预览）。两者都跑在 Foundry 管理的训练基础设施上，你不用准备训练 GPU | 两种都支持 | 两种都有，即[第 3 步](#3-训练适配器)的选项 A 和选项 B |
-| 定制方法 | 三种预定义方法，都属于 Managed Training：监督微调（SFT）、偏好微调（DPO）和强化微调（RFT）。Programmed Training 没有预定义方法，它的示例仓库里有各种配方 | SFT 和 RFT | 任务用 SFT；会话用监督训练配方 |
-| 训练类型 | Standard、Data zone、Global 和 Developer。训练类型决定训练在哪里运行、价格和保障 | Global 和 Developer | 任务用 Global；会话的循环里没有这一项设置 |
-| 部署选项 | Serverless：由 Foundry 托管微调后的模型；或者 Managed compute：独占 GPU 运行基础模型，并挂一个或多个 LoRA 适配器（预览） | 只有 Managed compute | Managed compute：一个目标部署，每个适配器一个适配器部署 |
-| Foundry 项目所在区域 | Global 训练有 27 个区域 | 其中 10 个支持 Managed Training，11 个支持 Programmed Training | East US 2 |
-
-整篇文章的内容，包括全部 18 个模型、27 个区域、serverless 的几种部署类型和需要提前考虑的限制，整理在 [`docs/FOUNDRY_TRAINING_CN.md`](docs/FOUNDRY_TRAINING_CN.md)。
-
-### 本页用到的术语
-
-| 术语 | 在本页的含义 |
-|---|---|
-| Managed Training（托管训练） | Foundry 的微调服务：你提交任务，Microsoft 用自己的 GPU 运行，按训练 token 计费 |
-| Programmed Training（预览） | Foundry 的第二种训练方式：每一步由你电脑上的 Python 循环决定，训练和采样操作由 Foundry 执行，你不用准备 GPU |
-| 会话（session） | 一次 Programmed Training 运行，建在项目里。循环保存的检查点会出现在项目的模型列表里，类型是 LoRA 模型 |
-| 监督微调（SFT） | 用成对的示例对话训练，每条都带着你期望的回答 |
-| 优化步（optimizer step） | 用一批训练数据算出来的一次适配器权重更新。同样的数据，每批越小，步数越多 |
-| LoRA 适配器 | 在冻结的基础模型之上训练出来的一小组附加权重。它只能和训练时用的那个基础模型及版本配合 |
-| Managed compute（托管计算） | Foundry 的一种部署方式：模型跑在独占 GPU 上，按 GPU 小时计费，不按 token 计费 |
-| 目标部署（target deployment） | 基础模型的 Managed compute 部署，适配器挂在它上面。本仓库里叫 `qwen38-lora` |
-| 适配器部署（adapter deployment） | 把一个已登记的适配器挂到目标部署上，并起一个单独的名称。它不增加 GPU。本仓库里叫 `qwen38-lora-<训练任务的显示名>`；用 `--adapter-model` 指定的模型叫 `qwen38-lora-<标签>` |
-| Global | 目标部署的 `GlobalManagedCompute` SKU，以及训练任务的 Global 训练类型。两者实际在哪个区域运行，本页没有确定 |
-| GSM8K | 小学水平的算术应用题。Foundry 的示例数据有 449 行训练数据和 50 行验证数据，每个参考答案都以 `#### <数字>!!!` 结尾 |
-| 验证数据 | 训练任务用来计算验证损失、但不参与训练的 50 行。本页用它对比基础模型和适配器 |
-| completion tokens | 模型为一次回答生成的 token 数，取自响应的 `usage` 字段 |
+开始之前要知道三点：Qwen3.8-27B 的微调和 [Managed compute 上的 LoRA 适配器](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute)都是预览功能，没有服务级别协议，Microsoft 不建议用于生产负载；Managed compute [没有内置内容过滤](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview)；目标部署从建好到删除，每小时都按 GPU 计费，有没有请求都一样。
 
 ## 实现效果
 
@@ -160,7 +83,7 @@ Foundry 有两种训练方式。**Managed Training**（托管训练）：你提�
 
 截图来自第一次测试，所以图里两个适配器都是用 Managed Training 训练的：一个是用 GSM8K 示例训练的适配器 A；另一个用同样的设置训练，数据是 [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning) 里的另一套示例 `Text-Bug-Detection`，部署在同一个目标部署上。和基础模型做对比的只有适配器 A。
 
-结果 1 和结果 3 的截图都是真实的门户截图，做过裁剪，订阅名和 Created by 一列的值已遮盖。图里的部署名属于那次测试部署。你的部署叫 `qwen38-lora` 和 `qwen38-lora-<显示名>`，除非传了 `--target`。
+结果 1 和结果 3 的截图都是真实的门户截图，做过裁剪，订阅名和 Created by 一列的值已遮盖。图里的部署名属于那次测试部署。你的部署叫 `qwen38-lora` 和 `qwen38-lora-<显示名>`，除非传了 `--target`。示例数据、图标和截图的来源见 [`NOTICE.md`](NOTICE.md)。
 
 ### 结果 4：适配器改变的是回答方式，不是答对率
 
@@ -254,35 +177,47 @@ In 2 hours, they completed 162*2=<<162*2=324>>324 math questions.
 | 删除适配器部署和目标部署 | 5 分钟 |
 | 部署存在期间收到的请求 | 127 个：102 个返回 HTTP 200，25 个在第一次成功之前返回 HTTP 404 |
 
-| 项目 | 目录价（美元），取自 Azure Retail Prices API，2026 年 11 月 23 日读取 | 何时计费 |
+费用：部署一小时加一次 Managed Training 训练，按目录价共 16.46 美元；各项目录价见[价格和区域](#价格和区域)。`up.py` 在创建任何资源之前，会读取当前目录价并打印出来。
+
+## Managed Training 和 Programmed Training
+
+两种训练方式最根本的区别，是训练循环由谁运行。用 **Managed Training**，你提交数据和设置，Foundry 运行整个训练任务。用 **Programmed Training**（预览），循环在你自己的电脑上运行，每一步怎么采样、怎么更新参数，由你的 Python 代码决定，Foundry 在它的 GPU 上执行这些操作。两种方式都不用你准备训练 GPU，产出的都是 LoRA 适配器，部署方法和推理费用也一样。[第 3 步](#3-训练适配器)两种都有：选项 A 在门户里提交 Managed Training 任务，选项 B 运行 `training/programmed_training_sft.py`。
+
+<img src="images/learn-training-approaches.png" width="684" alt="Microsoft Learn 上的对比表，两列是 Managed Training 和 Programmed Training（预览），五行依次是怎么运作、适合谁、你能控制什么、训练方法、典型用途。Managed Training：提交数据和设置，由 Foundry 运行训练任务。Programmed Training：自己写 Python 循环，由 Foundry 执行训练和采样操作。">
+
+来源：Microsoft Learn，[Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach) 的 “Choose your training approach” 一节。这是 2026 年 11 月 23 日该页面上这张表的截图（页面最后更新于 2026 年 11 月 17 日）。
+
+### 价格和区域
+
+下表只列 Qwen3.8-27B（预览）。训练方法、训练类型和区域取自上面这篇 Microsoft Learn 文章，2026 年 11 月 24 日又核对过一次，内容没有变化；目录价取自 Azure Retail Prices API，2026 年 11 月 24 日读取，单位是美元。
+
+| 比较项，针对 Qwen3.8-27B（预览） | Managed Training | Programmed Training（预览） |
 |---|---|---|
-| 目标部署 | 每 H100 GPU 小时 7.91 × 2 块 GPU = 每小时 15.82，即每天 379.68 | 只要目标部署存在就计费，有没有请求都一样 |
-| 适配器部署 | 不单独计价 | 不计费 |
-| 请求 | Managed compute 不按 token 计价 | 不计费 |
-| 示例数据的 Managed Training 任务 | 每百万训练 token 3.00；计费 213,000 个 token = 0.64 | 每个任务一次 |
-| 示例数据的 Programmed Training 会话 | 每百万训练 token 4.10；循环自己统计 219,652 个 token = 0.90 | 循环每发送一个 token 都计费。这个数是估算值：第二次测试的账单没有读 |
-| 账户、项目、上传的文件 | 没有按小时的价格 | 测试资源组的账单里只有 GPU 小时和训练 token 两类 |
+| 训练方法 | SFT 和 RFT。本仓库用 SFT | 没有预定义方法，循环由你自己写；[示例仓库](https://github.com/microsoft-foundry/fine-tuning/tree/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training)里有 SFT、强化学习、偏好学习、蒸馏和自定义损失的配方。本仓库用 SFT |
+| 使用条件 | 不需要申请 | 订阅要先[申请访问权限](https://aka.ms/foundry-interactive-training-signup)，获批之后才能开会话 |
+| 训练类型 | Global 或 Developer。Global 用 Microsoft 的全球容量，不保证数据驻留；Developer 用闲置容量，价格更低，任务可能被抢占后再恢复。本仓库用 Global | 目前只有 Global：示例仓库的 [training.md](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/training.md#training-type) 写明 `GlobalStandard` 可用，`DatazoneStandard` 和 `DeveloperTier` 暂不可用 |
+| Foundry 项目可以建在哪些区域 | 10 个：Australia East、East US、East US 2、Korea Central、North Central US、Sweden Central、Switzerland North、UAE North、UK South、West US 3 | 11 个：左边这 10 个，加上 Canada East |
+| 怎么计费 | SFT 按训练 token 数乘以 epoch 数；RFT 按训练时长，评分模型用的 token 另算 | 四类 token 各按各的价格计费：训练、采样、预填充、命中缓存的预填充 |
+| 目录价 | SFT：Global 每百万训练 token 3.00，Developer 1.50。RFT：Global 每训练小时 80 | Global，每百万 token：训练 4.10，采样 5.60，预填充 1.86，命中缓存的预填充 0.37 |
+| 本仓库示例数据的训练费用（449 行，2 个 epoch） | 计费 213,000 个训练 token，0.64，取自账单 | 循环统计 219,652 个训练 token，按目录价约 0.90；第二次测试的账单没有读 |
+| 部署和推理 | 只能部署到 Managed compute，不能用 Serverless。本仓库的目标部署用 2 块 H100 80 GB，部署范围是 Global，每 GPU 小时 7.91，即每小时 15.82；适配器部署不单独计价；请求不按 token 计价 | 同左 |
 
-部署一小时加一次 Managed Training 训练，按目录价是 16.46 美元。`up.py` 在创建任何资源之前会读取当前目录价并打印出来。
+除了训练和目标部署，测试资源组的账单里没有别的费用：账户、项目和上传的文件都没有按小时的价格。这篇文章的其余内容，包括全部 18 个模型、27 个区域和 Serverless 的几种部署类型，整理在 [`docs/FOUNDRY_TRAINING_CN.md`](docs/FOUNDRY_TRAINING_CN.md)。
 
-| 你想 | 读这里 |
-|---|---|
-| 在自己的订阅里部署 | [操作步骤](#操作步骤) |
-| 看这些结果背后的测试环境、方法、完整表格和局限 | [`docs/RESULTS_CN.md`](docs/RESULTS_CN.md) |
-| 了解每项检查证明了什么、回答怎么判分、哪些没有测 | [`docs/TESTING_CN.md`](docs/TESTING_CN.md) |
-| 查 Foundry 训练支持哪些模型、训练类型、部署选项和区域 | [`docs/FOUNDRY_TRAINING_CN.md`](docs/FOUNDRY_TRAINING_CN.md) |
-| 了解示例数据、图标和截图的来源 | [`NOTICE.md`](NOTICE.md) |
+### 能部署哪些适配器
 
-| 目录 | 内容 |
-|---|---|
-| `infra/` | `main.bicep`（账户、项目、角色）、`up.py`、`verify.py`、`down.py`，以及公共函数 `foundry.py` |
-| `training/` | `programmed_training_sft.py`，用示例数据做 Programmed Training 的训练循环；要在 cookbook 的 Python 环境里运行 |
-| `examples/` | `chat.py`，一个最小的客户端 |
-| `tests/` | 脚本逻辑的离线测试 |
-| `docs/` | 结果详情、测试说明，以及 Microsoft Learn 上 Foundry 训练一文的摘要，各有中英文两版 |
-| `images/` | 三张示意图、一张训练损失图、三张门户截图和一张 Microsoft Learn 表格截图，来源记录在 `SOURCES.json` |
+| 适配器从哪里来 | 能不能部署到 Managed compute | 依据 |
+|---|---|---|
+| 同一个项目里，Managed Training 任务训练出的 LoRA 适配器 | 能。本仓库的适配器 A，rank 32 | 本仓库的测试，见[结果 3](#结果-3适配器部署在同一组-gpu-上) |
+| 同一个项目里，Programmed Training 会话保存的 LoRA 检查点 | 能。本仓库的适配器 B，rank 32 | 本仓库的测试，见[结果 3](#结果-3适配器部署在同一组-gpu-上) |
+| 在 Foundry 之外训练的 LoRA 适配器，例如用自己的 GPU 训练的 | 现在不能，Foundry 还不能导入在别处训练的适配器。产品组在 Ignite 2026 上说，计划很快开放导入自己训练的 LoRA 适配器，没有给出日期 | Microsoft Learn，[Adapter deployment overview](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview)：“You can't yet import your own adapters”；Ignite 2026 分会场 [BRK246](https://ignite.microsoft.com/en-US/sessions/BRK246) 的问答 |
+| 完整的模型权重，不是适配器 | 不走适配器部署。BRK246 演示了导入 safetensors 格式的完整权重，部署方法和目录里的模型相同；产品组还说，计划支持把适配器合并进基础模型。这两项本仓库都没有测 | Ignite 2026 分会场 [BRK246](https://ignite.microsoft.com/en-US/sessions/BRK246) |
+
+能部署的适配器还要满足三个条件：基础模型和版本与训练时一致；目标部署用支持 LoRA 的部署模板；适配器的个数、LoRA rank 和显存都在模板的上限之内，一个目标部署最多 8 个适配器部署（见 [Deploy fine-tuned LoRA adapters to managed compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute)）。
 
 ## 操作步骤
+
+按下面的步骤，可以在你自己的订阅里复现上面的测试。
 
 | 顺序 | 在哪里 | 做什么 | 命令 | 大约用时 |
 |---|---|---|---|---|
@@ -527,7 +462,7 @@ RESULT: PASS   report: <home>/.foundry-lora/<name>/verify-report.json
 <time> [PASS] Streaming speed of qwen38-lora-gsm8k: tokens per second <n> / <n> / <n>; first token after <n> / <n> / <n> s
 ```
 
-所有检查通过时退出码为 0，否则为 1。报告里列出每一项检查；加了 `--full` 时，每个回答都保存在报告旁边，可以自己逐行读。“correct by last number” 就是实现效果里说的自动判分，回答长时会低估正确数。
+所有检查通过时退出码为 0，否则为 1。报告里列出每一项检查；加了 `--full` 时，每个回答都保存在报告旁边，可以自己逐行读。“correct by last number” 就是实现效果里说的自动判分，回答长时会低估正确数。每项检查证明了什么、哪些没有测，见 [`docs/TESTING_CN.md`](docs/TESTING_CN.md)。
 
 ### 6. 在你的代码里调用
 
