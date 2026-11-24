@@ -19,7 +19,7 @@ This page says what each check of the repository proves, how answers are scored,
 python -m unittest discover -s tests -v
 ```
 
-The 29 tests call no service. They feed the scripts the shapes of real service responses (job objects, project models) and check the decisions.
+The 30 tests call no service. They feed the scripts the shapes of real service responses (job objects, project models) and check the decisions.
 
 | Test class | Tests | What it asserts |
 |---|---|---|
@@ -29,7 +29,7 @@ The 29 tests call no service. They feed the scripts the shapes of real service r
 | `Sessions` | 2 | the final checkpoint of a session is found by the session tag on the project model, and a model without that tag is not taken; the summary of a metrics file counts optimizer steps, training tokens and validation passes |
 | `Scoring` | 5 | the reference format of the sample data is read; the `####` marker wins over later numbers; without a marker the last number is used; an answer without a number is not correct; a right answer followed by another number is scored wrong (the known limit described below) |
 | `Receipts` | 2 | a receipt is PASS only when every step passed; an empty receipt is not a PASS |
-| `Endpoints` | 3 | the chat route is on the account endpoint; the Azure Resource Manager URLs carry the API versions the requests were tested with; the adapter's ID is read from the job's Managed compute option |
+| `Endpoints` | 4 | the chat route is on the account endpoint; the Azure Resource Manager URLs carry the API versions the requests were tested with; the adapter's ID is read from the job's Managed compute option; a list is read past an empty first page to the page that its `nextLink` names |
 
 ## Programmed Training script
 
@@ -50,7 +50,7 @@ How the script relates to the session reported in the README:
 - **Same training code.** The functions that render the data and run the session (`prepare_custom_sft`, `run_custom_sft` and the 5 definitions they use) are the driver that ran the second test. The two files were compared as syntax trees: all 7 definitions are identical, and so are the model, the renderer and the settings.
 - **Same plan.** `--prepare` was run from this repository, in the cookbook environment of the test client. Its plan equals the plan that the second test saved, in every field that does not name a folder: the SHA-256 of both files, 449 and 50 rows, 28 batches per epoch, 56 planned steps and 219,768 planned training tokens. The session itself counted 219,652: the 449 rows hold 110,106 tokens, an epoch trains 448 of them, and each epoch is shuffled again and leaves another row out.
 - **Reading the service's answers.** `session_adapter`, `named_adapters` and `session_summary` in `infra/foundry.py` were run on the model records and the metrics file that the second test saved. They returned the model of the final checkpoint, the model ID that the test's adapter deployment named, and the 56 steps, 219,652 training tokens and losses reported in the README.
-- **Not run.** Steps 3/5 to 5/5 have not run as part of this script, and `up.py --adapter-model` has not created a deployment. See [What has not been tested](#what-has-not-been-tested).
+- **Run end to end.** On 24 November 2026 the script ran all five steps in a new resource group: one session, all 56 optimizer steps, 219,652 training tokens, validation loss from 0.91 to 0.41, and step 5/5 found the final checkpoint in the project; `up.py --deploy --adapter-model` then deployed it. See [The Steps run end to end](RESULTS.md#the-steps-run-end-to-end).
 
 ## Deployment check
 
@@ -116,6 +116,7 @@ The test topology of each test is shown in [RESULTS.md](RESULTS.md): under [adap
 | Second test: duration of the training | the loop's wall clock for the 56 steps and the 3 validation passes (363 seconds), and the time from starting the script to its exit (532 seconds), which adds preparing the data, creating the session and closing it |
 | Second test: first call after `Succeeded` | a process on the test client sent one chat call about every 30 seconds, the first one 6 seconds after the first read that showed `Succeeded`. 25 calls returned HTTP 404 `The specified endpoint does not exist` (17 on `/openai/v1/chat/completions`, 8 on two other routes tried along the way); the call at 553 seconds returned HTTP 200 |
 | Second test: scoring of the base model | the automatic score marked 11 answers wrong. 8 of them were identical in text to answers read in the first test and kept that reading; the other 3 were read: 2 were cut off at the 800-token limit, 1 gives another number than the reference |
+| End-to-end run | the scripts' own output, saved per step: the start and exit time of each command, the `Succeeded (<n> min)`, `Succeeded (<n> s)` and `gone (<n> s)` lines and the `verify.py --full` lines; the answer counts come from the rows that `verify.py --full` saved. The portal job's numbers come from its job object, events and result file, the session's from its metrics file |
 
 The speed test in the README used this prompt, in Chinese: "请用中文写一段约 300 字的说明：企业在 Azure 上用 Managed Compute 部署开源模型时，怎样根据业务量选择 GPU 型号和实例数。" `verify.py --full` sends the same prompt.
 
@@ -123,20 +124,21 @@ The speed test in the README used this prompt, in Chinese: "请用中文写一�
 
 - **The response's `model` field.** The [how-to](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-lora-managed-compute) says a response returns the adapter deployment's name in `model`. The adapter's responses carried an internal ID of the form `rp-<hash>-1`. `verify.py` therefore checks only that it differs from the base model's value.
 - **Jobs submitted through the API in a new project.** In two regions, 3 of 3 jobs submitted through the API in a project that had never run a portal-submitted job succeeded without registering an adapter in the project. Jobs submitted in the portal registered (2 of 2), and API jobs submitted afterwards in the same project registered (3 of 3). The cause is not known.
-- **HTTP 404 after `Succeeded`.** Two target deployments created 23 and 33 seconds after a deletion emptied the account reached `Succeeded` and returned HTTP 404 to model calls. They still did at the last call before they were deleted, 18 and 23 minutes after `Succeeded`. One created 8 hours after a deletion answered after 8 seconds. In the second test the target was created in an account that held no deployment, and in which the test had deleted nothing. It also returned HTTP 404 after `Succeeded`, for 553 seconds, and then answered every call. So a 404 right after `Succeeded` can be temporary and does not need a deletion shortly before. Whether the two earlier targets would have answered after a longer wait is not known. The failure was not reproduced on purpose, and nothing between those gaps was tested; the 60-minute wait in `up.py` is a precaution. `up.py` repeats the first call for 10 minutes before it stops; the 553 seconds of the second test came close to that limit.
+- **HTTP 404 after `Succeeded`.** Two target deployments created 23 and 33 seconds after a deletion emptied the account reached `Succeeded` and returned HTTP 404 to model calls. They still did at the last call before they were deleted, 18 and 23 minutes after `Succeeded`. One created 8 hours after a deletion answered after 8 seconds. In the second test the target was created in an account that held no deployment, and in which the test had deleted nothing. It also returned HTTP 404 after `Succeeded`, for 553 seconds, and then answered every call. So a 404 right after `Succeeded` can be temporary and does not need a deletion shortly before. Whether the two earlier targets would have answered after a longer wait is not known. The failure was not reproduced on purpose, and nothing between those gaps was tested; the 60-minute wait in `up.py` is a precaution. `up.py` repeats the first call for 10 minutes before it stops; the 553 seconds of the second test came close to that limit. In the end-to-end run the target was created in a new account, and its first call, 68 seconds after `Succeeded`, was answered.
+- **A list whose first page is empty.** In the subscription of the end-to-end run, the Azure Resource Manager list of the accounts in the resource group returned an empty first page with a `nextLink`, and the account on the page it named. `infra/foundry.py` read only the first page then, so `training/programmed_training_sft.py` stopped at 3/5 with `No Foundry account created by this repository in resource group`. The scripts now follow `nextLink` to the last page, which an offline test covers; the session of the run started after that fix.
+- **A Programmed Training session in the list of training jobs.** In the end-to-end run the session appeared in the project's list of training jobs as `session_<id>` with status `succeeded`, and its Managed compute option named the final checkpoint. Run offline on that saved list, the selection of `up.py` picks the checkpoint without `--adapter-model` as `qwen38-lora-<the last 8 characters of the session ID>`, and with the option only under its label.
+- **A slower adapter deployment.** Adapter deployments reached `Succeeded` in 64 seconds (first test, 2 adapters), 78 seconds (second test) and 68 seconds (first adapter of the end-to-end run). The second adapter of the end-to-end run took 338 seconds. The cause is not known.
 - **Base-model version of a target.** An adapter deployment request for an adapter trained on model version 3 was accepted on a target that ran version 7. That target never answered model calls, so the effect of such a pairing is unknown. `up.py` creates the target on the version the adapter names and sets `NoAutoUpgrade`.
 
 ## What has not been tested
 
-- `infra/up.py`, `infra/verify.py` and `infra/down.py` as one sequence in a new resource group, including `down.py --all` and `up.py --train-api`. The requests they send (target deployment, adapter deployment, chat, deletion order) were exercised on a real deployment with the same bodies, and the preflight, the template and the read paths were exercised at no cost.
+- `infra/up.py --train-api` against Azure. The other commands of the Steps ran end to end on 24 November 2026; see [The Steps run end to end](RESULTS.md#the-steps-run-end-to-end).
 - Linux and macOS; Python versions other than 3.13.
 - Regions other than East US 2 for the deployment.
 - A user who holds Foundry User on the account only. The tests ran as Owner of the subscription with Foundry User at subscription scope.
 - More than 2 adapters on one target, more than 1 instance, concurrent users.
-- A session started by `training/programmed_training_sft.py`. Its steps 3/5 to 5/5 (finding the project, training in a session, reading the saved model back) have not run. The session of the second test was started by the same training functions from a separate driver, and a separate script read the saved model's name from the project.
-- `infra/up.py --deploy --adapter-model` against Azure. The selection is covered by the offline tests and was run on the model records that the second test saved; the Programmed Training adapter of the second test was deployed with the same two requests from a separate script.
+- Reading the answers of the end-to-end run by hand: its numbers of correct answers are the automatic score only.
 - `training/programmed_training_sft.py` in a subscription without the Programmed Training approval, and run by a user who holds Foundry User only. The second test ran as Owner of the subscription with Foundry User and Azure AI Developer on the account.
 - The cookbook installation commands of step 3 as the README gives them. They are the commands of the cookbook's quickstart; the cookbook environment of the test client existed before and was not rebuilt from them.
-- The two adapters on one target deployment, and the streaming-speed test for the Programmed Training adapter.
 - The cookbook's own deployment route for a Programmed Training checkpoint (`scripts/deploy_to_foundry.py`, target `Fireworks`).
 - Managed Training settings other than the defaults, including batch size 16; Programmed Training settings other than those in the table above; data other than the two sample sets.

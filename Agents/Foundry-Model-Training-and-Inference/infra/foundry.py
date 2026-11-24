@@ -146,6 +146,21 @@ def http(method: str, url: str, body=None, audience: str = ARM_AUDIENCE, headers
     return 0, {}, "unreachable"
 
 
+def list_all(url: str, audience: str = ARM_AUDIENCE) -> tuple[int, list]:
+    """(status, items) of an Azure Resource Manager list, read to its last page. A first page can be empty while the
+    items come on the page its nextLink names."""
+    items, code = [], 0
+    for _ in range(50):
+        code, _, body = http("GET", url, audience=audience)
+        if code != 200 or not isinstance(body, dict):
+            return code, items
+        items += body.get("value", [])
+        url = body.get("nextLink")
+        if not url:
+            break
+    return code, items
+
+
 def _parse(raw: bytes):
     text = raw.decode("utf-8", "replace")
     if not text.strip():
@@ -245,14 +260,14 @@ class Solution:
 def find_solution(subscription: str, resource_group: str, target: str = DEFAULT_TARGET) -> Solution | None:
     """The Foundry account and project that up.py created in this resource group (found by tag), or None."""
     base = f"/subscriptions/{subscription}/resourceGroups/{resource_group}/providers/Microsoft.CognitiveServices/accounts"
-    code, _, body = http("GET", f"{base}?api-version={API_ACCOUNT}")
+    code, accounts = list_all(f"{base}?api-version={API_ACCOUNT}")
     if code != 200:
         return None
-    for acct in body.get("value", []):
+    for acct in accounts:
         if (acct.get("tags") or {}).get("solution") != SOLUTION_TAG:
             continue
-        code, _, projects = http("GET", f"{acct['id']}/projects?api-version={API_ACCOUNT}")
-        for proj in (projects or {}).get("value", []) if code == 200 else []:
+        code, projects = list_all(f"{acct['id']}/projects?api-version={API_ACCOUNT}")
+        for proj in projects if code == 200 else []:
             endpoint = ((proj.get("properties") or {}).get("endpoints") or {}).get("AI Foundry API")
             if endpoint:
                 return Solution(subscription, resource_group, acct["name"], proj["name"].split("/")[-1],
@@ -270,11 +285,11 @@ def require_solution(subscription: str, resource_group: str, target: str) -> Sol
 
 def quota(subscription: str, location: str, accelerator: str = ACCELERATOR) -> tuple[int, int] | None:
     """(used, limit) GPUs of the Global managed compute quota, or None when it cannot be read."""
-    code, _, body = http("GET", f"/subscriptions/{subscription}/providers/Microsoft.CognitiveServices/locations/{location}"
-                                f"/managedComputeUsages?api-version={API_MANAGED_COMPUTE}")
-    if code != 200 or not isinstance(body, dict):
+    code, rows = list_all(f"/subscriptions/{subscription}/providers/Microsoft.CognitiveServices/locations/{location}"
+                          f"/managedComputeUsages?api-version={API_MANAGED_COMPUTE}")
+    if code != 200:
         return None
-    for row in body.get("value", []):
+    for row in rows:
         if (row.get("name") or {}).get("value") == f"ManagedCompute.Global.{accelerator}":
             return int(row.get("currentValue") or 0), int(row.get("limit") or 0)
     return None
@@ -386,8 +401,9 @@ def deployable_adapters(jobs: list[dict], models: list[dict], target: str) -> li
 # ---------------------------------------------------------------- Programmed Training: saved checkpoints
 
 def named_adapters(specs: list[str], models: list[dict], target: str) -> list[dict]:
-    """Adapters named on the command line as NAME or NAME=LABEL: LoRA models of the project that no training job points
-    to, such as the checkpoint a Programmed Training session saved. LABEL ends the adapter deployment's name."""
+    """Adapters named on the command line as NAME or NAME=LABEL: LoRA models of the project, such as the checkpoint a
+    Programmed Training session saved. LABEL ends the adapter deployment's name; a named model keeps that name even when
+    a training job also points to it, as a session's entry in the job list does."""
     registered = {m.get("name"): m for m in models if m.get("weightType") == "LoRA"}
     found = []
     for spec in specs:

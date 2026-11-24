@@ -4,11 +4,9 @@
 [![Training](https://img.shields.io/badge/training-Managed%20Training%20%2B%20Programmed%20Training%20%C2%B7%20SFT-0078D4)](#managed-training-and-programmed-training)
 [![Serving](https://img.shields.io/badge/serving-Managed%20compute%20%C2%B7%20LoRA%20adapters%20(preview)-0078D4)](#results)
 [![Deploy](https://img.shields.io/badge/deploy-Bicep%20%2B%20Python-0078D4)](#steps)
-[![Offline tests](https://img.shields.io/badge/offline%20tests-29%20unittest-0078D4)](docs/TESTING.md)
+[![Offline tests](https://img.shields.io/badge/offline%20tests-30%20unittest-0078D4)](docs/TESTING.md)
 
 Author: Xinyu Wei · [中文](README_CN.md)
-
-> **Draft.** Two runs are still open. `infra/up.py`, `infra/verify.py` and `infra/down.py` have not been executed as one sequence in a new resource group. `training/programmed_training_sft.py` has run its local preparation only: its training functions are the ones that ran the session reported under Results, but this script has not started a session, and `infra/up.py --adapter-model` has not created a deployment. The example outputs under Steps are written from the scripts. This note is removed after those runs.
 
 ## Purpose
 
@@ -19,7 +17,7 @@ A team that wants an open-weight model to answer in its own format usually has t
 3. Do the adapters attach to the same GPUs and answer under their own names?
 4. What does an adapter change in the model's answers?
 
-The answers are under [Results](#results). How the two training approaches differ, with prices, regions and the adapters each supports, is under [Managed Training and Programmed Training](#managed-training-and-programmed-training). To reproduce the test in your own subscription, follow the [Steps](#steps).
+The answers are under [Results](#results). How the two training approaches differ, with the models each supports, training prices and regions, the Managed compute platform both deploy to (regions, Data Zone, prices and discounts) and the adapters that can be deployed, is under [Managed Training and Programmed Training](#managed-training-and-programmed-training). To reproduce the test in your own subscription, follow the [Steps](#steps).
 
 <img src="images/architecture-en.png" width="900" alt="Architecture as a flow from left to right; the numbers are the step numbers under Steps. 2 Your data: you provide chat examples in JSONL, for example the GSM8K sample, and infra/up.py uploads them to Microsoft Foundry. 3 Train, in one of two ways: A, Managed Training, where you submit a job in the Foundry portal and Foundry runs the whole job; B, Programmed Training (preview), where the Python loop programmed_training_sft.py sends each step. Microsoft provides the training GPUs and bills per training token. Either way the output is a LoRA adapter listed in the project. 4 Deploy on Managed compute with infra/up.py --deploy: the target deployment runs the base model Qwen3.8-27B on one instance with 2 H100 80 GB GPUs, and adapter deployments, up to 8, attach to the same GPUs without adding a GPU; billing is per GPU-hour while the target exists, 15.82 USD per hour at list price. 6 Your app sends requests to one endpoint, and the model field picks the base model or an adapter; examples/chat.py is a minimal client. 7 infra/down.py deletes the adapter deployments, then the target deployment, and the GPU charge stops.">
 
@@ -36,20 +34,17 @@ Four results, in the order of the work:
 3. [The adapters deploy on the same GPUs](#result-3-the-adapters-deploy-on-the-same-gpus): 64 seconds per adapter deployment in the first test and 78 in the second, with no GPU added.
 4. [The adapter changes how the model answers, not how often it is right](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right): shorter answers in the format of the training data; the difference in correct answers is within noise.
 
-Where they come from: two tests in East US 2 on 22 and 23 November 2026, each in its own Foundry account, both on the GSM8K sample data of this repository. Adapter A was trained with Managed Training in the first test, adapter B with Programmed Training in the second. Test setup, method, full tables and limits: [`docs/RESULTS.md`](docs/RESULTS.md).
+Where they come from: two tests in East US 2 on 22 and 23 November 2026, each in its own Foundry account, both on the GSM8K sample data of this repository. Adapter A was trained with Managed Training in the first test, adapter B with Programmed Training in the second. Test setup, method, full tables and limits: [`docs/RESULTS.md`](docs/RESULTS.md). On 24 November 2026 the [Steps](#steps) below were then run end to end in a new resource group, with both trainings again and both adapters on one target deployment; its numbers are under [The Steps run end to end](docs/RESULTS.md#the-steps-run-end-to-end), and the portal screenshots on this page come from it.
 
 ### Result 1: Qwen3.8-27B deploys on Managed compute
 
-<table>
-<tr>
-<td width="50%"><img src="images/portal-target-succeeded.png" alt="Foundry portal, Models, Deployments, Managed-compute tab: one deployment of qwen--qwen3.8-27b with status Succeeded, deployment type Global Managed Compute, compute H100_80GB."></td>
-<td width="50%"><img src="images/portal-playground.png" alt="Foundry portal, Playground of the target deployment: the question about Tom's apples and the answer 8."></td>
-</tr>
-<tr>
-<td>Deployments page, Managed compute tab: the base model <code>qwen--qwen3.8-27b</code>, status Succeeded, Global Managed Compute, H100_80GB.</td>
-<td>Playground of the same deployment: the base model answers a test question.</td>
-</tr>
-</table>
+<img src="images/portal-target-succeeded.png" width="900" alt="Foundry portal, Models, Deployments, Managed-compute tab: the deployment qwen38-lora of qwen--qwen3.8-27b with status Succeeded, deployment type Global Managed Compute, compute H100_80GB.">
+
+Deployments page, Managed compute tab, end-to-end run: the target deployment `qwen38-lora` of the base model `qwen--qwen3.8-27b`, status Succeeded, Global Managed Compute, H100_80GB.
+
+<img src="images/portal-playground.png" width="900" alt="Foundry portal, Playground of the target deployment qwen38-lora: the question about Tom's apples and the answer 8.">
+
+Playground of the same deployment: the base model answers the test question of `infra/verify.py` with 8.
 
 The base model is the open-weight Qwen3.8-27B from the Foundry model catalog, as published, with no training. `infra/up.py --deploy` creates its deployment with the LoRA-enabled template on one instance with 2 × H100 80 GB; this is the target deployment that adapters attach to. It reached `Succeeded` 21 minutes after the request, and the first call, 8 seconds later, returned HTTP 200; in the second test that first successful call came after 553 seconds (see [Time and cost](#time-and-cost)). The target deployment holds the GPUs and is the only item billed per hour: 15.82 USD at list price, with or without requests.
 
@@ -70,20 +65,18 @@ What to look at:
 
 - **The validation loss falls in both runs.** It is computed on the 50 validation rows, which neither run trains on: after training, the adapter predicts the reference answers of questions it has not seen better than the base model does. That is the evidence that training worked; what it changes in actual answers is [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right).
 - **Both start at 0.91.** The same base model on the same 50 rows gives the same starting value in both services; that the two services compute the loss in the same way was not checked beyond this agreement.
-- **B goes lower because it takes more steps; that does not make the approach better.** The two runs share the data, the base model, 2 epochs, LoRA rank 32 and the learning-rate schedule. They differ in batch size, 16 against 128, and so in optimizer steps, 56 against 6. Managed Training with batch size 16 was not run.
+- **B goes lower because it takes more steps; that does not make the approach better.** The two runs share the data, the base model, 2 epochs, LoRA rank 32 and the learning-rate schedule. They differ in batch size, 16 against 128, and so in optimizer steps, 56 against 6. Managed Training with batch size 16 was not run; the portal's training wizard offers batch sizes from 32 to 256.
 - **The training loss** (blue) is the loss on the batch that each step trains on. B's batches hold 16 rows, so it moves from step to step; the validation loss (orange) is the measure to compare.
 
 ### Result 3: the adapters deploy on the same GPUs
 
-<img src="images/portal-two-adapters.png" width="700" alt="Foundry portal, Models, Deployments, Adapter deployments tab: two adapter deployments, both with deployment status Succeeded, both with the same target deployment of type Managed compute.">
+<img src="images/portal-two-adapters.png" width="900" alt="Foundry portal, Models, Deployments, Adapter deployments tab: two adapter deployments, qwen38-lora-gsm8k-pt and qwen38-lora-gsm8k, both on the target deployment qwen38-lora of type Managed compute, both with deployment status Succeeded.">
 
-Adapter deployments tab, first test: two adapter deployments on the same target deployment, both Succeeded.
+Adapter deployments tab, end-to-end run: `qwen38-lora-gsm8k`, trained with Managed Training in the portal, and `qwen38-lora-gsm8k-pt`, trained with Programmed Training by the script, both `Succeeded` on the target deployment `qwen38-lora`.
 
-Each adapter deployment names a trained adapter and the target deployment of result 1. In the first test each one reached `Succeeded` 64 seconds after the request; adapter B reached it in 78 seconds in the second test. An adapter deployment adds no GPU and is [not priced separately](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview); one target deployment takes up to 8. Your application then picks the base model or an adapter with the `model` field of the same endpoint.
+Each adapter deployment names a trained adapter and the target deployment of result 1. In the first test each one reached `Succeeded` 64 seconds after the request; adapter B reached it in 78 seconds in the second test, and the two adapters of the end-to-end run took 68 and 338 seconds. An adapter deployment adds no GPU and is [not priced separately](https://learn.microsoft.com/en-us/azure/foundry/concepts/adapter-deployment-overview); one target deployment takes up to 8. Your application then picks the base model or an adapter with the `model` field of the same endpoint.
 
-The screenshot is from the first test, so both adapters in it were trained with Managed Training: adapter A on the GSM8K sample, and a second adapter trained with the same settings on `Text-Bug-Detection`, another sample set of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning), deployed on the same target deployment. Only adapter A was compared with the base model.
-
-The screenshots of results 1 and 3 are real portal screenshots, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them belong to the test deployment. Yours are `qwen38-lora` and `qwen38-lora-<display name>` unless you pass `--target`. Where the sample data, the icons and the screenshots come from: [`NOTICE.md`](NOTICE.md).
+The screenshots of results 1 and 3 are real portal screenshots from the end-to-end run, cropped; the subscription name and the values of the Created by column are covered. The deployment names in them are the defaults of the scripts. Where the sample data, the icons and the screenshots come from: [`NOTICE.md`](NOTICE.md).
 
 ### Result 4: the adapter changes how the model answers, not how often it is right
 
@@ -150,9 +143,9 @@ What the numbers mean:
 - **Both adapters are active.** On none of the 50 rows did an adapter give the same answer as the base model in the same test, and only the adapters use the training data's marker.
 - **More optimizer steps, more of the training format.** Adapter A (6 steps) took on the short style, but used the marker in 6 of 50 answers and never the complete ending. Adapter B (56 steps) ends all 50 answers like the training data; its answers average 115.7 completion tokens, a little over one third of the base model's 311.2.
 - **Accuracy is not shown to differ.** Adapter A alone is correct on 3 rows and its base model alone on 1 (two-sided sign test, p = 0.625); for adapter B the counts are 2 and 3 (p = 1.0). The GSM8K sample teaches an answer format; this page does not show that fine-tuning makes the model better at arithmetic.
-- **The adapter costs speed.** With adapter A the same GPUs streamed 53.4 tokens per second against 72.5 for the base model, about 26% fewer (one prompt, 3 runs per side). The speed test was not repeated for adapter B.
+- **The adapter costs speed.** With adapter A the same GPUs streamed 53.4 tokens per second against 72.5 for the base model, about 26% fewer (one prompt, 3 runs per side). In the end-to-end run, with both adapters on one target deployment, each adapter streamed 53.1 to 53.2 tokens per second and the base model 71.6 to 72.0: the same cost for an adapter from either training approach.
 
-Limits: one adapter per approach, one seed, 50 rows, one request per row, base model first and not interleaved. The two adapters were measured on different target deployments in different accounts; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. Method, scoring and full tables: [`docs/RESULTS.md`](docs/RESULTS.md).
+Limits: one adapter per approach, one seed, 50 rows, one request per row, base model first and not interleaved. Adapters A and B were measured on different target deployments in different accounts; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. The end-to-end run trained both again and measured them on one target deployment: 149.7 completion tokens per answer with Managed Training and 117.1 with Programmed Training, against 310.8 and 311.3 for the base model, whose two passes there differed on 13 of 50 rows. Method, scoring and full tables: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ### Time and cost
 
@@ -177,7 +170,9 @@ The second test, with the Programmed Training adapter, differed in one stage tha
 | Deleting the adapter deployment and the target deployment | 5 minutes |
 | Requests sent to the deployment while it existed | 127: 102 answered with HTTP 200, and 25 with HTTP 404 before the first success |
 
-Cost: one hour of serving plus one Managed Training job comes to 16.46 USD at list price; every list price is under [Price and regions](#price-and-regions). `up.py` reads the current list price before it creates anything and prints it.
+In the end-to-end run the target deployment reached `Succeeded` 22 minutes after the request, and its first call, 68 seconds later, was answered at once; the two adapter deployments took 68 and 338 seconds, and `down.py` removed all three deployments in 5.5 minutes. At list price the whole run cost 7.21 to 13.83 USD: both trainings, and the target deployment for 21.5 minutes from `Succeeded` to the deletion request or 46.6 minutes from the creation request until it was gone. Timing and cost of every step: [The Steps run end to end](docs/RESULTS.md#the-steps-run-end-to-end).
+
+Cost: one hour of serving plus one Managed Training job comes to 16.46 USD at list price; training list prices are under [Training price and regions](#training-price-and-regions) and serving prices under [Serving on Managed compute](#serving-on-managed-compute). `up.py` reads the current list price before it creates anything and prints it.
 
 ## Managed Training and Programmed Training
 
@@ -187,7 +182,43 @@ The two training approaches differ first in who runs the training loop. With **M
 
 Source: Microsoft Learn, [Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#choose-your-training-approach), section "Choose your training approach". This is a screenshot of the table as the page showed it on 23 November 2026 (page last updated 17 November 2026).
 
-### Price and regions
+### Supported models
+
+Each row lists the models one approach supports today. All three lists keep changing: the last column gives the up-to-date list of each, and that list is the reference. The lists on this page were checked on 24 November 2026. Microsoft Learn lists 18 models that can be trained in Foundry (article version of 17 November 2026); Managed Training supports all of them and Programmed Training 5. 4 models can be served on Managed compute after training, and these 4 support both approaches. The last row covers the models you serve on Managed compute as they are, without training.
+
+| Training or deployment approach | Models it supports, checked 24 November 2026 | Where the model is deployed | Up-to-date list |
+|---|---|---|---|
+| Managed Training | 18: `MAI-Code-1.1-Flash`, `Muse-Glimmer-30B`, `Llama-3.3-70B-Instruct`, `Qwen3-32B`, `Qwen3.6-35B-A3B`, `Qwen3.8-27B`, `gpt-oss-20b`, `gpt-oss-120b`, `Ministral-3B`, `gpt-4o-mini`, `gpt-4o`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `o4-mini`, `gpt-5`, `MedImageInsight-Premium`, `CXRReportgen-Premium` | `Muse-Glimmer-30B`, `Qwen3.6-35B-A3B`, `Qwen3.8-27B` and `gpt-oss-120b` on Managed compute; the others on Serverless | Microsoft Learn, [Supported models table of Training in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/fine-tuning/overview#supported-models) |
+| Programmed Training (preview) | 5: `Muse-Glimmer-30B`, `Qwen3.6-35B-A3B`, `Qwen3.8-27B`, `gpt-oss-20b`, `gpt-oss-120b`. The two sources disagree on `gpt-oss-20b`, see below the table | all but `gpt-oss-20b` on Managed compute; `gpt-oss-20b` on Serverless | the Programmed Training column of the same Learn table; [supported_models.md](https://github.com/microsoft-foundry/fine-tuning/blob/main/programmed_training/docs/supported_models.md) in the samples repository |
+| Managed compute (deployment only, no training) | 150, all open models of the Hugging Face Collection in the Foundry model catalog; list below the table | Managed compute, the model itself | Foundry model catalog with [Deployment options set to Managed compute](https://ai.azure.com/nextgen/goto/discover/models?deployment=managed+compute&availability=All); sign in to Foundry first |
+
+The 4 models served on Managed compute after training are all preview models, with the Global and Developer training types only and no Data zone. Which methods, training types and deployment types each model supports: [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md#supported-models).
+
+The two sources disagree on Programmed Training. The Learn table (updated 17 November 2026) lists `gpt-oss-20b` as supported; supported_models.md in the samples repository (last changed 11 November 2026) lists only `Qwen3.8-27B`, `Qwen3.6-35B-A3B`, `gpt-oss-120b` and `Muse-Glimmer-30B` as available today and `gpt-oss-20b` as legacy, no longer supported for new programmed training. This repository was tested with `Qwen3.8-27B` only; if you plan on `gpt-oss-20b`, first check that a session can be started.
+
+The 150 models of the Managed compute row all come from the Hugging Face Collection of the Foundry model catalog. Microsoft Learn says the collection is refreshed weekly and keeps adding models ([Supported models section of Managed compute in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview#supported-models); that section explains where the models come from and lists none). On 24 November 2026 the portal's model catalog showed 150 models with Deployment options set to Managed compute and Availability set to All models, the same 150, name by name, as the models of the collection's registry (`azure-huggingface`) tagged Managed Compute and not archived. Each link in the list opens the model's public page in the Foundry model catalog, no sign-in needed. To see what your project can deploy now, set Availability to Available in my project in the catalog; the result depends on the project's region and your GPU quota (see [Hugging Face models in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/hugging-face-models)).
+
+<details>
+<summary>The 150 models on Managed compute on 24 November 2026, by inference task (click to expand)</summary>
+
+| Inference task | Number of models | Models, linked to their page in the Foundry model catalog |
+|---|---|---|
+| Chat completion `chat-completion` | 100 | [`ALIA-40b-instruct-2601`](https://ai.azure.com/catalog/models/bsc-lt--alia-40b-instruct-2601), [`ALIA-40b-instruct-2605`](https://ai.azure.com/catalog/models/bsc-lt--alia-40b-instruct-2605), [`ALIA-40b-instruct-2606`](https://ai.azure.com/catalog/models/bsc-lt--alia-40b-instruct-2606), [`Beam-1.0-501B-A23B`](https://ai.azure.com/catalog/models/reflection--beam-1.0-501b-a23b), [`Beam-1.0-501B-A23B-FP8`](https://ai.azure.com/catalog/models/reflection--beam-1.0-501b-a23b-fp8), [`Beam-1.0-501B-A23B-NVFP4`](https://ai.azure.com/catalog/models/reflection--beam-1.0-501b-a23b-nvfp4), [`Cosmos-Reason1-7B`](https://ai.azure.com/catalog/models/nvidia--cosmos-reason1-7b), [`DeepSeek-V4-Flash-0731`](https://ai.azure.com/catalog/models/deepseek-ai--deepseek-v4-flash-0731), [`DeepSeek-V4.1-Flash`](https://ai.azure.com/catalog/models/deepseek-ai--deepseek-v4.1-flash), [`DeepSeek-V4.1-Flash-1017`](https://ai.azure.com/catalog/models/deepseek-ai--deepseek-v4.1-flash-1017), [`Fara1.5-27B`](https://ai.azure.com/catalog/models/microsoft--fara1.5-27b), [`Fara1.5-4B`](https://ai.azure.com/catalog/models/microsoft--fara1.5-4b), [`Fara1.5-9B`](https://ai.azure.com/catalog/models/microsoft--fara1.5-9b), [`gemma-4-26B-A4B-it`](https://ai.azure.com/catalog/models/google--gemma-4-26b-a4b-it), [`gemma-4-31B-it`](https://ai.azure.com/catalog/models/google--gemma-4-31b-it), [`gemma-4-31B-it-FP8-dynamic`](https://ai.azure.com/catalog/models/redhatai--gemma-4-31b-it-fp8-dynamic), [`gemma-4-E2B-it`](https://ai.azure.com/catalog/models/google--gemma-4-e2b-it), [`gemma-4-E4B-it`](https://ai.azure.com/catalog/models/google--gemma-4-e4b-it), [`GLM-4.5`](https://ai.azure.com/catalog/models/zai-org--glm-4.5), [`GLM-4.5-FP8`](https://ai.azure.com/catalog/models/zai-org--glm-4.5-fp8), [`GLM-4.6`](https://ai.azure.com/catalog/models/zai-org--glm-4.6), [`GLM-4.7`](https://ai.azure.com/catalog/models/zai-org--glm-4.7), [`GLM-4.7-Flash`](https://ai.azure.com/catalog/models/zai-org--glm-4.7-flash), [`GLM-4.7-FP8`](https://ai.azure.com/catalog/models/zai-org--glm-4.7-fp8), [`GLM-5.2-FP8`](https://ai.azure.com/catalog/models/zai-org--glm-5.2-fp8), [`GLM-5.3-Flash`](https://ai.azure.com/catalog/models/zai-org--glm-5.3-flash), [`gpt-oss-120b`](https://ai.azure.com/catalog/models/openai--gpt-oss-120b), [`gpt-oss-20b`](https://ai.azure.com/catalog/models/openai--gpt-oss-20b), [`granite-4.0-h-small`](https://ai.azure.com/catalog/models/ibm-granite--granite-4.0-h-small), [`granite-4.0-h-tiny`](https://ai.azure.com/catalog/models/ibm-granite--granite-4.0-h-tiny), [`granite-4.0-micro`](https://ai.azure.com/catalog/models/ibm-granite--granite-4.0-micro), [`granite-4.0-tiny-preview`](https://ai.azure.com/catalog/models/ibm-granite--granite-4.0-tiny-preview), [`granite-4.2-30b`](https://ai.azure.com/catalog/models/ibm-granite--granite-4.2-30b), [`Mathstral-7B-v0.1`](https://ai.azure.com/catalog/models/mistralai--mathstral-7b-v0.1), [`MediPhi`](https://ai.azure.com/catalog/models/microsoft--mediphi), [`MediPhi-Instruct`](https://ai.azure.com/catalog/models/microsoft--mediphi-instruct), [`MiniMax-M2`](https://ai.azure.com/catalog/models/minimaxai--minimax-m2), [`Ministral-3-3B-Instruct-2512`](https://ai.azure.com/catalog/models/mistralai--ministral-3-3b-instruct-2512), [`Mistral-Nemo-Instruct-2407`](https://ai.azure.com/catalog/models/mistralai--mistral-nemo-instruct-2407), [`Mistral-Nemo-Instruct-FP8-2407`](https://ai.azure.com/catalog/models/mistralai--mistral-nemo-instruct-fp8-2407), [`Mistral-Small-3.1-24B-Instruct-2503`](https://ai.azure.com/catalog/models/mistralai--mistral-small-3.1-24b-instruct-2503), [`Muse-Glimmer-30B`](https://ai.azure.com/catalog/models/meta-models--muse-glimmer-30b), [`Muse-Glimmer-30B-FP8-block`](https://ai.azure.com/catalog/models/redhatai--muse-glimmer-30b-fp8-block), [`Muse-Spark-Open-816B-A42B-NVFP4`](https://ai.azure.com/catalog/models/meta-models--muse-spark-open-816b-a42b-nvfp4), [`Nanbeige4.3-33B`](https://ai.azure.com/catalog/models/nanbeige--nanbeige4.3-33b), [`Nemotron-Terminal-14B`](https://ai.azure.com/catalog/models/nvidia--nemotron-terminal-14b), [`Nemotron-Terminal-32B`](https://ai.azure.com/catalog/models/nvidia--nemotron-terminal-32b), [`Nemotron-Terminal-8B`](https://ai.azure.com/catalog/models/nvidia--nemotron-terminal-8b), [`North-Mini-Code-1.0`](https://ai.azure.com/catalog/models/coherelabs--north-mini-code-1.0), [`North-Mini-Code-1.0-fp8`](https://ai.azure.com/catalog/models/coherelabs--north-mini-code-1.0-fp8), [`NVIDIA-Nemotron-3-Nano-30B-A3B-FP8`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3-nano-30b-a3b-fp8), [`NVIDIA-Nemotron-3-Super-120B-A12B-BF16`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3-super-120b-a12b-bf16), [`NVIDIA-Nemotron-3-Super-120B-A12B-FP8`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3-super-120b-a12b-fp8), [`NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3-ultra-550b-a55b-nvfp4), [`NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3.5-lightning-30b-a3b-bf16), [`NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3.5-lightning-30b-a3b-nvfp4), [`NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3.5-super-vl-120b-a12b-bf16), [`NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3.5-super-vl-120b-a12b-nvfp4), [`OpenCodeReasoning-Nemotron-1.1-14B`](https://ai.azure.com/catalog/models/nvidia--opencodereasoning-nemotron-1.1-14b), [`OpenCodeReasoning-Nemotron-1.1-32B`](https://ai.azure.com/catalog/models/nvidia--opencodereasoning-nemotron-1.1-32b), [`OptiMind-SFT`](https://ai.azure.com/catalog/models/microsoft--optimind-sft), [`Ornith-1.0-397B`](https://ai.azure.com/catalog/models/deepreinforce-ai--ornith-1.0-397b), [`OTel-2.0-LLM-31B-IT`](https://ai.azure.com/catalog/models/farbodtavakkoli--otel-2.0-llm-31b-it), [`phi-4`](https://ai.azure.com/catalog/models/microsoft--phi-4), [`Pixtral-12B-2409`](https://ai.azure.com/catalog/models/mistralai--pixtral-12b-2409), [`Qwen3-0.6B`](https://ai.azure.com/catalog/models/qwen--qwen3-0.6b), [`Qwen3-14B`](https://ai.azure.com/catalog/models/qwen--qwen3-14b), [`Qwen3-235B-A22B-Instruct-2507`](https://ai.azure.com/catalog/models/qwen--qwen3-235b-a22b-instruct-2507), [`Qwen3-235B-A22B-Thinking-2507-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-235b-a22b-thinking-2507-fp8), [`Qwen3-30B-A3B-Instruct-2507`](https://ai.azure.com/catalog/models/qwen--qwen3-30b-a3b-instruct-2507), [`Qwen3-30B-A3B-Instruct-2507-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-30b-a3b-instruct-2507-fp8), [`Qwen3-30B-A3B-Thinking-2507`](https://ai.azure.com/catalog/models/qwen--qwen3-30b-a3b-thinking-2507), [`Qwen3-32B`](https://ai.azure.com/catalog/models/qwen--qwen3-32b), [`Qwen3-4B-Instruct-2507`](https://ai.azure.com/catalog/models/qwen--qwen3-4b-instruct-2507), [`Qwen3-Coder-30B-A3B-Instruct`](https://ai.azure.com/catalog/models/qwen--qwen3-coder-30b-a3b-instruct), [`Qwen3-Coder-30B-A3B-Instruct-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-coder-30b-a3b-instruct-fp8), [`Qwen3-Coder-Next`](https://ai.azure.com/catalog/models/qwen--qwen3-coder-next), [`Qwen3-Coder-Next-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-coder-next-fp8), [`Qwen3-VL-235B-A22B-Instruct`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-235b-a22b-instruct), [`Qwen3-VL-30B-A3B-Instruct`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-30b-a3b-instruct), [`Qwen3-VL-30B-A3B-Instruct-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-30b-a3b-instruct-fp8), [`Qwen3-VL-32B-Instruct-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-32b-instruct-fp8), [`Qwen3-VL-4B-Instruct`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-4b-instruct), [`Qwen3-VL-4B-Thinking`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-4b-thinking), [`Qwen3-VL-8B-Instruct`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-8b-instruct), [`Qwen3-VL-8B-Instruct-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3-vl-8b-instruct-fp8), [`Qwen3.5-0.8B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-0.8b), [`Qwen3.5-27B-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3.5-27b-fp8), [`Qwen3.5-2B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-2b), [`Qwen3.5-35B-A3B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-35b-a3b), [`Qwen3.5-397B-A17B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-397b-a17b), [`Qwen3.5-397B-A17B-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3.5-397b-a17b-fp8), [`Qwen3.5-4B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-4b), [`Qwen3.5-9B`](https://ai.azure.com/catalog/models/qwen--qwen3.5-9b), [`Qwen3.6-27B`](https://ai.azure.com/catalog/models/qwen--qwen3.6-27b), [`Qwen3.6-27B-FP8`](https://ai.azure.com/catalog/models/qwen--qwen3.6-27b-fp8), [`Qwen3.6-35B-A3B`](https://ai.azure.com/catalog/models/qwen--qwen3.6-35b-a3b), [`Qwen3.8-27B`](https://ai.azure.com/catalog/models/qwen--qwen3.8-27b), [`QwQ-32B`](https://ai.azure.com/catalog/models/qwen--qwq-32b), [`QwQ-32B-Preview`](https://ai.azure.com/catalog/models/qwen--qwq-32b-preview) |
+| Embeddings `embeddings` | 19 | [`all-MiniLM-L6-v2`](https://ai.azure.com/catalog/models/sentence-transformers--all-minilm-l6-v2), [`bge-large-zh`](https://ai.azure.com/catalog/models/baai--bge-large-zh), [`bge-large-zh-v1.5`](https://ai.azure.com/catalog/models/baai--bge-large-zh-v1.5), [`e5-base`](https://ai.azure.com/catalog/models/intfloat--e5-base), [`e5-large-v2`](https://ai.azure.com/catalog/models/intfloat--e5-large-v2), [`embeddinggemma-300m-medical`](https://ai.azure.com/catalog/models/sentence-transformers--embeddinggemma-300m-medical), [`gte-large`](https://ai.azure.com/catalog/models/thenlper--gte-large), [`msmarco-bert-base-dot-v5`](https://ai.azure.com/catalog/models/sentence-transformers--msmarco-bert-base-dot-v5), [`multilingual-e5-large`](https://ai.azure.com/catalog/models/intfloat--multilingual-e5-large), [`multilingual-e5-small`](https://ai.azure.com/catalog/models/maiyad--multilingual-e5-small), [`Nemotron-3-Embed-1B-BF16`](https://ai.azure.com/catalog/models/nvidia--nemotron-3-embed-1b-bf16), [`Nemotron-3-Embed-1B-NVFP4`](https://ai.azure.com/catalog/models/nvidia--nemotron-3-embed-1b-nvfp4), [`Nemotron-3-Embed-8B-BF16`](https://ai.azure.com/catalog/models/nvidia--nemotron-3-embed-8b-bf16), [`Nemotron-3.5-Embed-1B-BF16`](https://ai.azure.com/catalog/models/nvidia--nemotron-3.5-embed-1b-bf16), [`Nemotron-3.5-Embed-1B-NVFP4`](https://ai.azure.com/catalog/models/nvidia--nemotron-3.5-embed-1b-nvfp4), [`Nemotron-3.5-Embed-8B-BF16`](https://ai.azure.com/catalog/models/nvidia--nemotron-3.5-embed-8b-bf16), [`Qwen3-Embedding-0.6B`](https://ai.azure.com/catalog/models/qwen--qwen3-embedding-0.6b), [`Qwen3-Embedding-8B`](https://ai.azure.com/catalog/models/qwen--qwen3-embedding-8b), [`snowflake-arctic-embed-l-v2.0`](https://ai.azure.com/catalog/models/snowflake--snowflake-arctic-embed-l-v2.0) |
+| Fill mask `fill-mask` | 10 | [`albert-base-v1`](https://ai.azure.com/catalog/models/albert--albert-base-v1), [`bert-base-cased`](https://ai.azure.com/catalog/models/google-bert--bert-base-cased), [`bert-base-chinese`](https://ai.azure.com/catalog/models/google-bert--bert-base-chinese), [`bert-base-german-cased`](https://ai.azure.com/catalog/models/dbmdz--bert-base-german-cased), [`bert-base-multilingual-cased`](https://ai.azure.com/catalog/models/google-bert--bert-base-multilingual-cased), [`bert-base-uncased`](https://ai.azure.com/catalog/models/google-bert--bert-base-uncased), [`bert-large-uncased`](https://ai.azure.com/catalog/models/google-bert--bert-large-uncased), [`distilbert-base-uncased`](https://ai.azure.com/catalog/models/distilbert--distilbert-base-uncased), [`ModernBERT-base`](https://ai.azure.com/catalog/models/answerdotai--modernbert-base), [`norbert2`](https://ai.azure.com/catalog/models/ltg--norbert2) |
+| Text to image `text-to-image` | 6 | [`Chroma1-HD`](https://ai.azure.com/catalog/models/lodestones--chroma1-hd), [`openjourney`](https://ai.azure.com/catalog/models/prompthero--openjourney), [`Ovis-Image-7B`](https://ai.azure.com/catalog/models/aidc-ai--ovis-image-7b), [`Qwen-Image-2512`](https://ai.azure.com/catalog/models/qwen--qwen-image-2512), [`Z-Image`](https://ai.azure.com/catalog/models/tongyi-mai--z-image), [`Z-Image-Turbo`](https://ai.azure.com/catalog/models/tongyi-mai--z-image-turbo) |
+| Text classification `text-classification` | 4 | [`Laya`](https://ai.azure.com/catalog/models/convaiinnovations--laya), [`Laya Multilingual`](https://ai.azure.com/catalog/models/convaiinnovations--laya-multilingual), [`Laya Typed-Decisions`](https://ai.azure.com/catalog/models/convaiinnovations--laya-typed-decisions), [`Nemotron-3.5-Rerank-8B-BF16`](https://ai.azure.com/catalog/models/nvidia--nemotron-3.5-rerank-8b-bf16) |
+| Speech recognition `automatic-speech-recognition` | 3 | [`NVIDIA-Nemotron-3.5-Transcribe-30B-A4B`](https://ai.azure.com/catalog/models/nvidia--nvidia-nemotron-3.5-transcribe-30b-a4b), [`whisper-large`](https://ai.azure.com/catalog/models/openai--whisper-large), [`whisper-large-v3-turbo`](https://ai.azure.com/catalog/models/openai--whisper-large-v3-turbo) |
+| Chat, text to image and video generation `chat-completion, text-to-image, video-generation` | 3 | [`Cosmos3-Edge`](https://ai.azure.com/catalog/models/nvidia--cosmos3-edge), [`Cosmos3-Nano`](https://ai.azure.com/catalog/models/nvidia--cosmos3-nano), [`Cosmos3-Super`](https://ai.azure.com/catalog/models/nvidia--cosmos3-super) |
+| Content safety `content-safety` | 1 | [`browsesafe`](https://ai.azure.com/catalog/models/perplexity-ai--browsesafe) |
+| Document analysis `document-analysis` | 1 | [`Nemotron-3.5-Parse`](https://ai.azure.com/catalog/models/nvidia--nemotron-3.5-parse) |
+| Image segmentation `image-segmentation` | 1 | [`sam2.1-hiera-large`](https://ai.azure.com/catalog/models/facebook--sam2.1-hiera-large) |
+| Object detection `object-detection` | 1 | [`grounding-dino-base`](https://ai.azure.com/catalog/models/idea-research--grounding-dino-base) |
+| Protein design `protein-design` | 1 | [`RFD4-Proteina`](https://ai.azure.com/catalog/models/nvidia--rfd4-proteina-diffusers) |
+
+</details>
+
+### Training price and regions
 
 The table covers Qwen3.8-27B (preview) only. Methods, training types and regions come from that Microsoft Learn article, checked again on 24 November 2026 with no change; list prices come from the Azure Retail Prices API, read on 24 November 2026, in USD.
 
@@ -195,14 +226,35 @@ The table covers Qwen3.8-27B (preview) only. Methods, training types and regions
 |---|---|---|
 | Training methods | SFT and RFT. This repository uses SFT | no predefined method, you write the loop; the [samples repository](https://github.com/microsoft-foundry/fine-tuning/tree/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training) has recipes for SFT, reinforcement learning, preference learning, distillation and custom losses. This repository uses SFT |
 | Access | no request needed | your subscription needs an [access approval](https://aka.ms/foundry-interactive-training-signup) before a session can start |
-| Training type | Global or Developer. Global uses Microsoft's global capacity and does not guarantee data residency; Developer uses spare capacity, costs less, and a job can be preempted and resumed. This repository uses Global | Global only for now: the samples repository's [training.md](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/training.md#training-type) lists `GlobalStandard` as available and `DatazoneStandard` and `DeveloperTier` as unavailable |
+| Training type | Global or Developer; no Standard and no Data zone. Global uses Microsoft's global capacity and does not guarantee data residency; Developer uses spare capacity, costs less, and a job can be preempted and resumed. This repository uses Global | Global only for now: the samples repository's [training.md](https://github.com/microsoft-foundry/fine-tuning/blob/0b8bcfe9519ed382a5bc202f0f1b2ce65c22a2c9/programmed_training/docs/training.md#training-type) lists `GlobalStandard` as available and `DatazoneStandard` and `DeveloperTier` as unavailable |
 | Regions for the Foundry project | 10: Australia East, East US, East US 2, Korea Central, North Central US, Sweden Central, Switzerland North, UAE North, UK South, West US 3 | 11: the 10 on the left and Canada East |
 | How it is billed | SFT per training token times the number of epochs; RFT per hour of training, with the grader model's tokens on top | four token categories, each at its own price: training, sampling, prefill and cached prefill |
 | List price | SFT: 3.00 per million training tokens on Global, 1.50 on Developer. RFT: 80 per training hour on Global | Global, per million tokens: training 4.10, sampling 5.60, prefill 1.86, cached prefill 0.37 |
 | Training cost of this repository's sample data (449 rows, 2 epochs) | 213,000 training tokens billed, 0.64, from the bill | 219,652 training tokens counted by the loop, about 0.90 at list price; the bill of the second test was not read |
-| Deployment and inference | Managed compute only, no Serverless. This repository's target deployment runs on 2 × H100 80 GB with the Global deployment scope, at 7.91 per GPU-hour, 15.82 per hour; adapter deployments are not priced separately; requests are not priced per token | the same |
+| Deployment and inference | Managed compute only, no Serverless; regions, Data Zone, prices and discounts under [Serving on Managed compute](#serving-on-managed-compute) | the same |
 
 Apart from training and the target deployment, the test resource group's bill showed no other charge: the account, the project and the uploaded files have no hourly price. The rest of the article, with all 18 models, the 27 regions and the serverless deployment types, is summarized in [`docs/FOUNDRY_TRAINING.md`](docs/FOUNDRY_TRAINING.md).
+
+### Serving on Managed compute
+
+Adapters from either approach are served on Managed compute. Managed compute became generally available in November 2026; deploying LoRA adapters on it is still in preview. The table follows the Microsoft Learn [Managed compute overview](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview), the [general availability post](https://devblogs.microsoft.com/foundry/managed-compute-ga/), the [pricing page](https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/) and the Azure Retail Prices API, all read on 24 November 2026; prices are in USD.
+
+| Aspect | Managed compute |
+|---|---|
+| Status | generally available. Deploying LoRA adapters on it is in preview, without a service-level agreement |
+| Deployment scope | Global (SKU `GlobalManagedCompute`), with the broadest GPU capacity, or Data Zone (SKU `DataZoneManagedCompute`), which keeps traffic within a US or EU data-residency boundary; the region of the Foundry account decides which of the two. Code, SDKs and the deployment workflow are the same for both scopes; only the SKU name differs |
+| Regions | the Managed compute pages on Learn list no regions. In the public price list the Global prices of the 4 GPU types appear in 39 Azure regions, the same in each, and the 11 training regions of the table above are among them. Deploying a LoRA adapter also needs a LoRA-enabled deployment template of the base model in that region |
+| GPUs and Global list price per GPU-hour | A100 80 GB 3.95, H100 80 GB 7.91, H200 141 GB 9.10, MI300X 192 GB 7.91 |
+| Data Zone price | the pricing page lists Global only, and the price list has no per-GPU Data Zone price |
+| How it is billed | GPUs per instance × instances × hours running × price per GPU-hour; the deployment template sets 1, 2, 4 or 8 GPUs per instance. The charge runs while the deployment exists, with or without requests; adapter deployments are not priced separately, and requests are not priced per token |
+| Quota | counted per subscription, GPU type and deployment scope (Global, or Data Zone US or EU), in GPUs; separate from virtual machine quota, which cannot be used for it |
+| Azure Reservations and Azure savings plans | none at present. Every Managed compute price in the price list is a pay-as-you-go hourly price; there is no reservation and no savings plan price. The billing overview on Learn names Azure Reservations for Provisioned throughput only |
+| Discounts of an enterprise agreement, such as the Azure Consumption Discount (ACD) | public documentation does not say whether they apply; confirm with your Microsoft account team |
+| This repository | Global, East US 2, one instance with 2 × H100 80 GB, 15.82 per hour at list price; Data Zone was not tested |
+
+Keeping data inside one data zone depends on the whole path. Training: Qwen3.8-27B has the Global and Developer training types only, and Learn states that neither provides data residency; the Programmed Training samples repository offers `GlobalStandard` only. Serving: Managed compute supports Data Zone, but Learn does not say whether a Data Zone target deployment can host LoRA adapters, and this repository did not test it. So, by the public information today, this path cannot stay inside one data zone from end to end.
+
+Choose the region by training first: an adapter deployment refers to the adapter by its model ID in the project, and this repository always deployed the adapters in the account that trained them; deployment across accounts was not tested.
 
 ### Which adapters can be deployed
 
@@ -255,7 +307,7 @@ python -m unittest discover -s tests
 The last command runs the offline tests. It needs no Azure access and ends with:
 
 ```text
-Ran 29 tests in <n>s
+Ran 30 tests in <n>s
 
 OK
 ```
@@ -271,7 +323,6 @@ You will see lines like these. Values in angle brackets differ for each deployme
 ```text
 <time> [PASS] 1/7 Preflight: subscription <your subscription>; region eastus2; Global H100_80GB quota: <used> used of <limit> GPUs (the target needs 2); target list price 15.82 USD per hour (2 x 7.91)
 <time> deploying infra/main.bicep into resource group <name> (eastus2) ...
-<time> waiting for the Foundry User role to take effect (project API answered HTTP <code>) ...
 <time> [PASS] 2/7 Azure resources (infra/main.bicep): account ftlora-<hash>, project lora-demo, endpoint https://ftlora-<hash>.services.ai.azure.com
 <time> [PASS] 3/7 Sample data: gsm8k-train.jsonl 449 rows (file-<id>); gsm8k-validation.jsonl 50 rows (file-<id>)
 <time> [INFO] 4/7 Trained adapter: no registered LoRA adapter: no training job yet
@@ -284,7 +335,7 @@ Or train it with Programmed Training (preview): training/programmed_training_sft
 RESULT: PASS   receipt: <home>/.foundry-lora/<name>/up-receipt.json
 ```
 
-The line about the Foundry User role can repeat for a few minutes: a new role assignment needs time before the project accepts your token. Nothing created in this step has an hourly price.
+When the role assignment is new, the line `waiting for the Foundry User role to take effect` can appear before 2/7 and repeat for a few minutes, until the project accepts your token. Nothing created in this step has an hourly price.
 
 | Created | Name | Notes |
 |---|---|---|
@@ -321,7 +372,7 @@ Choose one option, or do both: one target deployment serves up to 8 adapters.
 | What you set | the data and the settings that the wizard offers | every step: the script sets batch size 16, 2 epochs, the learning rate and when to validate |
 | What it needs beyond step 2 | nothing | the access approval and the cookbook's Python environment, see Prerequisites |
 | What to expect for the sample data, as measured under [result 2](#result-2-both-training-approaches-produce-an-adapter-and-the-loss-falls) | 6 optimizer steps; 213,000 training tokens, 0.64 USD at list price; 5.3 minutes | 56 optimizer steps; 219,652 training tokens, about 0.90 USD at list price; 9 minutes |
-| How step 4 finds the adapter | through its training job | by the model name that you pass with `--adapter-model` |
+| How step 4 finds the adapter | through its training job | through the session's entry in the list of training jobs, or by the model name that you pass with `--adapter-model`, which also names the deployment |
 
 #### A. Managed Training, in the portal
 
@@ -329,8 +380,10 @@ Choose one option, or do both: one target deployment serves up to 8 adapters.
 2. In the left menu select **Training**, then **Train**. The wizard **Train a model** opens.
 3. **Basic details:** make sure **Supervised**, **qwen3.8-27b** and **Global** are selected. Select **Next**.
 4. **Datasets:** set **Training data source** to `gsm8k-train.jsonl` and **Validation data source (optional)** to `gsm8k-validation.jsonl`. Select **Next**.
-5. **Optional settings:** type `gsm8k` into **Enter a display name**. The numbers on this page were trained with seed `42`; enter it in the seed field to use the same seed. Leave **Number of epochs** and **Learning rate multiplier** on Default. Select **Submit**.
+5. **Optional settings:** type `gsm8k` into **Display name**. The numbers on this page were trained with seed `42`; enter it in **Seed** to use the same seed. Leave **Batch size**, **Number of epochs** and **Learning rate multiplier** on Default. Select **Submit**.
 6. Wait until the job has finished. On the **Models** page, the **Models** tab then lists the adapter.
+
+The wizard shows an estimated training cost of 0.33 USD; the sample job was billed 213,000 training tokens, 0.64 USD at list price, in both of our runs.
 
 The display name becomes the end of the adapter deployment's name: `gsm8k` gives `qwen38-lora-gsm8k`. To check from your machine, run the command of step 2 again. Step 4 of its output changes to:
 
@@ -370,7 +423,7 @@ RESULT: PASS   receipt: <home>/.foundry-lora/<name>/train-receipt.json
 Nothing was sent to Azure. To train, run the same command without --prepare (billed per training token).
 ```
 
-For the sample data the plan is always this one. Now train. The command opens one session, which is billed per training token until the script closes it:
+For the sample data the plan is always this one. Now train. The command repeats steps 1/5 and 2/5 first, which takes about 2 minutes, and then opens one session, which is billed per training token until the script closes it:
 
 ```powershell
 & $py training/programmed_training_sft.py --resource-group <name>
@@ -391,7 +444,7 @@ Adapter : model_<id>-final  (a LoRA model of project lora-demo)
 Deploy  : python infra/up.py --resource-group <name> --deploy --adapter-model model_<id>-final=gsm8k-pt
 ```
 
-What success looks like: `56 of 56 optimizer steps`, a validation loss that falls (from 0.91 to 0.41 in our session), and the saved model's name in the last two lines. The session saves a checkpoint after each epoch; the project lists both as LoRA models, and step 5/5 names the final one. Copy the `Deploy` line: it is the command of step 4.
+What success looks like: `56 of 56 optimizer steps`, a validation loss that falls (from 0.91 to 0.41 in both of our sessions), and the saved model's name in the last two lines. The session saves a checkpoint after each epoch; the project lists both as LoRA models, and step 5/5 names the final one. Copy the `Deploy` line: it is the command of step 4.
 
 The loop is yours to change. Its settings are the `SETTINGS` constants at the top of the script, and `--prepare` shows the plan and the list price of a new setting before you pay for a session. A session is not resumed: running the command again starts a new session, which is billed again.
 
@@ -420,7 +473,7 @@ Check    : python infra/verify.py --resource-group <name>
 Stop     : python infra/down.py --resource-group <name>
 ```
 
-Steps 1/7 to 3/7 repeat first and change nothing. The command starts no GPU when no adapter is registered, when fewer than 2 GPUs of quota are free, or when `down.py` removed this resource group's target deployment less than 60 minutes earlier. That waiting period is a precaution, not a measured threshold: in our tests two target deployments created 23 and 33 seconds after a deletion reached `Succeeded` and then returned HTTP 404 to model calls, and one created 8 hours after a deletion worked. `--ignore-recent-teardown` skips the wait. While the target is new, step 7/7 can print `first call to qwen38-lora: HTTP 404; retrying in 30 s` for several minutes before the first answer: 8 seconds passed in one of our tests and 553 seconds in the other.
+Steps 1/7 to 3/7 repeat first and change nothing. The command starts no GPU when no adapter is registered, when fewer than 2 GPUs of quota are free, or when `down.py` removed this resource group's target deployment less than 60 minutes earlier. That waiting period is a precaution, not a measured threshold: in our tests two target deployments created 23 and 33 seconds after a deletion reached `Succeeded` and then returned HTTP 404 to model calls, and one created 8 hours after a deletion worked. `--ignore-recent-teardown` skips the wait. While the target is new, step 7/7 can print `first call to qwen38-lora: HTTP 404; retrying in 30 s` for several minutes before the first answer: it came 8 seconds after `Succeeded` in the first test and after 553 seconds in the second; in the end-to-end run the first call, 68 seconds after `Succeeded`, was answered at once.
 
 After option B, add the model's name. The training script printed the complete command in its `Deploy` line:
 
@@ -432,7 +485,12 @@ python infra/up.py --resource-group <name> --deploy --adapter-model model_<id>-f
 <time> [PASS] 4/7 Trained adapter: qwen38-lora-gsm8k-pt <- model_<id>-final/versions/1
 ```
 
-The other lines are the ones shown above, with `qwen38-lora-gsm8k-pt` as the adapter deployment's name; `gsm8k-pt` is a label of your choice. If you trained with both options, this one command deploys both adapters on the same target deployment.
+The other lines are the ones shown above, with `qwen38-lora-gsm8k-pt` as the adapter deployment's name; `gsm8k-pt` is a label of your choice. In the end-to-end run the session was also listed among the project's training jobs, with its final checkpoint as the adapter; without `--adapter-model`, step 4 selects it as well, as `qwen38-lora-<the last 8 characters of the session ID>`. If you trained with both options, this one command deploys both adapters on the same target deployment, and steps 4/7 and 6/7 list both:
+
+```text
+<time> [PASS] 4/7 Trained adapter: qwen38-lora-gsm8k-pt <- model_<id>-final/versions/1; qwen38-lora-gsm8k <- model_<id>-final/versions/1
+<time> [PASS] 6/7 Adapter deployments: 2 on qwen38-lora: qwen38-lora-gsm8k-pt, qwen38-lora-gsm8k
+```
 
 Every adapter that a Managed Training job registered and every model named with `--adapter-model` is deployed when it was trained on the same base-model version, up to 8 on the target deployment. The charge runs until step 7.
 
@@ -452,7 +510,7 @@ python infra/verify.py --resource-group <name>
 RESULT: PASS   report: <home>/.foundry-lora/<name>/verify-report.json
 ```
 
-`--full` repeats the comparison of [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right) on your deployment: the 50 validation rows through the base model and through the adapter, then the streaming speed test.
+`--full` repeats the comparison of [result 4](#result-4-the-adapter-changes-how-the-model-answers-not-how-often-it-is-right) on your deployment: the 50 validation rows through the base model and through the adapter, then the streaming speed test. With more than one adapter it compares the one whose training job used the uploaded sample file, the Managed Training adapter; `--adapter qwen38-lora-gsm8k-pt` compares the Programmed Training adapter instead.
 
 ```text
 <time> [PASS] Held-out rows through qwen38-lora: 50/50 answered; correct by last number <n>; mean <n> completion tokens; <n> cut at 800 tokens; <n> with '####'
@@ -470,7 +528,7 @@ The exit code is 0 when every check passes and 1 otherwise. The report lists eac
 python examples/chat.py https://ftlora-<hash>.services.ai.azure.com/openai/v1/chat/completions qwen38-lora-gsm8k "A shop sells 12 pens for 3 dollars. How much do 48 pens cost?"
 ```
 
-The script prints the answer, then the served model and the number of completion tokens. The request it sends is all an application needs:
+The script prints the answer, then the served model and the number of completion tokens. In the end-to-end run the adapter `qwen38-lora-gsm8k` answered with a worked solution that ends in 12 dollars, the right answer, in 247 completion tokens. The request it sends is all an application needs:
 
 ```http
 POST https://<account>.services.ai.azure.com/openai/v1/chat/completions
@@ -507,6 +565,21 @@ The account, the project, the files and the trained adapters stay and have no ho
 
 ```powershell
 python infra/down.py --resource-group <name> --all
+```
+
+```text
+<time> to delete: adapter deployments none, managed compute deployments none
+<time> [PASS] GPU deployments removed: deleted 0 adapter deployment(s) and 0 managed compute deployment(s); still present: none
+<time> project ftlora-<hash>/lora-demo: deletion accepted (HTTP <code>)
+<time> project ftlora-<hash>/lora-demo: gone (<n> s)
+<time> Foundry account ftlora-<hash>: deletion accepted (HTTP <code>)
+<time> Foundry account ftlora-<hash>: gone (<n> s)
+<time> soft-deleted account ftlora-<hash> (purge): deletion accepted (HTTP <code>)
+<time> soft-deleted account ftlora-<hash> (purge): gone (<n> s)
+<time> [PASS] Foundry account removed and purged: account ftlora-<hash>: deleted=True, purged=True
+<time> [PASS] Resource group removed: az group exists: false
+
+RESULT: PASS   receipt: <home>/.foundry-lora/<name>/down-receipt.json
 ```
 
 `--all` also deletes the project and the account, purges the soft-deleted account, and deletes the resource group when `up.py` created it and nothing else is in it. The exit code is 0 only when nothing is left.

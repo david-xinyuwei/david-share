@@ -123,9 +123,8 @@ def main() -> int:
                            f"{sol.target}: {f.state_of(target) or f'HTTP {code}'}, model {str(props.get('model')).split('/models/')[-1]}, "
                            f"{props.get('totalAccelerators')} x {props.get('acceleratorType')}")
 
-    code, _, listing = f.http("GET", sol.adapter_url())
-    attached = [a for a in (listing.get("value", []) if isinstance(listing, dict) else [])
-                if a["properties"].get("targetDeploymentName") == sol.target]
+    code, listing = f.list_all(sol.adapter_url())
+    attached = [a for a in (listing if code == 200 else []) if a["properties"].get("targetDeploymentName") == sol.target]
     names = [a["name"] for a in attached if f.state_of(a) == "Succeeded"]
     report.add("Adapter deployments are Succeeded", "PASS" if attached and len(names) == len(attached) else "FAIL",
                ", ".join(f"{a['name']}: {f.state_of(a)}" for a in attached) or "no adapter deployment on this target")

@@ -10,6 +10,7 @@ Two tests in East US 2, each in its own Foundry account with its own target depl
 
 - **First test, 22 and 23 November 2026: adapter A, Managed Training.** A supervised fine-tuning job with the default training settings and seed 42, submitted in the portal; its adapter is adapter A. The same data and settings were also submitted through the API; that job is timed under [Time and cost](../README.md#time-and-cost), and its adapter was not deployed. A second adapter, trained with the same settings on `Text-Bug-Detection`, another sample set of [`microsoft-foundry/fine-tuning`](https://github.com/microsoft-foundry/fine-tuning), was deployed on the same target deployment and was not compared. The comparison and the speed test below are those of adapter A.
 - **Second test, 23 November 2026: adapter B, Programmed Training.** A training loop on the test client, in another account whose subscription has Programmed Training access.
+- **End-to-end run, 24 November 2026: the Steps of the README.** Both trainings again, in a new resource group and a new account in East US 2, with both adapters on one target deployment; see [The Steps run end to end](#the-steps-run-end-to-end).
 
 ## Adapter A: Managed Training, first test
 
@@ -88,4 +89,52 @@ What the numbers mean:
 - **The validation loss fell further than in the sample job.** It went from 0.91 to 0.42 after the first epoch and to 0.41 after the second; the 6-step job ended at 0.52. Both start at 0.91, as the same base model on the same 50 rows should if the two services compute the loss in the same way; that was not checked beyond this agreement.
 - **The difference between the two adapters is not a verdict on the two approaches.** The two runs share the data, the base model and its version, 2 epochs, LoRA rank 32 and the learning-rate schedule. They differ in batch size, 16 against 128, and so in optimizer steps, 56 against 6. What a Managed Training job does inside (optimizer settings, prompt rendering) is not visible from outside, and Managed Training with batch size 16 was not run.
 
-Limits: one session, one seed, 50 rows, one request per row, base model first and not interleaved. The Managed Training adapter was measured on another target deployment in another account, not side by side with this one; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. The speed test was not repeated for this adapter. The cost figures of the second test are estimates from token counts and list prices; its bill was not read.
+Limits: one session, one seed, 50 rows, one request per row, base model first and not interleaved. The Managed Training adapter was measured on another target deployment in another account, not side by side with this one; at `temperature` 0 the base model's own answers differed between the two tests on 8 of 50 rows. The speed test was not repeated for this adapter; the Programmed Training adapter of the end-to-end run was measured, [below](#the-steps-run-end-to-end). The cost figures of the second test are estimates from token counts and list prices; its bill was not read.
+
+## The Steps run end to end
+
+**Question.** Do the commands under [Steps](../README.md#steps) work as written in a new resource group, from the first `up.py` to `down.py --all`, with an adapter from each training approach on one target deployment?
+
+**Method.** On 24 November 2026 steps 2 to 7 of the README ran in that order from a fresh clone, in a new resource group in East US 2 in the subscription of the second test, with the default names of the scripts. Step 3 was done both ways: option A in the portal with the display name `gsm8k` and seed 42, option B with `training/programmed_training_sft.py`. Step 4 ran twice: first with `--adapter-model` before the portal job had finished, then again after it, which kept the target deployment and added the second adapter. `verify.py --full` ran once for each adapter, so the base model answered the 50 rows twice. Both adapters were trained anew in this run; they are not adapters A and B. The portal steps were done by browser automation in a separate Microsoft Edge profile, with the clicks and fields that option A describes.
+
+| Step | Command | Result | Took |
+|---|---|---|---|
+| 2 | `up.py --resource-group <name> --location eastus2` | PASS; Global H100 quota: 0 of 8 GPUs in use; no wait for the role assignment | 2.8 minutes |
+| 3, option B | `programmed_training_sft.py --prepare`, then the same command without `--prepare` | PASS; one session, all 56 optimizer steps, 219,652 training tokens, training loss 0.90 → 0.33, validation loss 0.91 before training and 0.41 after each of the 2 epochs | 2.5 minutes, then 8.9 minutes; the loop itself 6.7 minutes |
+| 3, option A | the portal steps of option A | succeeded; the job registered its adapter; 6 optimizer steps; validation loss 0.91 → 0.62 → 0.53; 213,000 training tokens billed | 7.1 minutes from created to finished |
+| 4 | `up.py --deploy --adapter-model <model>=gsm8k-pt`, before option A had finished | PASS; target deployment `Succeeded` 22.3 minutes after the request; adapter deployment 68 seconds; the first calls returned HTTP 200, no HTTP 404 | 24.9 minutes |
+| 4, again | the same command after option A | PASS; target deployment kept; the second adapter deployment took 338 seconds; 2 adapters on the target | 7.0 minutes |
+| 5 | `verify.py`, after each run of step 4 | PASS, every check | 15 and 14 seconds |
+| 5 | `verify.py --full`, then `verify.py --full --adapter qwen38-lora-gsm8k-pt` | PASS, every check | 3.5 and 3.3 minutes |
+| 6 | `examples/chat.py <chat URL> qwen38-lora-gsm8k "A shop sells 12 pens ..."` | a worked solution that ends in 12 dollars, 247 completion tokens | seconds |
+| 7 | `down.py` | PASS; 2 adapter deployments and the target deployment deleted | 5.5 minutes |
+| 7 | `down.py --all` | PASS; project and account deleted, account purged, resource group deleted | 2.9 minutes |
+
+After the run, a read-back outside the scripts found no resource group, no soft-deleted account, and 0 of 8 GPUs of Global H100 quota in use.
+
+| Measured on the 50 validation rows, both adapters on one target deployment | Base model, first pass | `qwen38-lora-gsm8k`, Managed Training | Base model, second pass | `qwen38-lora-gsm8k-pt`, Programmed Training |
+|---|---|---|---|---|
+| Rows answered with HTTP 200 | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 |
+| Answers identical to the base model's in the same pass | not applicable | 0 of 50 | not applicable | 0 of 50 |
+| Mean answer length, completion tokens | 310.8 | 149.7 | 311.3 | 117.1 |
+| Answers cut off at the 800-token limit | 2 of 50 | 0 of 50 | 2 of 50 | 0 of 50 |
+| Answers that contain the training data's `####` marker | 0 of 50 | 6 of 50 | 0 of 50 | 50 of 50 |
+| Answers that end like the training data (`#### <number>!!!`) | 0 of 50 | 0 of 50 | 0 of 50 | 50 of 50 |
+| Correct, automatic score (last number in the answer); not read by hand | 39 of 50 | 44 of 50 | 39 of 50 | 42 of 50 |
+| Streaming speed, tokens per second, runs 1 · 2 · 3 | 71.9 · 72.0 · 71.6 | 53.2 · 53.2 · 53.1 | 71.9 · 71.8 · 71.9 | 53.1 · 53.2 · 53.1 |
+| Time to first token, seconds, runs 1 · 2 · 3 | 1.1 · 1.05 · 1.23 | 1.25 · 1.22 · 1.25 | 1.34 · 1.14 · 1.22 | 1.24 · 1.23 · 1.2 |
+
+What the numbers mean:
+
+- **The steps work as written.** Every run of a script under `infra/` and `training/` ended with `RESULT: PASS`, `examples/chat.py` answered, and nothing was left after `down.py --all`. One fix was needed during the run, described below.
+- **Both training approaches feed the same GPUs.** The adapter of the portal job and the adapter of the script answered under their own names on one target deployment; the screenshot under [result 3](../README.md#result-3-the-adapters-deploy-on-the-same-gpus) of the README is from this run.
+- **The pattern of result 4 repeats on one target deployment.** The Managed Training adapter shortened the answers to 149.7 completion tokens and used the marker in 6 of them; the Programmed Training adapter shortened them to 117.1 and ended all 50 like the training data. The first two tests measured 158.7 and 115.7. Both adapters streamed 53.1 to 53.2 tokens per second against 71.6 to 72.0 for the base model, about 26% fewer, as adapter A did in the first test.
+- **No HTTP 404 after `Succeeded`.** The first call, sent 68 seconds after `Succeeded` once the adapter deployment had finished, returned HTTP 200; in the second test the first success came after 553 seconds.
+- **The second adapter deployment took 338 seconds**, against 64 to 78 seconds for every other adapter deployment of these tests. The cause is not known.
+- **The base model varies at `temperature` 0 on one target deployment as well.** Its two passes, about 4 minutes apart, gave different text on 13 of 50 rows; its automatic score was 39 both times.
+
+**Fixed during the run.** In this subscription the Azure Resource Manager list of the accounts in the resource group came back as an empty first page with a `nextLink`, and the account on the next page. `infra/foundry.py` read only the first page, so the first start of `training/programmed_training_sft.py` stopped at 3/5 with `No Foundry account created by this repository in resource group`; `verify.py` and `down.py` use the same lookup. The scripts now follow `nextLink` to the last page, an offline test covers it, and the training session and every later step ran with the fix; step 2 and the local preparation had passed before it.
+
+**Cost at list price: 7.21 to 13.83 USD.** Training: 0.64 USD for option A (213,000 billed tokens) and about 0.90 USD for option B (219,652 training tokens). The target deployment at 15.82 USD per hour: 5.67 USD for the 21.5 minutes from `Succeeded` to the deletion request, or 12.29 USD for the 46.6 minutes from the creation request until it was gone. Whether the time before `Succeeded` is billed, and the bill itself, were not checked.
+
+Limits: one run, one seed, 50 rows, one request per row; in each pass the base model went first, not interleaved; the answers were not read by hand; `up.py --train-api` and the cookbook installation commands were not part of the run.

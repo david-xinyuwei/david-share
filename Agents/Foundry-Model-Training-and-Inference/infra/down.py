@@ -50,8 +50,8 @@ def delete_and_wait(url: str, label: str, minutes: int = 40) -> bool:
 
 
 def names(url: str) -> list[dict]:
-    code, _, body = f.http("GET", url)
-    return body.get("value", []) if code == 200 and isinstance(body, dict) else []
+    code, items = f.list_all(url)
+    return items if code == 200 else []
 
 
 def main() -> int:

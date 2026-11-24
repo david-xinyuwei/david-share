@@ -130,42 +130,42 @@
   },
   {
    "file": "images/portal-target-succeeded.png",
-   "sha256": "9c1e75422e8d89fe8fec0a3e3628d26cbed310ef9bf2fb32196607d9ec257572",
+   "sha256": "9e77e354e4f03709bd2fe81fbec38c8ffc3718c07c5aed13854c3e8fc6c19fdb",
    "pixels": [
-    1535,
-    1090
+    1600,
+    390
    ],
    "language": "en (portal UI)",
-   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
-   "shows": "Models > Deployments > Managed-compute: the target deployment, Status Succeeded, Global Managed Compute, H100_80GB",
-   "changes": "cropped to the page area; covered: account name prefix in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
-   "original_sha256": "6410e05dcde37930ab96b821eb840f62bd4ffaa7308d017c842861e4ff6e21b8"
+   "kind": "real Foundry portal screenshot, 24 November 2026, end-to-end run of the README steps in a new resource group, East US 2",
+   "shows": "Models > Deployments > Managed-compute: the target deployment qwen38-lora of qwen--qwen3.8-27b, Status Succeeded, Global Managed Compute, H100_80GB",
+   "changes": "cropped to the page area; covered: account name in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
+   "original_sha256": "96476604633866924dd69ddd8d3761c16876e638f8d2a4d3226863bcff0b443d"
   },
   {
    "file": "images/portal-two-adapters.png",
-   "sha256": "80c656b2f26d5fe1f092b81c097ca5aeb47e7722ff14acae5cb92a9d0ad90c35",
+   "sha256": "2cc66f2409afae5b54c42555f12cb6dfc64bc784f69cbd6eb20a2e2a13ed2e32",
    "pixels": [
-    1535,
-    1200
+    1600,
+    430
    ],
    "language": "en (portal UI)",
-   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
-   "shows": "Models > Deployments > Adapter deployments: two adapter deployments Succeeded on one target deployment",
-   "changes": "cropped to the page area; covered: account name prefix in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
-   "original_sha256": "050b59f94ec9305df15738e11be2eeb0ad7d83b593864f2b63edeec3fd624112"
+   "kind": "real Foundry portal screenshot, 24 November 2026, end-to-end run of the README steps in a new resource group, East US 2",
+   "shows": "Models > Deployments > Adapter deployments: qwen38-lora-gsm8k-pt (Programmed Training) and qwen38-lora-gsm8k (Managed Training), both Succeeded on the target deployment qwen38-lora",
+   "changes": "cropped to the page area; covered: account name in the 'Created by' column; subscription name in the portal header. No other pixel was changed.",
+   "original_sha256": "9aa9ddf59d4a83e585e87b596bc5ac4dc8f13765213de483d45e1b87bd336669"
   },
   {
    "file": "images/portal-playground.png",
-   "sha256": "d7846c2836682f5eb4470170cf8a0bd5c52dc8b287bcf458899dea272c38f7e2",
+   "sha256": "222b2c9267b976f1231a348c586f3b6e638eb928dd71fef1f7e21d3d40dbd66b",
    "pixels": [
-    1535,
-    1380
+    1600,
+    400
    ],
    "language": "en (portal UI)",
-   "kind": "real Foundry portal screenshot, 23 November 2026, East US 2 test deployment",
-   "shows": "Playground of the target deployment answering the test question",
+   "kind": "real Foundry portal screenshot, 24 November 2026, end-to-end run of the README steps in a new resource group, East US 2",
+   "shows": "Playground of the target deployment qwen38-lora answering the test question of infra/verify.py with 8",
    "changes": "cropped to the page area; covered: subscription name in the portal header. No other pixel was changed.",
-   "original_sha256": "f8ec8825aa15d5db4c72dfd698aeebe245bb0f69b18869fc895f00159add7ed1"
+   "original_sha256": "b3fe4fe305cd645e2b2523f6e0bd0bd688a521a1512d1a5d7017b28b2ac4d93b"
   },
   {
    "file": "images/learn-training-approaches.png",

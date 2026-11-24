@@ -4,14 +4,16 @@
 
 They cover the decisions the scripts make from service responses: which training jobs have a deployable adapter,
 which project models named with --adapter-model are deployed, how adapter deployments are named, how the saved
-checkpoint and the metrics of a Programmed Training session are read, how held-out answers are scored, and how a
-run is recorded. They do not call Azure; `infra/verify.py` is the check of a real deployment.
+checkpoint and the metrics of a Programmed Training session are read, how held-out answers are scored, how a
+run is recorded, and how a list that continues on further pages is read. They do not call Azure; `infra/verify.py`
+is the check of a real deployment.
 """
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 
@@ -197,6 +199,13 @@ class Endpoints(unittest.TestCase):
     def test_source_model_id_reads_the_managed_compute_option(self):
         self.assertEqual(f.source_model_id(job("j", source="azureai://x")), "azureai://x")
         self.assertIsNone(f.source_model_id({"id": "j", "metadata": {}}))
+
+    def test_list_is_read_past_an_empty_first_page(self):
+        # seen on 24 November 2026: the accounts of a resource group came on the second page, after an empty first one
+        first, second = "https://arm.example.invalid/accounts", "https://arm.example.invalid/accounts?page=2"
+        pages = {first: {"value": [], "nextLink": second}, second: {"value": [{"name": "ftlora-x"}]}}
+        with mock.patch.object(f, "http", side_effect=lambda method, url, **kw: (200, {}, pages[url])):
+            self.assertEqual(f.list_all(first), (200, [{"name": "ftlora-x"}]))
 
 
 if __name__ == "__main__":
