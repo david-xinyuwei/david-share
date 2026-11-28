@@ -1,0 +1,279 @@
+{
+ "icons": {
+  "packages": [
+   {
+    "package": "Microsoft 365 architecture icons",
+    "download_url": "https://go.microsoft.com/fwlink/?linkid=869455",
+    "terms_page": "https://learn.microsoft.com/en-us/previous-versions/microsoft-365/solutions/architecture-icons-templates",
+    "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You may copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft. Microsoft reserves all other rights.",
+    "package_sha256": "522c4d43cf98a00380b0836f9ec6e06d81fb99758b258c49b6e5f385c05c547a"
+   }
+  ],
+  "used_unmodified": [
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Bot.svg",
+    "sha256": "0cdd0e3888c6df1e349e1632e699059609b4c20c83174d6ee4155e5db89250d5"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Search.svg",
+    "sha256": "067424bea627a6e78c02efaf62551ca9013e3b0fb879beb5a1d0876bc9b98ba1"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Mail.svg",
+    "sha256": "5218575a7f5fb85318d3e230c9429e15a47c8fd9cbf51a8f18eb9af1d9bf72d2"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Chat.svg",
+    "sha256": "00467fc96bc005eee1dabd0545ab633390fb1854ffbf13c538aa041d71fb714b"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Document.svg",
+    "sha256": "d35e629b8fdd17366d0fc394ce84acee193c985fd08895dd8d5a8b488b154bd9"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Script.svg",
+    "sha256": "6503243ef254fff269f886d610558e1a3b980088aee68de0d7dbcc24802ec713"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Folder Open.svg",
+    "sha256": "b4e98e05286176ee334548d70e8cea2f5f85ce89eb7021b790d135253edbbefc"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Window.svg",
+    "sha256": "8122d7243d5ed055f1b971b8b7341600033d6160fbe4ab2a8b73ef344c8315a9"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Clock.svg",
+    "sha256": "64739d3dbc751186733ca3558c62b04af42070f76bc11df8462c1e9cceb3d9fa"
+   },
+   {
+    "package": "Microsoft 365 architecture icons",
+    "entry": "Microsoft Blue/48x48 Dark Blue Icon/Cloud.svg",
+    "sha256": "55619e630c4b27430c42a25544f43b43182347e74ca4fc8699715bd154c27508"
+   }
+  ]
+ },
+ "images": [
+  {
+   "file": "images/limits-overview-en.png",
+   "sha256": "19c56df099c5747368dc11a4b24433d28190b7b145e0d57d812e4cd620cdcbb1",
+   "pixels": [
+    1770,
+    897
+   ],
+   "language": "en",
+   "kind": "original explanatory diagram",
+   "shows": "The three read tools of Work IQ MCP and where each one stopped in the test: retrieve (results per call, characters per result, results marked as truncated, entityUrl), fetch (whole message body, items per page, paths per call) and fetch_blob (whole file up to 4 MB, refusal above)",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above",
+   "official_visual_considered": "BRK302 slide 13 (images/official_BRK302_slide13.png) shows the tools and their paths and states no limit; this diagram adds the limit measured for each of the three read tools",
+   "numbers_read_from": "results/limits.json"
+  },
+  {
+   "file": "images/limits-overview-zh.png",
+   "sha256": "cc2f7fbd7a7e5760e1e46d70dc7003dcbd31ebcfe1e10076b2dc485a0b03ebc7",
+   "pixels": [
+    1770,
+    897
+   ],
+   "language": "zh",
+   "kind": "original explanatory diagram",
+   "shows": "The three read tools of Work IQ MCP and where each one stopped in the test: retrieve (results per call, characters per result, results marked as truncated, entityUrl), fetch (whole message body, items per page, paths per call) and fetch_blob (whole file up to 4 MB, refusal above)",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above",
+   "official_visual_considered": "BRK302 slide 13 (images/official_BRK302_slide13.png) shows the tools and their paths and states no limit; this diagram adds the limit measured for each of the three read tools",
+   "numbers_read_from": "results/limits.json"
+  },
+  {
+   "file": "images/official_BRK302_slide13.png",
+   "sha256": "6b9dc89295d0d8754bfb562ce66ad607c9c819995dd6b9888c7bc42a5af2ff68",
+   "pixels": [
+    1920,
+    1080
+   ],
+   "language": "en (Microsoft's slide)",
+   "kind": "official Microsoft slide, whole and unchanged",
+   "shows": "Work IQ toolset: 13 tools (verbs) and the paths they act on (nouns), with three example calls",
+   "source": "Microsoft Ignite 2026, session BRK302, Build personalized AI experiences with Work IQ",
+   "slide": 13,
+   "session_page": "https://ignite.microsoft.com/en-US/sessions/BRK302",
+   "deck_url": "https://medius.microsoft.com/video/asset/PPT/e241973d-6bc2-4333-8aa4-d78d94c37b2b",
+   "deck_sha256": "0b3ac555eb5c66dc604ad621cdfbd5ee4a0170b236b3f99743da57151b5a7c70",
+   "deck_bytes": 16776325,
+   "deck_sensitivity_label": "General",
+   "deck_downloaded_without_sign_in_on": "2026-11-28",
+   "owner": "Microsoft",
+   "made_with": "PowerPoint, the slide exported as PNG at 1920 x 1080; nothing cut, covered or added"
+  },
+  {
+   "file": "images/official_BRK302_slide14.png",
+   "sha256": "a268f8c0a11b67bb751f8d17a2e79f3b2d2baad609b74d7f6bb951149a62ec11",
+   "pixels": [
+    1920,
+    1080
+   ],
+   "language": "en (Microsoft's slide)",
+   "kind": "official Microsoft slide, whole and unchanged",
+   "shows": "Retrieve with grounding: a request and its answer of cited passages, and four properties of those passages (raw evidence, permission-trimmed, cited, the tenant's content)",
+   "source": "Microsoft Ignite 2026, session BRK302, Build personalized AI experiences with Work IQ",
+   "slide": 14,
+   "session_page": "https://ignite.microsoft.com/en-US/sessions/BRK302",
+   "deck_url": "https://medius.microsoft.com/video/asset/PPT/e241973d-6bc2-4333-8aa4-d78d94c37b2b",
+   "deck_sha256": "0b3ac555eb5c66dc604ad621cdfbd5ee4a0170b236b3f99743da57151b5a7c70",
+   "deck_bytes": 16776325,
+   "deck_sensitivity_label": "General",
+   "deck_downloaded_without_sign_in_on": "2026-11-28",
+   "owner": "Microsoft",
+   "made_with": "PowerPoint, the slide exported as PNG at 1920 x 1080; nothing cut, covered or added"
+  },
+  {
+   "file": "images/retrieve-snippets-en.png",
+   "sha256": "d0e93831f78fa4f85712bfcad6411d8145ca41248223388c18d51dafd8d07333",
+   "pixels": [
+    1770,
+    678
+   ],
+   "language": "en",
+   "kind": "original chart",
+   "shows": "Characters of the snippet field of each retrieve result that carries one, sorted by length; red bars are the results the service marked 'Content has been truncated', blue bars the results without that mark",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; no icons",
+   "official_visual_considered": "BRK302 slide 14 (images/official_BRK302_slide14.png) shows that retrieve returns passages and gives no length; this chart adds the measured length of each passage",
+   "numbers_read_from": "results/summary/retrieve.json"
+  },
+  {
+   "file": "images/retrieve-snippets-zh.png",
+   "sha256": "12d8944afd7f7dfedcef27ab52e715bceb0418ac4055cea820d6d336a9fb6597",
+   "pixels": [
+    1770,
+    678
+   ],
+   "language": "zh",
+   "kind": "original chart",
+   "shows": "Characters of the snippet field of each retrieve result that carries one, sorted by length; red bars are the results the service marked 'Content has been truncated', blue bars the results without that mark",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; no icons",
+   "official_visual_considered": "BRK302 slide 14 (images/official_BRK302_slide14.png) shows that retrieve returns passages and gives no length; this chart adds the measured length of each passage",
+   "numbers_read_from": "results/summary/retrieve.json"
+  },
+  {
+   "file": "images/test-topology-en.png",
+   "sha256": "4adf79c954964a967a5dfe5623a55c7e9a7129e8d51d551be9eb100f6bb8e1dc",
+   "pixels": [
+    1770,
+    705
+   ],
+   "language": "en",
+   "kind": "original explanatory diagram",
+   "shows": "Test setup: the script drives the Interactive Demo page in a separate Edge profile over the DevTools Protocol; the page sends tools/call to the Work IQ MCP endpoint; a recorder inside the page keeps request and answer; the evidence folder with the private raw answers and the summaries",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above",
+   "official_visual_considered": "no official picture exists: the setup (a script that drives the Interactive Demo page) is this repository's own"
+  },
+  {
+   "file": "images/test-topology-zh.png",
+   "sha256": "6f23ce313508d90ff79e0d9d54a8f75e73f7da4ef177350c7f3c4ff5c1bb7016",
+   "pixels": [
+    1770,
+    705
+   ],
+   "language": "zh",
+   "kind": "original explanatory diagram",
+   "shows": "Test setup: the script drives the Interactive Demo page in a separate Edge profile over the DevTools Protocol; the page sends tools/call to the Work IQ MCP endpoint; a recorder inside the page keeps request and answer; the evidence folder with the private raw answers and the summaries",
+   "made_with": "an HTML page rendered by headless Microsoft Edge; icons from the package above",
+   "official_visual_considered": "no official picture exists: the setup (a script that drives the Interactive Demo page) is this repository's own"
+  },
+  {
+   "file": "images/ui_51_paths.png",
+   "sha256": "aa9b794a2db7a0479f7d783d7ca1bae684a4fb030427a0d085e8db397840218f",
+   "pixels": [
+    1875,
+    1364
+   ],
+   "language": "en (the product page)",
+   "kind": "product screenshot, cut below the answer",
+   "shows": "fetch with 51 paths in one call: InternalError",
+   "product": "Interactive Demo page for Work IQ MCP, server Work IQ Remote, Live mode",
+   "page": "https://interactivedemo.microsoft.com/work-iq/mcp?server=workiq-remote",
+   "taken_utc": "2026-11-27T16:53:48Z",
+   "tool": "fetch",
+   "arguments": "cases/fetch_51_paths.json",
+   "original_sha256": "41c987be204bc4a9197154cb27c733f27bfbd9a0e560a0b5624a2b276eae1930",
+   "original_kept": "in the author's private evidence folder, not in this repository",
+   "boxes": 0,
+   "covered": "nothing: the visible part of the page showed no ID",
+   "made_with": "scripts/shot_call.py and scripts/redact_shot.py"
+  },
+  {
+   "file": "images/ui_blob_over_limit.png",
+   "sha256": "039d134d0db5a78cde3beb334e420eed316f7a98e24685a396355dcc2021fef2",
+   "pixels": [
+    1875,
+    1411
+   ],
+   "language": "en (the product page)",
+   "kind": "product screenshot, cut below the answer",
+   "shows": "fetch_blob for a file of 4,194,352 bytes: 'Payload too large; downloads are limited to 4 MB.'",
+   "product": "Interactive Demo page for Work IQ MCP, server Work IQ Remote, Live mode",
+   "page": "https://interactivedemo.microsoft.com/work-iq/mcp?server=workiq-remote",
+   "taken_utc": "2026-11-27T16:52:49Z",
+   "tool": "fetch_blob",
+   "arguments": "path /me/drive/items/{item-id}/content of a file of 4,194,352 bytes",
+   "original_sha256": "5d20d53521a687e87d1ec74a0a27dfc47669614040c4e0eba5d47a57e4037148",
+   "original_kept": "in the author's private evidence folder, not in this repository",
+   "boxes": 3,
+   "covered": "the item ID in the request and the request ID in the answer",
+   "made_with": "scripts/shot_call.py and scripts/redact_shot.py",
+   "boxes_over_request_ids": 1,
+   "boxes_over_request_ids_added": "2026-11-28, after the screenshot was taken: the pattern list of scripts/shot_call.py did not yet cover GUIDs, so these boxes were placed on the original by the position of the green GUID-wide values in the answer; the same scripts/redact_shot.py painted them"
+  },
+  {
+   "file": "images/ui_chats_top_101.png",
+   "sha256": "1b84e82c06cb589d8fa731c8f59d199dfc9074bcba2cae34283b063a16e47d73",
+   "pixels": [
+    1875,
+    1863
+   ],
+   "language": "en (the product page)",
+   "kind": "product screenshot, cut below the answer",
+   "shows": "fetch with $top=101 on /me/chats: status 400, 'The limit of '50' for Top query has been exceeded. The value from the incoming request is '100'.'",
+   "product": "Interactive Demo page for Work IQ MCP, server Work IQ Remote, Live mode",
+   "page": "https://interactivedemo.microsoft.com/work-iq/mcp?server=workiq-remote",
+   "taken_utc": "2026-11-27T16:56:33Z",
+   "tool": "fetch",
+   "arguments": "cases/fetch_chats_top_101.json",
+   "original_sha256": "bd2da44237a6c01ffb9cb533efacf865ff44bbad9037880c4a610b6f7e88dcbb",
+   "original_kept": "in the author's private evidence folder, not in this repository",
+   "boxes": 3,
+   "covered": "the three request IDs in the answer",
+   "made_with": "scripts/shot_call.py and scripts/redact_shot.py",
+   "boxes_over_request_ids": 3,
+   "boxes_over_request_ids_added": "2026-11-28, after the screenshot was taken: the pattern list of scripts/shot_call.py did not yet cover GUIDs, so these boxes were placed on the original by the position of the green GUID-wide values in the answer; the same scripts/redact_shot.py painted them"
+  },
+  {
+   "file": "images/ui_skip.png",
+   "sha256": "0af2b694f7a1629d8a21978e7b078a267af8d4169ae3eb7d0d13ea23231d1f9c",
+   "pixels": [
+    1875,
+    1875
+   ],
+   "language": "en (the product page)",
+   "kind": "product screenshot, cut below the answer",
+   "shows": "fetch with $top=2 and $skip=3 on /me/messages: status 200, two messages, an @odata.nextLink that continues at $skip=5, and the service note 'Results limited to 2 items per collection'",
+   "product": "Interactive Demo page for Work IQ MCP, server Work IQ Remote, Live mode",
+   "page": "https://interactivedemo.microsoft.com/work-iq/mcp?server=workiq-remote",
+   "taken_utc": "2026-11-27T16:56:06Z",
+   "tool": "fetch",
+   "arguments": "cases/fetch_skip.json",
+   "original_sha256": "f84e172319d7094a12461a21a6e850e3cceede3345636a74129be8df3a4c4759",
+   "original_kept": "in the author's private evidence folder, not in this repository",
+   "boxes": 8,
+   "covered": "item IDs, ETags and the user's object ID",
+   "made_with": "scripts/shot_call.py and scripts/redact_shot.py"
+  }
+ ]
+}

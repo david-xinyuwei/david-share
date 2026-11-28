@@ -1,0 +1,327 @@
+[
+ {
+  "case": "blob_00_items_01",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": "['/me/drive/root:/<path of the file in OneDrive>?$select=id,size'] x 9"
+  },
+  "note": "the test files in OneDrive: ID and size of each",
+  "sent_utc": "2026-11-27T16:35:17.303Z",
+  "http_status": 200,
+  "ms": 2301,
+  "response_bytes": 3223,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   }
+  ],
+  "seconds": 2.3
+ },
+ {
+  "check": "test files found in OneDrive with the size of the local file",
+  "value": 8,
+  "detail": "of 9; a file that OneDrive has not uploaded (or stores with another size) is skipped"
+ },
+ {
+  "case": "blob_01_864_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .json file of 864 bytes",
+  "sent_utc": "2026-11-27T16:35:22.539Z",
+  "http_status": 200,
+  "ms": 1983,
+  "response_bytes": 1909,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "statusCode": 200,
+   "contentType": "application/json",
+   "sizeBytes": 864,
+   "decodedBytes": 864,
+   "base64Chars": 1152,
+   "keys": [
+    "@workiq.untrustedContent",
+    "base64Chars",
+    "base64Content",
+    "blobName",
+    "contentType",
+    "decodedBytes",
+    "sha256",
+    "sizeBytes",
+    "statusCode"
+   ]
+  },
+  "seconds": 2.0
+ },
+ {
+  "check": "864 bytes: the decoded content is byte-identical to the local file",
+  "value": true,
+  "detail": "sizeBytes 864, decoded 864, isError False"
+ },
+ {
+  "case": "blob_01_3692641_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .png file of 3,692,641 bytes",
+  "sent_utc": "2026-11-27T16:35:28.475Z",
+  "http_status": 200,
+  "ms": 5403,
+  "response_bytes": 5313565,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "statusCode": 200,
+   "contentType": "image/png",
+   "sizeBytes": 3692641,
+   "decodedBytes": 3692641,
+   "base64Chars": 4923524,
+   "keys": [
+    "@workiq.untrustedContent",
+    "base64Chars",
+    "base64Content",
+    "blobName",
+    "contentType",
+    "decodedBytes",
+    "sha256",
+    "sizeBytes",
+    "statusCode"
+   ]
+  },
+  "seconds": 5.4
+ },
+ {
+  "check": "3,692,641 bytes: the decoded content is byte-identical to the local file",
+  "value": true,
+  "detail": "sizeBytes 3692641, decoded 3692641, isError False"
+ },
+ {
+  "case": "blob_01_3815774_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .html file of 3,815,774 bytes",
+  "sent_utc": "2026-11-27T16:35:58.888Z",
+  "http_status": 200,
+  "ms": 4095,
+  "response_bytes": 5094699,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "statusCode": 200,
+   "contentType": "text/html",
+   "sizeBytes": 3815774,
+   "decodedBytes": 3815774,
+   "base64Chars": 5087700,
+   "keys": [
+    "@workiq.untrustedContent",
+    "base64Chars",
+    "base64Content",
+    "blobName",
+    "contentType",
+    "decodedBytes",
+    "sha256",
+    "sizeBytes",
+    "statusCode"
+   ]
+  },
+  "seconds": 4.1
+ },
+ {
+  "check": "3,815,774 bytes: the decoded content is byte-identical to the local file",
+  "value": true,
+  "detail": "sizeBytes 3815774, decoded 3815774, isError False"
+ },
+ {
+  "case": "blob_01_4116808_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .png file of 4,116,808 bytes",
+  "sent_utc": "2026-11-27T16:36:20.325Z",
+  "http_status": 200,
+  "ms": 4227,
+  "response_bytes": 5926201,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "statusCode": 200,
+   "contentType": "image/png",
+   "sizeBytes": 4116808,
+   "decodedBytes": 4116808,
+   "base64Chars": 5489080,
+   "keys": [
+    "@workiq.untrustedContent",
+    "base64Chars",
+    "base64Content",
+    "blobName",
+    "contentType",
+    "decodedBytes",
+    "sha256",
+    "sizeBytes",
+    "statusCode"
+   ]
+  },
+  "seconds": 4.2
+ },
+ {
+  "check": "4,116,808 bytes: the decoded content is byte-identical to the local file",
+  "value": true,
+  "detail": "sizeBytes 4116808, decoded 4116808, isError False"
+ },
+ {
+  "case": "blob_01_4117319_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .png file of 4,117,319 bytes",
+  "sent_utc": "2026-11-27T16:36:45.967Z",
+  "http_status": 200,
+  "ms": 3934,
+  "response_bytes": 5931216,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "statusCode": 200,
+   "contentType": "image/png",
+   "sizeBytes": 4117319,
+   "decodedBytes": 4117319,
+   "base64Chars": 5489760,
+   "keys": [
+    "@workiq.untrustedContent",
+    "base64Chars",
+    "base64Content",
+    "blobName",
+    "contentType",
+    "decodedBytes",
+    "sha256",
+    "sizeBytes",
+    "statusCode"
+   ]
+  },
+  "seconds": 3.9
+ },
+ {
+  "check": "4,117,319 bytes: the decoded content is byte-identical to the local file",
+  "value": true,
+  "detail": "sizeBytes 4117319, decoded 4117319, isError False"
+ },
+ {
+  "case": "blob_01_4194352_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .mp4 file of 4,194,352 bytes",
+  "sent_utc": "2026-11-27T16:37:11.617Z",
+  "http_status": 200,
+  "ms": 2590,
+  "response_bytes": 275,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [
+   "{\"error\":\"Payload too large; downloads are limited to 4 MB.\",\"requestId\":\"(removed)\"}"
+  ],
+  "result": null,
+  "seconds": 2.6
+ },
+ {
+  "check": "4,194,352 bytes: the decoded content is byte-identical to the local file",
+  "value": false,
+  "detail": "sizeBytes None, decoded None, isError True"
+ },
+ {
+  "case": "blob_01_4405081_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .json file of 4,405,081 bytes",
+  "sent_utc": "2026-11-27T16:37:16.987Z",
+  "http_status": 200,
+  "ms": 2244,
+  "response_bytes": 275,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [
+   "{\"error\":\"Payload too large; downloads are limited to 4 MB.\",\"requestId\":\"(removed)\"}"
+  ],
+  "result": null,
+  "seconds": 2.2
+ },
+ {
+  "check": "4,405,081 bytes: the decoded content is byte-identical to the local file",
+  "value": false,
+  "detail": "sizeBytes None, decoded None, isError True"
+ },
+ {
+  "case": "blob_01_20050987_bytes",
+  "tool": "fetch_blob",
+  "arguments": {
+   "path": "/me/drive/items/{item-id}/content"
+  },
+  "note": "a .pptx file of 20,050,987 bytes",
+  "sent_utc": "2026-11-27T16:37:21.832Z",
+  "http_status": 200,
+  "ms": 2941,
+  "response_bytes": 275,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [
+   "{\"error\":\"Payload too large; downloads are limited to 4 MB.\",\"requestId\":\"(removed)\"}"
+  ],
+  "result": null,
+  "seconds": 2.9
+ },
+ {
+  "check": "20,050,987 bytes: the decoded content is byte-identical to the local file",
+  "value": false,
+  "detail": "sizeBytes None, decoded None, isError True"
+ },
+ {
+  "check": "largest file returned in full (bytes)",
+  "value": 4117319,
+  "detail": "smallest file not returned in full: 4194352"
+ }
+]

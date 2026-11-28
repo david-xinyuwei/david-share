@@ -1,0 +1,41 @@
+{
+ "tools_call_records": 109,
+ "first_utc": "2026-11-27T14:15:53.841000+00:00",
+ "last_utc": "2026-11-27T16:56:33.017000+00:00",
+ "minutes": 160.7,
+ "http_status": {
+  "200": 109
+ },
+ "http_429": 0,
+ "answers_with_retry_after_header": 0,
+ "tool_results_that_report_throttling": 0,
+ "most_calls_in_60_seconds": 12,
+ "per_tool": {
+  "fetch": {
+   "calls": 78,
+   "tool_errors": 26,
+   "ms_median": 987,
+   "ms_max": 6795,
+   "largest_answer_bytes": 7690363
+  },
+  "fetch_blob": {
+   "calls": 9,
+   "tool_errors": 4,
+   "ms_median": 2941,
+   "ms_max": 5403,
+   "largest_answer_bytes": 5931216
+  },
+  "retrieve": {
+   "calls": 22,
+   "tool_errors": 2,
+   "ms_median": 7358,
+   "ms_max": 50628,
+   "largest_answer_bytes": 59403
+  }
+ },
+ "response_headers_recorded": [
+  "client-request-id",
+  "content-type",
+  "request-id"
+ ]
+}

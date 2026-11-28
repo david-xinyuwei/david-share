@@ -1,0 +1,285 @@
+[
+ {
+  "case": "coll_events_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/events?$select=id"
+   ]
+  },
+  "note": "/me/events without $top",
+  "sent_utc": "2026-11-27T14:30:34.841Z",
+  "http_status": 200,
+  "ms": 1508,
+  "response_bytes": 3071,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "10",
+     "$top": "10"
+    }
+   }
+  ],
+  "seconds": 1.5
+ },
+ {
+  "case": "coll_events_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/events?$select=id&$top=101"
+   ]
+  },
+  "note": "/me/events, $top=101",
+  "sent_utc": "2026-11-27T14:30:40.816Z",
+  "http_status": 200,
+  "ms": 2206,
+  "response_bytes": 23926,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 2.2
+ },
+ {
+  "case": "coll_inbox_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/mailFolders/inbox/messages?$select=id"
+   ]
+  },
+  "note": "/me/mailFolders/inbox/messages without $top",
+  "sent_utc": "2026-11-27T14:30:48.850Z",
+  "http_status": 200,
+  "ms": 2038,
+  "response_bytes": 3220,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "10",
+     "$top": "10"
+    }
+   }
+  ],
+  "seconds": 2.0
+ },
+ {
+  "case": "coll_inbox_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/mailFolders/inbox/messages?$select=id&$top=101"
+   ]
+  },
+  "note": "/me/mailFolders/inbox/messages, $top=101",
+  "sent_utc": "2026-11-27T14:30:54.824Z",
+  "http_status": 200,
+  "ms": 363,
+  "response_bytes": 25206,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.4
+ },
+ {
+  "case": "coll_drive_children_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/drive/root/children?$select=id"
+   ]
+  },
+  "note": "/me/drive/root/children without $top",
+  "sent_utc": "2026-11-27T14:30:58.840Z",
+  "http_status": 200,
+  "ms": 964,
+  "response_bytes": 19127,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 163
+   }
+  ],
+  "seconds": 1.0
+ },
+ {
+  "case": "coll_drive_children_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/drive/root/children?$select=id&$top=101"
+   ]
+  },
+  "note": "/me/drive/root/children, $top=101",
+  "sent_utc": "2026-11-27T14:31:03.848Z",
+  "http_status": 200,
+  "ms": 579,
+  "response_bytes": 12362,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skiptoken": "(152 chars)",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.6
+ },
+ {
+  "case": "coll_people_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/people?$select=id"
+   ]
+  },
+  "note": "/me/people without $top",
+  "sent_utc": "2026-11-27T14:31:08.843Z",
+  "http_status": 200,
+  "ms": 531,
+  "response_bytes": 1234,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "0"
+    }
+   }
+  ],
+  "seconds": 0.5
+ },
+ {
+  "case": "coll_people_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/people?$select=id&$top=101"
+   ]
+  },
+  "note": "/me/people, $top=101",
+  "sent_utc": "2026-11-27T14:31:14.745Z",
+  "http_status": 200,
+  "ms": 411,
+  "response_bytes": 5508,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.4
+ },
+ {
+  "case": "coll_chats_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats?$select=id"
+   ]
+  },
+  "note": "/me/chats without $top",
+  "sent_utc": "2026-11-27T14:31:20.833Z",
+  "http_status": 200,
+  "ms": 739,
+  "response_bytes": 2665,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 19,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skiptoken": "(386 chars)"
+    }
+   }
+  ],
+  "seconds": 0.7
+ },
+ {
+  "case": "coll_chats_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats?$select=id&$top=101"
+   ]
+  },
+  "note": "/me/chats, $top=101",
+  "sent_utc": "2026-11-27T14:31:25.851Z",
+  "http_status": 200,
+  "ms": 490,
+  "response_bytes": 1111,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [],
+  "result": [
+   {
+    "statusCode": 400,
+    "error": "{'error': {'code': '', 'message': \"The query specified in the URI is not valid. The limit of '50' for Top query has been exceeded. The value from the incoming request is '100'.\", 'details': [], 'innerError': {'message': \"The limit of '50' for Top query has been exceeded. The value from the incoming "
+   }
+  ],
+  "seconds": 0.5
+ }
+]

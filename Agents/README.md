@@ -74,6 +74,7 @@ For the Voice Live building blocks (speech recognition, models and voices), see 
 
 | Project | What it covers |
 |---|---|
+| [Work-IQ-MCP-Raw-Data-Limits](Work-IQ-MCP-Raw-Data-Limits/) | Work IQ MCP read tools measured in a Microsoft 365 tenant: what `retrieve`, `fetch` and `fetch_blob` return, where each one stops, and how that compares with the limits on Microsoft Learn; includes the measurement scripts, the dataset and offline tests |
 | [Foundry-IQ](Foundry-IQ/) | Foundry IQ knowledge retrieval with Azure AI Search for agentic RAG |
 | [5-ways-chunking](5-ways-chunking/) | Five chunking methods for RAG: principles and code |
 | [LLM-Judgment](LLM-Judgment/) | Using LLMs as judges to evaluate other LLMs |

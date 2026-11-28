@@ -1,0 +1,482 @@
+[
+ {
+  "check": "sources that came back in more than one retrieve call",
+  "value": 16,
+  "detail": "of 30 different sources; 10 of them came back with markdown of different lengths"
+ },
+ {
+  "case": "fulltext_01_items",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": "['<entityUrl of a retrieve result>?$select=id,body (message) or id,size,file (file)'] x 30"
+  },
+  "note": "the 30 different items that retrieve returned, read with fetch",
+  "sent_utc": "2026-11-27T16:55:37.230Z",
+  "http_status": 200,
+  "ms": 6795,
+  "response_bytes": 3576338,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   },
+   {
+    "statusCode": 200
+   }
+  ],
+  "seconds": 6.8
+ },
+ {
+  "check": "result 1 (Emails, first seen in retrieve_01_question): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 3,
+   "pieces": 21,
+   "last_piece_found_at_percent": 40,
+   "full_text_chars": 31809,
+   "markdown_chars": 4407,
+   "marked_truncated": true,
+   "snippet_chars": 1790
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 2 (Files, first seen in retrieve_01_question): file size against markdown length",
+  "value": {
+   "file_bytes": 940986,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 2510,
+   "marked_truncated": true,
+   "snippet_chars": 1792
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 3 (Files, first seen in retrieve_01_question): file size against markdown length",
+  "value": {
+   "file_bytes": 305272179,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 2635,
+   "marked_truncated": true,
+   "snippet_chars": 1759
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 4 (Files, first seen in retrieve_01_question): file size against markdown length",
+  "value": {
+   "file_bytes": 3506303,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 2530,
+   "marked_truncated": true,
+   "snippet_chars": 1794
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 5 (Files, first seen in retrieve_01_question): file size against markdown length",
+  "value": {
+   "file_bytes": 158719,
+   "mimeType": "application/xml",
+   "markdown_chars": 2938,
+   "marked_truncated": true,
+   "snippet_chars": 1802
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 6 (Files, first seen in retrieve_02_same_again): file size against markdown length",
+  "value": {
+   "file_bytes": 4137747,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 10054,
+   "marked_truncated": false,
+   "snippet_chars": 9441
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 7 (Files, first seen in retrieve_05_strategy_copilot): file size against markdown length",
+  "value": {
+   "file_bytes": 5596269,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 1876,
+   "marked_truncated": false,
+   "snippet_chars": null
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 8 (Emails, first seen in retrieve_06_only_Email): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 2,
+   "pieces": 21,
+   "last_piece_found_at_percent": 15,
+   "full_text_chars": 1687,
+   "markdown_chars": 3792,
+   "marked_truncated": false,
+   "snippet_chars": 3446
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 9 (Transcripts, first seen in retrieve_06_only_Meetings): file size against markdown length",
+  "value": {
+   "file_bytes": 339343191,
+   "mimeType": "video/mp4",
+   "markdown_chars": 2414,
+   "marked_truncated": true,
+   "snippet_chars": 1794
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 10 (Transcripts, first seen in retrieve_06_only_Meetings): file size against markdown length",
+  "value": {
+   "file_bytes": 279721878,
+   "mimeType": "video/mp4",
+   "markdown_chars": 2439,
+   "marked_truncated": true,
+   "snippet_chars": 1802
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 11 (Files, first seen in retrieve_06_only_OneDriveAndSharePoint): file size against markdown length",
+  "value": {
+   "file_bytes": 121972853,
+   "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+   "markdown_chars": 5195,
+   "marked_truncated": false,
+   "snippet_chars": 4314
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 12 (Chats, first seen in retrieve_06_only_TeamsMessages): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 17,
+   "pieces": 21,
+   "last_piece_found_at_percent": 95,
+   "full_text_chars": 1627,
+   "markdown_chars": 2058,
+   "marked_truncated": false,
+   "snippet_chars": 2017
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 13 (Chats, first seen in retrieve_06_only_TeamsMessages): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 21,
+   "pieces": 21,
+   "last_piece_found_at_percent": 100,
+   "full_text_chars": 1211,
+   "markdown_chars": 1881,
+   "marked_truncated": false,
+   "snippet_chars": 1763
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 14 (Files, first seen in retrieve_07_top_50): file size against markdown length",
+  "value": {
+   "file_bytes": 4877797,
+   "mimeType": "application/pdf",
+   "markdown_chars": 3364,
+   "marked_truncated": true,
+   "snippet_chars": 1762
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 15 (Transcripts, first seen in retrieve_08_ask_for_100): file size against markdown length",
+  "value": {
+   "file_bytes": 817685365,
+   "mimeType": "video/mp4",
+   "markdown_chars": 2371,
+   "marked_truncated": true,
+   "snippet_chars": 1800
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 16 (Emails, first seen in retrieve_08_ask_for_50): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 1,
+   "pieces": 21,
+   "last_piece_found_at_percent": 5,
+   "full_text_chars": 63108,
+   "markdown_chars": 2230,
+   "marked_truncated": true,
+   "snippet_chars": 1770
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 17 (Files, first seen in retrieve_08_ask_for_50): file size against markdown length",
+  "value": {
+   "file_bytes": 181099,
+   "mimeType": "application/xml",
+   "markdown_chars": 2617,
+   "marked_truncated": true,
+   "snippet_chars": 1768
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 18 (Files, first seen in retrieve_08_ask_for_50): file size against markdown length",
+  "value": {
+   "file_bytes": 354386,
+   "mimeType": "application/pdf",
+   "markdown_chars": 2447,
+   "marked_truncated": true,
+   "snippet_chars": 1793
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 19 (Files, first seen in retrieve_08_ask_for_50): file size against markdown length",
+  "value": {
+   "file_bytes": 25915,
+   "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+   "markdown_chars": 2444,
+   "marked_truncated": true,
+   "snippet_chars": 1799
+  },
+  "detail": ""
+ },
+ {
+  "check": "result 20 (Emails, first seen in retrieve_11_old_mail): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 21,
+   "pieces": 21,
+   "last_piece_found_at_percent": 100,
+   "full_text_chars": 481,
+   "markdown_chars": 1211,
+   "marked_truncated": false,
+   "snippet_chars": 575
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 21 (Emails, first seen in retrieve_11_old_mail): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 21,
+   "pieces": 21,
+   "last_piece_found_at_percent": 100,
+   "full_text_chars": 5307,
+   "markdown_chars": 5078,
+   "marked_truncated": false,
+   "snippet_chars": 5056
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 22 (Emails, first seen in retrieve_11_old_mail): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 21,
+   "pieces": 21,
+   "last_piece_found_at_percent": 100,
+   "full_text_chars": 485,
+   "markdown_chars": 1219,
+   "marked_truncated": false,
+   "snippet_chars": 581
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 23 (Emails, first seen in retrieve_11_old_mail): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 8,
+   "pieces": 21,
+   "last_piece_found_at_percent": 40,
+   "full_text_chars": 4552,
+   "markdown_chars": 2429,
+   "marked_truncated": false,
+   "snippet_chars": 1826
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 24 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 9,
+   "pieces": 21,
+   "last_piece_found_at_percent": 100,
+   "full_text_chars": 23906,
+   "markdown_chars": 5152,
+   "marked_truncated": false,
+   "snippet_chars": 5385
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 25 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 0,
+   "pieces": 21,
+   "last_piece_found_at_percent": null,
+   "full_text_chars": 482,
+   "markdown_chars": 6696,
+   "marked_truncated": false,
+   "snippet_chars": 7186
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 26 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 14,
+   "pieces": 21,
+   "last_piece_found_at_percent": 85,
+   "full_text_chars": 2952,
+   "markdown_chars": 2123,
+   "marked_truncated": false,
+   "snippet_chars": 1798
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 27 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 12,
+   "pieces": 21,
+   "last_piece_found_at_percent": 80,
+   "full_text_chars": 10093,
+   "markdown_chars": 5141,
+   "marked_truncated": false,
+   "snippet_chars": 5398
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 28 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 1,
+   "pieces": 21,
+   "last_piece_found_at_percent": 0,
+   "full_text_chars": 238687,
+   "markdown_chars": 9777,
+   "marked_truncated": false,
+   "snippet_chars": 8978
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 29 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 8,
+   "pieces": 21,
+   "last_piece_found_at_percent": 90,
+   "full_text_chars": 8829,
+   "markdown_chars": 2089,
+   "marked_truncated": false,
+   "snippet_chars": 1798
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "result 30 (Emails, first seen in retrieve_14_week_chinese): how much of the message body is in results[].markdown",
+  "value": {
+   "pieces_found": 15,
+   "pieces": 21,
+   "last_piece_found_at_percent": 70,
+   "full_text_chars": 6172,
+   "markdown_chars": 5259,
+   "marked_truncated": false,
+   "snippet_chars": 5360
+  },
+  "detail": "21 pieces of 16 characters, cut at even distances from the body text read with fetch"
+ },
+ {
+  "check": "messages whose body is in the markdown from start to end (at least 19 of 21 pieces)",
+  "value": 4,
+  "detail": "messages with less: 12"
+ }
+]

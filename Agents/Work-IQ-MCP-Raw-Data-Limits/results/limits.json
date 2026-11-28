@@ -1,0 +1,387 @@
+{
+ "run": {
+  "date_utc": "2026-11-27",
+  "first_call_utc": "2026-11-27T14:15:53Z",
+  "last_call_utc": "2026-11-27T16:56:33Z",
+  "tools_call_records": 109,
+  "calls_per_tool": {
+   "fetch": 78,
+   "fetch_blob": 9,
+   "retrieve": 22
+  },
+  "stage_calls": 86,
+  "stage_calls_per_tool": {
+   "fetch": 56,
+   "fetch_blob": 8,
+   "retrieve": 22
+  },
+  "stage_calls_answer_minutes": 5.1,
+  "records_outside_the_stages": 23,
+  "tool_results_that_report_throttling": 0,
+  "answers_with_retry_after_header": 0,
+  "http_status": {
+   "200": 109
+  },
+  "http_429": 0,
+  "most_calls_in_60_seconds": 12,
+  "median_seconds": {
+   "fetch": 1.0,
+   "fetch_blob": 2.9,
+   "retrieve": 7.4
+  },
+  "client": "Interactive Demo page (interactivedemo.microsoft.com/work-iq/mcp), Live mode, in Microsoft Edge",
+  "endpoint": "https://workiq.svc.cloud.microsoft/mcp",
+  "scope": "one Microsoft 365 tenant, one signed-in user, the user's own data"
+ },
+ "fetch": {
+  "messages_without_top": 10,
+  "messages_by_top": {
+   "25": 25,
+   "26": 26,
+   "100": 100,
+   "101": 100,
+   "1000": 100
+  },
+  "top_cap": 100,
+  "skip_5_returns_items_6_to_10": true,
+  "made_up_skiptoken_is_ignored": true,
+  "nextlink_page_2_holds_100_other_messages": true,
+  "search_nextlink_page_2_holds_other_messages": true,
+  "skip_5000_returns": 5,
+  "filter_on_date_returns": 5,
+  "search_returns": 5,
+  "oldest_message_month": "2022-10",
+  "collections_without_top": {
+   "events": 10,
+   "inbox": 10,
+   "drive_children": 163,
+   "people": 10,
+   "chats": 19
+  },
+  "collections_top_101": {
+   "events": 100,
+   "inbox": 100,
+   "drive_children": 100,
+   "people": 100,
+   "chats": null
+  },
+  "chats_top_101_error": true,
+  "chat_messages_without_top": [
+   20
+  ],
+  "chat_messages_by_top": {
+   "10": [
+    10
+   ],
+   "11": [
+    11
+   ],
+   "20": [
+    20
+   ],
+   "21": [
+    20
+   ],
+   "50": [
+    20
+   ]
+  },
+  "chat_messages_cap": 20,
+  "chats_tested": 3,
+  "service_notes": [
+   "Results limited to 1 items per collection",
+   "Results limited to 5 items per collection",
+   "Results limited to 10 items per collection",
+   "Results limited to 11 items per collection",
+   "Results limited to 20 items per collection",
+   "Results limited to 25 items per collection",
+   "Results limited to 26 items per collection",
+   "Results limited to 100 items per collection"
+  ],
+  "paths_per_call_max": 50,
+  "paths_per_call_answered": [
+   2,
+   20,
+   50
+  ],
+  "paths_per_call_failed": [
+   51,
+   53,
+   56,
+   62,
+   75,
+   100
+  ],
+  "paths_per_call_first_failure": 51,
+  "paths_error_code": "InternalError",
+  "body_25_newest": {
+   "smallest": 117,
+   "largest": 910413
+  },
+  "body_preview_25_newest": {
+   "smallest": 9,
+   "largest": 255
+  },
+  "body_100_messages": {
+   "bodies": 100,
+   "empty_bodies": 1,
+   "characters_in_total": 5686377,
+   "largest_body_characters": 930551,
+   "answer_bytes": 7690363,
+   "html_bodies_with_text": 96,
+   "html_bodies_that_end_with_the_closing_html_tag": 96
+  },
+  "body_100_messages_seconds": 5.3
+ },
+ "fetch_blob": {
+  "files": [
+   {
+    "bytes": 864,
+    "type": ".json",
+    "returned_in_full": true,
+    "seconds": 2.0,
+    "answer_bytes": 1909,
+    "error": null
+   },
+   {
+    "bytes": 3692641,
+    "type": ".png",
+    "returned_in_full": true,
+    "seconds": 5.4,
+    "answer_bytes": 5313565,
+    "error": null
+   },
+   {
+    "bytes": 3815774,
+    "type": ".html",
+    "returned_in_full": true,
+    "seconds": 4.1,
+    "answer_bytes": 5094699,
+    "error": null
+   },
+   {
+    "bytes": 4116808,
+    "type": ".png",
+    "returned_in_full": true,
+    "seconds": 4.2,
+    "answer_bytes": 5926201,
+    "error": null
+   },
+   {
+    "bytes": 4117319,
+    "type": ".png",
+    "returned_in_full": true,
+    "seconds": 3.9,
+    "answer_bytes": 5931216,
+    "error": null
+   },
+   {
+    "bytes": 4194352,
+    "type": ".mp4",
+    "returned_in_full": false,
+    "seconds": 2.6,
+    "answer_bytes": 275,
+    "error": "Payload too large; downloads are limited to 4 MB."
+   },
+   {
+    "bytes": 4405081,
+    "type": ".json",
+    "returned_in_full": false,
+    "seconds": 2.2,
+    "answer_bytes": 275,
+    "error": "Payload too large; downloads are limited to 4 MB."
+   },
+   {
+    "bytes": 20050987,
+    "type": ".pptx",
+    "returned_in_full": false,
+    "seconds": 2.9,
+    "answer_bytes": 275,
+    "error": "Payload too large; downloads are limited to 4 MB."
+   }
+  ],
+  "answer_bytes_per_file_byte_above_3_megabytes": [
+   1.34,
+   1.44
+  ],
+  "largest_returned_bytes": 4117319,
+  "smallest_refused_bytes": 4194352,
+  "four_mebibytes": 4194304,
+  "four_megabytes_decimal": 4000000,
+  "error": [
+   "Payload too large; downloads are limited to 4 MB."
+  ]
+ },
+ "retrieve": {
+  "calls_answered": 20,
+  "calls_refused": [
+   "Parameter 'query' is required and must contain at least one non-empty string.",
+   "Unsupported strategy 'all'. Supported values are 'copilot' and 'grounding'."
+  ],
+  "results_per_call": {
+   "retrieve_01_question": 5,
+   "retrieve_02_same_again": 3,
+   "retrieve_03_keywords": 0,
+   "retrieve_03_keywords_again": 0,
+   "retrieve_04_chinese": 0,
+   "retrieve_05_strategy_copilot": 3,
+   "retrieve_06_only_Email": 2,
+   "retrieve_06_only_Meetings": 2,
+   "retrieve_06_only_OneDriveAndSharePoint": 4,
+   "retrieve_06_only_People": 0,
+   "retrieve_06_only_TeamsMessages": 2,
+   "retrieve_07_top_50": 4,
+   "retrieve_08_ask_for_100": 7,
+   "retrieve_08_ask_for_50": 13,
+   "retrieve_09_query_1600_chars": 3,
+   "retrieve_09_query_6000_chars": 0,
+   "retrieve_10_developer_card": 6,
+   "retrieve_11_old_mail": 4,
+   "retrieve_14_week_chinese": 7,
+   "retrieve_14_week_english": 7
+  },
+  "results_per_call_max": 13,
+  "results_per_call_max_case": "retrieve_08_ask_for_50",
+  "results_per_call_max_without_a_number_in_the_query": 7,
+  "calls_with_zero_results": [
+   "retrieve_03_keywords",
+   "retrieve_03_keywords_again",
+   "retrieve_04_chinese",
+   "retrieve_06_only_People",
+   "retrieve_09_query_6000_chars"
+  ],
+  "results_total": 72,
+  "results_marked_truncated": 38,
+  "by_type": {
+   "Chats": {
+    "results": 2,
+    "markdown_chars": [
+     2275,
+     2472
+    ],
+    "snippet_chars": [
+     1763,
+     2017
+    ],
+    "marked_truncated": 0
+   },
+   "Emails": {
+    "results": 26,
+    "markdown_chars": [
+     1476,
+     11599
+    ],
+    "snippet_chars": [
+     575,
+     8978
+    ],
+    "marked_truncated": 6
+   },
+   "Files": {
+    "results": 39,
+    "markdown_chars": [
+     1876,
+     10054
+    ],
+    "snippet_chars": [
+     1733,
+     9441
+    ],
+    "marked_truncated": 27
+   },
+   "ThirdParty": {
+    "results": 1,
+    "markdown_chars": [
+     3249,
+     3249
+    ],
+    "snippet_chars": [
+     1800,
+     1800
+    ],
+    "marked_truncated": 1
+   },
+   "Transcripts": {
+    "results": 4,
+    "markdown_chars": [
+     2371,
+     2439
+    ],
+    "snippet_chars": [
+     1794,
+     1802
+    ],
+    "marked_truncated": 4
+   }
+  },
+  "snippet_chars_max": 9441,
+  "results_with_snippet": 70,
+  "snippet_chars_median": 1798,
+  "snippet_chars_marked_truncated": [
+   1733,
+   1802
+  ],
+  "snippet_chars_not_marked": [
+   575,
+   9441
+  ],
+  "results_with_snippet_not_marked": 32,
+  "markdown_chars_max": 11599,
+  "markdown_chars_per_call_max": 43236,
+  "same_question_twice": [
+   5,
+   3
+  ],
+  "same_question_twice_same_sources": false,
+  "seconds_default_strategy": [
+   3.9,
+   12.1
+  ],
+  "seconds_strategy_copilot": 50.6,
+  "index_matches_reported": "117690 results for File domains",
+  "old_mail_months": [
+   "2023-03",
+   "2023-08"
+  ]
+ },
+ "fulltext": {
+  "items_read_back_with_fetch": 30,
+  "items_read_back_status_200": 30,
+  "messages_compared": 16,
+  "messages_marked_truncated": 2,
+  "messages_not_marked": 14,
+  "messages_not_marked_with_snippet_shorter_than_body_text": 8,
+  "pieces_per_message": 21,
+  "messages_with_all_pieces_found": 4,
+  "messages_with_all_pieces_found_and_snippet_not_shorter": 3,
+  "messages_with_all_pieces_found_body_text_chars": [
+   481,
+   5307
+  ],
+  "messages_with_pieces_missing": 12,
+  "longest_message": {
+   "body_text_chars": 238687,
+   "snippet_chars": 8978,
+   "marked_truncated": false,
+   "pieces_found": 1,
+   "pieces": 21
+  },
+  "files_compared": 14,
+  "files_marked_truncated": 11,
+  "file_bytes": [
+   25915,
+   817685365
+  ],
+  "files_larger_than_4_mebibytes": 7,
+  "file_markdown_chars": [
+   1876,
+   10054
+  ],
+  "largest_file": {
+   "bytes": 817685365,
+   "snippet_chars": 1800,
+   "marked_truncated": true
+  },
+  "sources_seen_in_more_than_one_call": 16
+ }
+}

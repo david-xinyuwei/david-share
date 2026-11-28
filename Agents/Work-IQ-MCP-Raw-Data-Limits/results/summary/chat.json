@@ -1,0 +1,560 @@
+[
+ {
+  "case": "chat_01_list",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats?$select=id,chatType&$top=5"
+   ]
+  },
+  "note": "my chats",
+  "sent_utc": "2026-11-27T14:20:15.819Z",
+  "http_status": 200,
+  "ms": 1686,
+  "response_bytes": 1669,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 4,
+    "nextLink": {
+     "$select": "(11 chars)",
+     "$skiptoken": "(378 chars)",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.7
+ },
+ {
+  "case": "chat_02_1_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages"
+   ]
+  },
+  "note": "chat messages without $top",
+  "sent_utc": "2026-11-27T14:20:21.825Z",
+  "http_status": 200,
+  "ms": 1212,
+  "response_bytes": 28419,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(160 chars)"
+    }
+   }
+  ],
+  "seconds": 1.2
+ },
+ {
+  "case": "chat_03_1_top_10",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=10"
+   ]
+  },
+  "note": "chat messages, $top=10",
+  "sent_utc": "2026-11-27T14:20:27.851Z",
+  "http_status": 200,
+  "ms": 1450,
+  "response_bytes": 17645,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.4
+ },
+ {
+  "case": "chat_03_1_top_11",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=11"
+   ]
+  },
+  "note": "chat messages, $top=11",
+  "sent_utc": "2026-11-27T14:20:33.813Z",
+  "http_status": 200,
+  "ms": 1014,
+  "response_bytes": 19044,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 11,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "11"
+    }
+   }
+  ],
+  "service_note": "Results limited to 11 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "chat_03_1_top_50",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=50"
+   ]
+  },
+  "note": "chat messages, $top=50",
+  "sent_utc": "2026-11-27T14:20:38.815Z",
+  "http_status": 200,
+  "ms": 1230,
+  "response_bytes": 28559,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.2
+ },
+ {
+  "case": "chat_03_1_top_20",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=20"
+   ]
+  },
+  "note": "chat messages, $top=20",
+  "sent_utc": "2026-11-27T14:31:31.812Z",
+  "http_status": 200,
+  "ms": 889,
+  "response_bytes": 28559,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.9
+ },
+ {
+  "case": "chat_03_1_top_21",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=21"
+   ]
+  },
+  "note": "chat messages, $top=21",
+  "sent_utc": "2026-11-27T14:31:36.838Z",
+  "http_status": 200,
+  "ms": 884,
+  "response_bytes": 28559,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.9
+ },
+ {
+  "case": "chat_05_1_other_path_top_50",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/chats/{chat-id}/messages?$top=50"
+   ]
+  },
+  "note": "the same chat addressed as /chats/{id} instead of /me/chats/{id}, $top=50",
+  "sent_utc": "2026-11-27T14:31:41.834Z",
+  "http_status": 200,
+  "ms": 871,
+  "response_bytes": 28500,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.9
+ },
+ {
+  "case": "chat_04_1_follow_nextlink",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "<@odata.nextLink of the $top=10 answer, host removed>"
+   ],
+   "nextLink": {
+    "$skiptoken": "(160 chars)",
+    "$top": "10"
+   }
+  },
+  "note": "the @odata.nextLink of the $top=10 answer, sent back as a path",
+  "sent_utc": "2026-11-27T14:20:45.044Z",
+  "http_status": 200,
+  "ms": 1141,
+  "response_bytes": 12035,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(160 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.1
+ },
+ {
+  "case": "chat_02_2_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages"
+   ]
+  },
+  "note": "chat messages without $top",
+  "sent_utc": "2026-11-27T14:20:52.313Z",
+  "http_status": 200,
+  "ms": 1404,
+  "response_bytes": 34589,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(324 chars)"
+    }
+   }
+  ],
+  "seconds": 1.4
+ },
+ {
+  "case": "chat_03_2_top_10",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=10"
+   ]
+  },
+  "note": "chat messages, $top=10",
+  "sent_utc": "2026-11-27T14:20:57.813Z",
+  "http_status": 200,
+  "ms": 1033,
+  "response_bytes": 16133,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "chat_03_2_top_11",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=11"
+   ]
+  },
+  "note": "chat messages, $top=11",
+  "sent_utc": "2026-11-27T14:21:02.815Z",
+  "http_status": 200,
+  "ms": 1724,
+  "response_bytes": 17426,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 11,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "11"
+    }
+   }
+  ],
+  "service_note": "Results limited to 11 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.7
+ },
+ {
+  "case": "chat_03_2_top_50",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=50"
+   ]
+  },
+  "note": "chat messages, $top=50",
+  "sent_utc": "2026-11-27T14:21:08.814Z",
+  "http_status": 200,
+  "ms": 1232,
+  "response_bytes": 34729,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.2
+ },
+ {
+  "case": "chat_04_2_follow_nextlink",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "<@odata.nextLink of the $top=10 answer, host removed>"
+   ],
+   "nextLink": {
+    "$skiptoken": "(324 chars)",
+    "$top": "10"
+   }
+  },
+  "note": "the @odata.nextLink of the $top=10 answer, sent back as a path",
+  "sent_utc": "2026-11-27T14:21:14.900Z",
+  "http_status": 200,
+  "ms": 979,
+  "response_bytes": 20007,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "chat_02_3_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages"
+   ]
+  },
+  "note": "chat messages without $top",
+  "sent_utc": "2026-11-27T14:21:19.810Z",
+  "http_status": 200,
+  "ms": 1639,
+  "response_bytes": 45843,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(324 chars)"
+    }
+   }
+  ],
+  "seconds": 1.6
+ },
+ {
+  "case": "chat_03_3_top_10",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=10"
+   ]
+  },
+  "note": "chat messages, $top=10",
+  "sent_utc": "2026-11-27T14:21:30.906Z",
+  "http_status": 200,
+  "ms": 1627,
+  "response_bytes": 22463,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.6
+ },
+ {
+  "case": "chat_03_3_top_11",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=11"
+   ]
+  },
+  "note": "chat messages, $top=11",
+  "sent_utc": "2026-11-27T14:21:36.819Z",
+  "http_status": 200,
+  "ms": 1085,
+  "response_bytes": 25848,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 11,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "11"
+    }
+   }
+  ],
+  "service_note": "Results limited to 11 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.1
+ },
+ {
+  "case": "chat_03_3_top_50",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/chats/{chat-id}/messages?$top=50"
+   ]
+  },
+  "note": "chat messages, $top=50",
+  "sent_utc": "2026-11-27T14:21:41.814Z",
+  "http_status": 200,
+  "ms": 1607,
+  "response_bytes": 46033,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 20,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "20"
+    }
+   }
+  ],
+  "service_note": "Results limited to 20 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.6
+ },
+ {
+  "case": "chat_04_3_follow_nextlink",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "<@odata.nextLink of the $top=10 answer, host removed>"
+   ],
+   "nextLink": {
+    "$skiptoken": "(324 chars)",
+    "$top": "10"
+   }
+  },
+  "note": "the @odata.nextLink of the $top=10 answer, sent back as a path",
+  "sent_utc": "2026-11-27T14:21:47.841Z",
+  "http_status": 200,
+  "ms": 1317,
+  "response_bytes": 24731,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$skiptoken": "(324 chars)",
+     "$top": "10"
+    }
+   }
+  ],
+  "service_note": "Results limited to 10 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.3
+ }
+]

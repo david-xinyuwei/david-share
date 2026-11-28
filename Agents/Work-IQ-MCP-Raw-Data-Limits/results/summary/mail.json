@@ -1,0 +1,461 @@
+[
+ {
+  "case": "mail_01_no_top",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id"
+   ]
+  },
+  "note": "collection without $top: how many items come back",
+  "sent_utc": "2026-11-27T14:17:24.840Z",
+  "http_status": 200,
+  "ms": 3628,
+  "response_bytes": 3162,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 10,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "10",
+     "$top": "10"
+    }
+   }
+  ],
+  "seconds": 3.6
+ },
+ {
+  "case": "mail_02_top_25",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=25"
+   ]
+  },
+  "note": "$top=25",
+  "sent_utc": "2026-11-27T14:17:32.810Z",
+  "http_status": 200,
+  "ms": 1047,
+  "response_bytes": 6946,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 25,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "25",
+     "$top": "25"
+    }
+   }
+  ],
+  "service_note": "Results limited to 25 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_02_top_26",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=26"
+   ]
+  },
+  "note": "$top=26",
+  "sent_utc": "2026-11-27T14:17:37.840Z",
+  "http_status": 200,
+  "ms": 979,
+  "response_bytes": 7232,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 26,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "26",
+     "$top": "26"
+    }
+   }
+  ],
+  "service_note": "Results limited to 26 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_02_top_100",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=100"
+   ]
+  },
+  "note": "$top=100",
+  "sent_utc": "2026-11-27T14:17:42.823Z",
+  "http_status": 200,
+  "ms": 1024,
+  "response_bytes": 25347,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_02_top_101",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=101"
+   ]
+  },
+  "note": "$top=101",
+  "sent_utc": "2026-11-27T14:17:47.816Z",
+  "http_status": 200,
+  "ms": 957,
+  "response_bytes": 25347,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_02_top_1000",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=1000"
+   ]
+  },
+  "note": "$top=1000",
+  "sent_utc": "2026-11-27T14:17:52.838Z",
+  "http_status": 200,
+  "ms": 1003,
+  "response_bytes": 25347,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_03_skip",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=5&$skip=5"
+   ]
+  },
+  "note": "$skip in the request",
+  "sent_utc": "2026-11-27T14:17:57.825Z",
+  "http_status": 200,
+  "ms": 993,
+  "response_bytes": 2118,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "10",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "check": "$skip=5 returns items 6 to 10 of the list",
+  "value": true,
+  "detail": "IDs of mail_03_skip compared with positions 6-10 of mail_02_top_25"
+ },
+ {
+  "case": "mail_04_skiptoken",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=5&$skiptoken=abc"
+   ]
+  },
+  "note": "a made-up $skiptoken in the request",
+  "sent_utc": "2026-11-27T14:18:02.813Z",
+  "http_status": 200,
+  "ms": 661,
+  "response_bytes": 2069,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "5",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.7
+ },
+ {
+  "check": "a made-up $skiptoken is ignored (first page comes back)",
+  "value": true,
+  "detail": "IDs of mail_04_skiptoken compared with positions 1-5 of mail_02_top_25"
+ },
+ {
+  "case": "mail_05_follow_nextlink",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "<@odata.nextLink of mail_02_top_100, host removed>"
+   ],
+   "nextLink": {
+    "$select": "(2 chars)",
+    "$skip": "100",
+    "$top": "100"
+   }
+  },
+  "note": "the @odata.nextLink of the $top=100 answer, sent back as a path",
+  "sent_utc": "2026-11-27T14:18:07.821Z",
+  "http_status": 200,
+  "ms": 1021,
+  "response_bytes": 25621,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "200",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "check": "page 2 holds 100 other messages",
+  "value": true,
+  "detail": "IDs of mail_05_follow_nextlink compared with mail_02_top_100"
+ },
+ {
+  "case": "mail_06_oldest",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id,receivedDateTime&$top=1&$orderby=receivedDateTime asc"
+   ]
+  },
+  "note": "oldest message the tool reaches",
+  "sent_utc": "2026-11-27T14:18:12.822Z",
+  "http_status": 200,
+  "ms": 987,
+  "response_bytes": 1252,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 1,
+    "nextLink": {
+     "$orderby": "(20 chars)",
+     "$select": "(19 chars)",
+     "$skip": "1",
+     "$top": "1"
+    }
+   }
+  ],
+  "service_note": "Results limited to 1 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "check": "month of the oldest message returned",
+  "value": "2022-10",
+  "detail": "receivedDateTime of mail_06_oldest, cut to year and month"
+ },
+ {
+  "case": "mail_07_filter_date",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id,receivedDateTime&$top=5&$filter=receivedDateTime lt 2025-01-01T00:00:00Z"
+   ]
+  },
+  "note": "$filter on a date",
+  "sent_utc": "2026-11-27T14:18:17.822Z",
+  "http_status": 200,
+  "ms": 996,
+  "response_bytes": 2380,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$filter": "(40 chars)",
+     "$select": "(19 chars)",
+     "$skip": "5",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ },
+ {
+  "case": "mail_08_search",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=5&$search=\"Ignite\""
+   ]
+  },
+  "note": "$search",
+  "sent_utc": "2026-11-27T14:18:22.818Z",
+  "http_status": 200,
+  "ms": 691,
+  "response_bytes": 2093,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$search": "(8 chars)",
+     "$select": "(2 chars)",
+     "$skiptoken": "(104 chars)",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.7
+ },
+ {
+  "case": "mail_09_search_follow_nextlink",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "<@odata.nextLink of mail_08_search, host removed>"
+   ],
+   "nextLink": {
+    "$search": "(8 chars)",
+    "$select": "(2 chars)",
+    "$skiptoken": "(104 chars)",
+    "$top": "5"
+   }
+  },
+  "note": "the @odata.nextLink of the $search answer (it carries a real $skiptoken), sent back as a path",
+  "sent_utc": "2026-11-27T14:19:46.133Z",
+  "http_status": 200,
+  "ms": 576,
+  "response_bytes": 2052,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$search": "(8 chars)",
+     "$select": "(2 chars)",
+     "$skiptoken": "(112 chars)",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 0.6
+ },
+ {
+  "check": "page 2 of the $search holds other messages",
+  "value": true,
+  "detail": "5 IDs of mail_09 compared with mail_08_search"
+ },
+ {
+  "case": "mail_10_skip_5000",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id&$top=5&$skip=5000"
+   ]
+  },
+  "note": "a deep $skip",
+  "sent_utc": "2026-11-27T14:19:50.822Z",
+  "http_status": 200,
+  "ms": 965,
+  "response_bytes": 2067,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 5,
+    "nextLink": {
+     "$select": "(2 chars)",
+     "$skip": "5005",
+     "$top": "5"
+    }
+   }
+  ],
+  "service_note": "Results limited to 5 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 1.0
+ }
+]

@@ -1,0 +1,91 @@
+[
+ {
+  "case": "body_01_25_messages",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id,bodyPreview,body&$top=25"
+   ]
+  },
+  "note": "25 newest messages with their full body",
+  "sent_utc": "2026-11-27T14:23:58.824Z",
+  "http_status": 200,
+  "ms": 1987,
+  "response_bytes": 2445569,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 25,
+    "nextLink": {
+     "$select": "(19 chars)",
+     "$skip": "25",
+     "$top": "25"
+    }
+   }
+  ],
+  "service_note": "Results limited to 25 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 2.0
+ },
+ {
+  "check": "characters of body.content per message, 25 newest messages",
+  "value": {
+   "smallest": 117,
+   "largest": 910413
+  },
+  "detail": "body.content is the message as stored (HTML for most mail)"
+ },
+ {
+  "check": "characters of bodyPreview per message, 25 newest messages",
+  "value": {
+   "smallest": 9,
+   "largest": 255
+  },
+  "detail": "bodyPreview is the short preview field of Microsoft Graph"
+ },
+ {
+  "case": "body_02_100_messages",
+  "tool": "fetch",
+  "arguments": {
+   "entityUrls": [
+    "/me/messages?$select=id,body&$top=100"
+   ]
+  },
+  "note": "100 messages with their full body: is the size of one answer capped",
+  "sent_utc": "2026-11-27T14:24:07.824Z",
+  "http_status": 200,
+  "ms": 5311,
+  "response_bytes": 7690363,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": [
+   {
+    "statusCode": 200,
+    "count": 100,
+    "nextLink": {
+     "$select": "(7 chars)",
+     "$skip": "100",
+     "$top": "100"
+    }
+   }
+  ],
+  "service_note": "Results limited to 100 items per collection. If you need different results, refine your $filter or $search parameters.",
+  "seconds": 5.3
+ },
+ {
+  "check": "100 messages with their full body in one answer",
+  "value": {
+   "bodies": 100,
+   "empty_bodies": 1,
+   "characters_in_total": 5686377,
+   "largest_body_characters": 930551,
+   "answer_bytes": 7690363,
+   "html_bodies_with_text": 96,
+   "html_bodies_that_end_with_the_closing_html_tag": 96
+  },
+  "detail": "an HTML body that ends with </html> was not cut at the end"
+ }
+]

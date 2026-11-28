@@ -1,0 +1,2565 @@
+[
+ {
+  "case": "retrieve_01_question",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?"
+  },
+  "note": "a question in English; all sources; default strategy",
+  "sent_utc": "2026-11-27T14:27:02.631Z",
+  "http_status": 200,
+  "ms": 12108,
+  "response_bytes": 23387,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 5,
+   "results": 5,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    5322,
+    2510,
+    2635,
+    2530,
+    2938
+   ],
+   "markdown_chars_total": 15935,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1790
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1792
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 68,
+     "author": 39,
+     "authorEmail": 22,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 46,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 22,
+     "relevanceSignals": 131,
+     "metadata": 106,
+     "snippet": 1759
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 14,
+     "authorEmail": 20,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 60,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 20,
+     "metadata": 102,
+     "snippet": 1794
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "author": 11,
+     "authorEmail": 25,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 73,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 25,
+     "metadata": 592,
+     "snippet": 1802
+    }
+   ],
+   "starts_with_untrusted_notice": 5,
+   "entityType_each": [
+    "Emails",
+    "Files",
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    true,
+    null
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ],
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "Message",
+      "Event",
+      "File",
+      "External",
+      "People"
+     ],
+     "totalResults": "Several emails, 203948 results for File, External domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 12.1
+ },
+ {
+  "case": "retrieve_02_same_again",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?"
+  },
+  "note": "the same call a second time",
+  "sent_utc": "2026-11-27T16:38:06.073Z",
+  "http_status": 200,
+  "ms": 10832,
+  "response_bytes": 28830,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 3,
+   "results": 3,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    6981,
+    6368,
+    10054
+   ],
+   "markdown_chars_total": 23403,
+   "markdown_fields_each": [
+    {
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 6314
+    },
+    {
+     "sensitivityLabel": 68,
+     "author": 39,
+     "authorEmail": 22,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 46,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 22,
+     "relevanceSignals": 131,
+     "metadata": 106,
+     "snippet": 5543
+    },
+    {
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 9441
+    }
+   ],
+   "starts_with_untrusted_notice": 3,
+   "entityType_each": [
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    true
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "People",
+      "File"
+     ],
+     "totalResults": "202638 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 10.8
+ },
+ {
+  "check": "the same query returns the same sources in the same order",
+  "value": false,
+  "detail": "5 and 3 sources; 2 in both answers"
+ },
+ {
+  "case": "retrieve_03_keywords",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "Work IQ MCP retrieve tool"
+  },
+  "note": "keywords instead of a sentence",
+  "sent_utc": "2026-11-27T14:26:28.568Z",
+  "http_status": 200,
+  "ms": 4618,
+  "response_bytes": 617,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 0,
+   "results": 0,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [],
+   "markdown_chars_total": 0,
+   "markdown_fields_each": [],
+   "starts_with_untrusted_notice": 0,
+   "entityType_each": [],
+   "contentProtection_each": [],
+   "encrypted_each": [],
+   "result_keys": [],
+   "metadata_fields": {},
+   "months": [],
+   "searchMetadata": [],
+   "searchMetadata_is": null,
+   "other_keys": []
+  },
+  "seconds": 4.6
+ },
+ {
+  "case": "retrieve_03_keywords_again",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "Work IQ MCP retrieve tool"
+  },
+  "note": "the keyword query a second time",
+  "sent_utc": "2026-11-27T16:38:19.770Z",
+  "http_status": 200,
+  "ms": 3975,
+  "response_bytes": 617,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 0,
+   "results": 0,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [],
+   "markdown_chars_total": 0,
+   "markdown_fields_each": [],
+   "starts_with_untrusted_notice": 0,
+   "entityType_each": [],
+   "contentProtection_each": [],
+   "encrypted_each": [],
+   "result_keys": [],
+   "metadata_fields": {},
+   "months": [],
+   "searchMetadata": [],
+   "searchMetadata_is": null,
+   "other_keys": []
+  },
+  "seconds": 4.0
+ },
+ {
+  "case": "retrieve_04_chinese",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "微软 Ignite 2026 大会上关于 Work IQ 发布了什么？"
+  },
+  "note": "the question in Chinese",
+  "sent_utc": "2026-11-27T16:38:26.391Z",
+  "http_status": 200,
+  "ms": 3892,
+  "response_bytes": 617,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 0,
+   "results": 0,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [],
+   "markdown_chars_total": 0,
+   "markdown_fields_each": [],
+   "starts_with_untrusted_notice": 0,
+   "entityType_each": [],
+   "contentProtection_each": [],
+   "encrypted_each": [],
+   "result_keys": [],
+   "metadata_fields": {},
+   "months": [],
+   "searchMetadata": [],
+   "searchMetadata_is": null,
+   "other_keys": []
+  },
+  "seconds": 3.9
+ },
+ {
+  "case": "retrieve_05_strategy_copilot",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "strategy": "copilot"
+  },
+  "note": "strategy=copilot",
+  "sent_utc": "2026-11-27T16:38:34.873Z",
+  "http_status": 200,
+  "ms": 50628,
+  "response_bytes": 10588,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 3,
+   "results": 3,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    2510,
+    1918,
+    1876
+   ],
+   "markdown_chars_total": 6304,
+   "markdown_fields_each": [
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1792
+    },
+    {
+     "typeDescription": 10,
+     "referenceType": 2,
+     "context": 34,
+     "defaultEncodingUrl": 137,
+     "spWebUrl": 53,
+     "hasAttachments": 5,
+     "referenceSubType": 10,
+     "dataSource": 10,
+     "sourceType": 4,
+     "resultSearchType": 18,
+     "itemId": 95,
+     "fileId": 188,
+     "fileName": 73,
+     "fileType": 4,
+     "fileModifiedContext": 34,
+     "containerSensitivityLabel": 282,
+     "uniqueId": 38,
+     "responseRequested": 5,
+     "suppressCitation": 5,
+     "isExternal": 5,
+     "isExcluded": 5,
+     "contentProtection": 7,
+     "sourceId": 95,
+     "sourceName": 67,
+     "contentSource": 10
+    },
+    {
+     "typeDescription": 10,
+     "referenceType": 1,
+     "context": 33,
+     "defaultEncodingUrl": 130,
+     "spWebUrl": 73,
+     "hasAttachments": 5,
+     "referenceSubType": 19,
+     "dataSource": 10,
+     "sourceType": 4,
+     "resultSearchType": 18,
+     "itemId": 95,
+     "fileId": 188,
+     "fileName": 36,
+     "fileType": 4,
+     "fileModifiedContext": 33,
+     "sensitivityLabel": 339,
+     "uniqueId": 38,
+     "responseRequested": 5,
+     "suppressCitation": 5,
+     "isExternal": 5,
+     "isExcluded": 5,
+     "contentProtection": 7,
+     "sourceId": 95,
+     "sourceName": 31,
+     "contentSource": 10
+    }
+   ],
+   "starts_with_untrusted_notice": 3,
+   "entityType_each": [
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    null,
+    true
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "File"
+     ],
+     "totalResults": "202987 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "list",
+   "other_keys": []
+  },
+  "seconds": 50.6
+ },
+ {
+  "case": "retrieve_06_only_Email",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "capabilities": [
+    {
+     "name": "Email"
+    }
+   ]
+  },
+  "note": "capabilities limited to Email",
+  "sent_utc": "2026-11-27T16:40:16.937Z",
+  "http_status": 200,
+  "ms": 6781,
+  "response_bytes": 18789,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 2,
+   "results": 2,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    10155,
+    4472
+   ],
+   "markdown_chars_total": 14627,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 6674
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 113,
+     "from": 62,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 97,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "relatedEntities": 193,
+     "containsAttachments": 4,
+     "snippet": 3446
+    }
+   ],
+   "starts_with_untrusted_notice": 2,
+   "entityType_each": [
+    "Emails",
+    "Emails"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "entityType",
+    "entityUrl",
+    "id",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2025-11",
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "Message"
+     ],
+     "totalResults": "Several emails",
+     "actualResults": null,
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 6.8
+ },
+ {
+  "case": "retrieve_06_only_OneDriveAndSharePoint",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "capabilities": [
+    {
+     "name": "OneDriveAndSharePoint"
+    }
+   ]
+  },
+  "note": "capabilities limited to OneDriveAndSharePoint",
+  "sent_utc": "2026-11-27T16:40:26.335Z",
+  "http_status": 200,
+  "ms": 9347,
+  "response_bytes": 35340,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 4,
+   "results": 4,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    10054,
+    6981,
+    5195,
+    6368
+   ],
+   "markdown_chars_total": 28598,
+   "markdown_fields_each": [
+    {
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 9441
+    },
+    {
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 6314
+    },
+    {
+     "sensitivityLabel": 91,
+     "author": 67,
+     "authorEmail": 22,
+     "lastModifiedTime": 11,
+     "fileType": 4,
+     "fileName": 46,
+     "lastModifiedBy": 9,
+     "modifiedByEmail": 22,
+     "relevanceSignals": 144,
+     "metadata": 106,
+     "snippet": 4314
+    },
+    {
+     "sensitivityLabel": 68,
+     "author": 39,
+     "authorEmail": 22,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 46,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 22,
+     "relevanceSignals": 131,
+     "metadata": 106,
+     "snippet": 5543
+    }
+   ],
+   "starts_with_untrusted_notice": 4,
+   "entityType_each": [
+    "Files",
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    true,
+    false,
+    true,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "File"
+     ],
+     "totalResults": "117690 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 9.3
+ },
+ {
+  "case": "retrieve_06_only_TeamsMessages",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "capabilities": [
+    {
+     "name": "TeamsMessages"
+    }
+   ]
+  },
+  "note": "capabilities limited to TeamsMessages",
+  "sent_utc": "2026-11-27T16:40:38.769Z",
+  "http_status": 200,
+  "ms": 7801,
+  "response_bytes": 7372,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 2,
+   "results": 2,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    2472,
+    2275
+   ],
+   "markdown_chars_total": 4747,
+   "markdown_fields_each": [
+    {
+     "to": 25,
+     "dateTimeSent": 25,
+     "teamsConversationFileId": 188,
+     "isConversation": 4,
+     "snippet": 2017
+    },
+    {
+     "to": 35,
+     "dateTimeSent": 25,
+     "teamsConversationFileId": 188,
+     "isConversation": 4,
+     "snippet": 1763
+    }
+   ],
+   "starts_with_untrusted_notice": 2,
+   "entityType_each": [
+    "Chats",
+    "Chats"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    null,
+    null
+   ],
+   "result_keys": [
+    "chatId",
+    "contentProtection",
+    "entityType",
+    "entityUrl",
+    "id",
+    "markdown",
+    "messageId",
+    "resourceId",
+    "resourceMetadata",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "chat": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [],
+     "totalResults": "",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 7.8
+ },
+ {
+  "case": "retrieve_06_only_Meetings",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "capabilities": [
+    {
+     "name": "Meetings"
+    }
+   ]
+  },
+  "note": "capabilities limited to Meetings",
+  "sent_utc": "2026-11-27T16:40:49.348Z",
+  "http_status": 200,
+  "ms": 7358,
+  "response_bytes": 8156,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 2,
+   "results": 2,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    2414,
+    2439
+   ],
+   "markdown_chars_total": 4853,
+   "markdown_fields_each": [
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "lastModifiedTime": 20,
+     "fileType": 3,
+     "fileName": 81,
+     "lastModifiedBy": 14,
+     "metadata": 79,
+     "snippet": 1794
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "lastModifiedTime": 17,
+     "fileType": 3,
+     "fileName": 92,
+     "lastModifiedBy": 14,
+     "metadata": 77,
+     "snippet": 1802
+    }
+   ],
+   "starts_with_untrusted_notice": 2,
+   "entityType_each": [
+    "Transcripts",
+    "Transcripts"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "video": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "Event",
+      "File"
+     ],
+     "totalResults": "150 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 7.4
+ },
+ {
+  "case": "retrieve_06_only_People",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "capabilities": [
+    {
+     "name": "People"
+    }
+   ]
+  },
+  "note": "capabilities limited to People",
+  "sent_utc": "2026-11-27T16:40:59.332Z",
+  "http_status": 200,
+  "ms": 6657,
+  "response_bytes": 709,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 0,
+   "results": 0,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [],
+   "markdown_chars_total": 0,
+   "markdown_fields_each": [],
+   "starts_with_untrusted_notice": 0,
+   "entityType_each": [],
+   "contentProtection_each": [],
+   "encrypted_each": [],
+   "result_keys": [],
+   "metadata_fields": {},
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "People"
+     ],
+     "totalResults": "",
+     "actualResults": "",
+     "searchTerms": 0
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 6.7
+ },
+ {
+  "case": "retrieve_07_top_50",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "top": 50
+  },
+  "note": "top=50, a parameter the tool schema does not list",
+  "sent_utc": "2026-11-27T16:41:10.287Z",
+  "http_status": 200,
+  "ms": 10091,
+  "response_bytes": 20142,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 4,
+   "results": 4,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    5322,
+    2510,
+    3364,
+    2462
+   ],
+   "markdown_chars_total": 13658,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1790
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1792
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 68,
+     "author": 12,
+     "authorEmail": 25,
+     "lastModifiedTime": 12,
+     "fileType": 3,
+     "fileName": 57,
+     "lastModifiedBy": 38,
+     "modifiedByEmail": 25,
+     "metadata": 967,
+     "snippet": 1762
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 1798
+    }
+   ],
+   "starts_with_untrusted_notice": 4,
+   "entityType_each": [
+    "Emails",
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    true
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ],
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "File",
+      "Event"
+     ],
+     "totalResults": "206513 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 10.1
+ },
+ {
+  "case": "retrieve_08_ask_for_50",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026? Return 50 results."
+  },
+  "note": "asking for 50 results inside the query text",
+  "sent_utc": "2026-11-27T16:41:23.349Z",
+  "http_status": 200,
+  "ms": 10923,
+  "response_bytes": 59403,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 13,
+   "results": 13,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    5322,
+    2598,
+    2510,
+    2462,
+    2530,
+    2465,
+    2938,
+    2617,
+    2447,
+    2444,
+    2635,
+    3249,
+    2371
+   ],
+   "markdown_chars_total": 36588,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1790
+    },
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "to": 74,
+     "from": 68,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 95,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1770
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1792
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 1798
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 14,
+     "authorEmail": 20,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 60,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 20,
+     "metadata": 102,
+     "snippet": 1794
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 10,
+     "authorEmail": 23,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 36,
+     "lastModifiedBy": 10,
+     "modifiedByEmail": 23,
+     "metadata": 100,
+     "snippet": 1782
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "author": 11,
+     "authorEmail": 25,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 73,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 25,
+     "metadata": 592,
+     "snippet": 1802
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "author": 29,
+     "authorEmail": 26,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 16,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 21,
+     "metadata": 390,
+     "snippet": 1768
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "author": 11,
+     "authorEmail": 24,
+     "lastModifiedTime": 16,
+     "fileType": 3,
+     "fileName": 25,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 24,
+     "metadata": 108,
+     "snippet": 1793
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "author": 21,
+     "authorEmail": 34,
+     "lastModifiedTime": 11,
+     "fileType": 4,
+     "fileName": 30,
+     "lastModifiedBy": 9,
+     "modifiedByEmail": 22,
+     "metadata": 78,
+     "snippet": 1799
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 68,
+     "author": 39,
+     "authorEmail": 22,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 46,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 22,
+     "relevanceSignals": 131,
+     "metadata": 106,
+     "snippet": 1759
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 69,
+     "relevanceSignals": 179,
+     "sourceJson": 865,
+     "snippet": 1800
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "lastModifiedTime": 18,
+     "fileType": 3,
+     "fileName": 93,
+     "lastModifiedBy": 14,
+     "metadata": 104,
+     "snippet": 1800
+    }
+   ],
+   "starts_with_untrusted_notice": 13,
+   "entityType_each": [
+    "Emails",
+    "Emails",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "ThirdParty",
+    "Transcripts"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    null,
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    null,
+    null,
+    false,
+    false,
+    false,
+    false,
+    null
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ],
+    "email": [
+     "sentTime",
+     "subject"
+    ],
+    "video": [
+     "title"
+    ],
+    "web": [
+     "title"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "People",
+      "File"
+     ],
+     "totalResults": "203305 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 10.9
+ },
+ {
+  "case": "retrieve_08_ask_for_100",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026? Return 100 results."
+  },
+  "note": "asking for 100 results inside the query text",
+  "sent_utc": "2026-11-27T16:48:50.779Z",
+  "http_status": 200,
+  "ms": 12131,
+  "response_bytes": 31245,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 7,
+   "results": 7,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    5322,
+    2510,
+    3335,
+    2530,
+    2462,
+    2938,
+    2371
+   ],
+   "markdown_chars_total": 21468,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1790
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1792
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 68,
+     "author": 12,
+     "authorEmail": 25,
+     "lastModifiedTime": 12,
+     "fileType": 3,
+     "fileName": 57,
+     "lastModifiedBy": 38,
+     "modifiedByEmail": 25,
+     "metadata": 967,
+     "snippet": 1733
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 14,
+     "authorEmail": 20,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 60,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 20,
+     "metadata": 102,
+     "snippet": 1794
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 1798
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "author": 11,
+     "authorEmail": 25,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 73,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 25,
+     "metadata": 592,
+     "snippet": 1802
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "lastModifiedTime": 18,
+     "fileType": 3,
+     "fileName": 93,
+     "lastModifiedBy": 14,
+     "metadata": 104,
+     "snippet": 1800
+    }
+   ],
+   "starts_with_untrusted_notice": 7,
+   "entityType_each": [
+    "Emails",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Transcripts"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    true,
+    true,
+    null,
+    null
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ],
+    "email": [
+     "sentTime",
+     "subject"
+    ],
+    "video": [
+     "title"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "File"
+     ],
+     "totalResults": "202925 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 12.1
+ },
+ {
+  "case": "retrieve_09_query_1600_chars",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "(1600 characters)"
+  },
+  "note": "a query of 1,600 characters",
+  "sent_utc": "2026-11-27T16:41:38.503Z",
+  "http_status": 200,
+  "ms": 8625,
+  "response_bytes": 29689,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 3,
+   "results": 3,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    6981,
+    9131,
+    8031
+   ],
+   "markdown_chars_total": 24143,
+   "markdown_fields_each": [
+    {
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 6314
+    },
+    {
+     "sensitivityLabel": 68,
+     "author": 12,
+     "authorEmail": 25,
+     "lastModifiedTime": 12,
+     "fileType": 3,
+     "fileName": 57,
+     "lastModifiedBy": 38,
+     "modifiedByEmail": 25,
+     "metadata": 967,
+     "snippet": 7580
+    },
+    {
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 7418
+    }
+   ],
+   "starts_with_untrusted_notice": 3,
+   "entityType_each": [
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    true
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ]
+   },
+   "months": [],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "File"
+     ],
+     "totalResults": "208225 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 8.6
+ },
+ {
+  "case": "retrieve_09_query_6000_chars",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "(6000 characters)"
+  },
+  "note": "a query of 6,000 characters",
+  "sent_utc": "2026-11-27T16:41:49.874Z",
+  "http_status": 200,
+  "ms": 4933,
+  "response_bytes": 618,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 0,
+   "results": 0,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [],
+   "markdown_chars_total": 0,
+   "markdown_fields_each": [],
+   "starts_with_untrusted_notice": 0,
+   "entityType_each": [],
+   "contentProtection_each": [],
+   "encrypted_each": [],
+   "result_keys": [],
+   "metadata_fields": {},
+   "months": [],
+   "searchMetadata": [],
+   "searchMetadata_is": null,
+   "other_keys": []
+  },
+  "seconds": 4.9
+ },
+ {
+  "case": "retrieve_10_developer_card",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "includeDeveloperCard": true
+  },
+  "note": "includeDeveloperCard=true",
+  "sent_utc": "2026-11-27T16:41:57.612Z",
+  "http_status": 200,
+  "ms": 12022,
+  "response_bytes": 27923,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 6,
+   "results": 6,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    5322,
+    2508,
+    3364,
+    2530,
+    2462,
+    2938
+   ],
+   "markdown_chars_total": 19124,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "to": 2749,
+     "from": 57,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 93,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1790
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 102,
+     "author": 27,
+     "authorEmail": 20,
+     "lastModifiedTime": 19,
+     "fileType": 4,
+     "fileName": 50,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 20,
+     "metadata": 78,
+     "snippet": 1790
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 68,
+     "author": 12,
+     "authorEmail": 25,
+     "lastModifiedTime": 12,
+     "fileType": 3,
+     "fileName": 57,
+     "lastModifiedBy": 38,
+     "modifiedByEmail": 25,
+     "metadata": 967,
+     "snippet": 1762
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 14,
+     "authorEmail": 20,
+     "lastModifiedTime": 14,
+     "fileType": 4,
+     "fileName": 60,
+     "lastModifiedBy": 14,
+     "modifiedByEmail": 20,
+     "metadata": 102,
+     "snippet": 1794
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "sensitivityLabel": 91,
+     "author": 21,
+     "authorEmail": 22,
+     "lastModifiedTime": 17,
+     "fileType": 4,
+     "fileName": 26,
+     "lastModifiedBy": 21,
+     "modifiedByEmail": 22,
+     "metadata": 77,
+     "snippet": 1798
+    },
+    {
+     "truncationInfo": "Content has been truncated",
+     "author": 11,
+     "authorEmail": 25,
+     "lastModifiedTime": 13,
+     "fileType": 4,
+     "fileName": 73,
+     "lastModifiedBy": 11,
+     "modifiedByEmail": 25,
+     "metadata": 592,
+     "snippet": 1802
+    }
+   ],
+   "starts_with_untrusted_notice": 6,
+   "entityType_each": [
+    "Emails",
+    "Files",
+    "Files",
+    "Files",
+    "Files",
+    "Files"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    true,
+    true,
+    null
+   ],
+   "result_keys": [
+    "contentProtection",
+    "driveId",
+    "entityType",
+    "entityUrl",
+    "id",
+    "itemId",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "document": [
+     "title"
+    ],
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "File",
+      "External",
+      "Message",
+      "Event",
+      "File"
+     ],
+     "totalResults": "208713 results for File, External domains, Several emails, 19 results for File domains",
+     "actualResults": "",
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 12.0
+ },
+ {
+  "case": "retrieve_11_old_mail",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "Which emails did I receive in 2023 about Azure OpenAI?",
+   "capabilities": [
+    {
+     "name": "Email"
+    }
+   ]
+  },
+  "note": "a question about 2023, email only: how far back do the results go",
+  "sent_utc": "2026-11-27T16:42:13.721Z",
+  "http_status": 200,
+  "ms": 7293,
+  "response_bytes": 31074,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 4,
+   "results": 4,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    1476,
+    5752,
+    1488,
+    2722
+   ],
+   "markdown_chars_total": 11438,
+   "markdown_fields_each": [
+    {
+     "received": 22,
+     "sensitivityLabel": 69,
+     "to": 12,
+     "from": 161,
+     "emailFolder": 5,
+     "isRead": 4,
+     "senderOrigin": 190,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 575
+    },
+    {
+     "received": 23,
+     "sensitivityLabel": 69,
+     "to": 10,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 5056
+    },
+    {
+     "received": 22,
+     "sensitivityLabel": 69,
+     "to": 12,
+     "from": 161,
+     "emailFolder": 5,
+     "isRead": 4,
+     "senderOrigin": 190,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 581
+    },
+    {
+     "received": 23,
+     "sensitivityLabel": 69,
+     "to": 11,
+     "from": 161,
+     "emailFolder": 5,
+     "isRead": 4,
+     "senderOrigin": 190,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1826
+    }
+   ],
+   "starts_with_untrusted_notice": 4,
+   "entityType_each": [
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    false,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "entityType",
+    "entityUrl",
+    "id",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2023-03",
+    "2023-08"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "Message"
+     ],
+     "totalResults": "Several emails",
+     "actualResults": null,
+     "searchTerms": 2
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 7.3
+ },
+ {
+  "case": "retrieve_12_bad_strategy",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What was announced about Work IQ at Microsoft Ignite 2026?",
+   "strategy": "all"
+  },
+  "note": "a strategy value the schema does not list",
+  "sent_utc": "2026-11-27T16:42:23.847Z",
+  "http_status": 200,
+  "ms": 525,
+  "response_bytes": 338,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [
+   "{\"error\":\"Unsupported strategy \\u0027all\\u0027. Supported values are \\u0027copilot\\u0027 and \\u0027grounding\\u0027.\",\"requestId\":\"(removed)\"}"
+  ],
+  "result": null,
+  "seconds": 0.5
+ },
+ {
+  "case": "retrieve_13_empty_query",
+  "tool": "retrieve",
+  "arguments": {
+   "query": ""
+  },
+  "note": "an empty query",
+  "sent_utc": "2026-11-27T16:42:27.283Z",
+  "http_status": 200,
+  "ms": 523,
+  "response_bytes": 316,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": true,
+  "text": [
+   "{\"error\":\"Parameter \\u0027query\\u0027 is required and must contain at least one non-empty string.\",\"requestId\":\"(removed)\"}"
+  ],
+  "result": null,
+  "seconds": 0.5
+ },
+ {
+  "case": "retrieve_14_week_english",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "What important emails did I receive in the last week?"
+  },
+  "note": "a second question, in English",
+  "sent_utc": "2026-11-27T16:44:50.435Z",
+  "http_status": 200,
+  "ms": 6542,
+  "response_bytes": 49306,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 7,
+   "results": 7,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    4342,
+    2581,
+    7963,
+    6191,
+    2541,
+    8006,
+    4446
+   ],
+   "markdown_chars_total": 36070,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 34,
+     "from": 56,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 92,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 3587
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 50,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1798
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 91,
+     "to": 38,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 7186
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 108,
+     "from": 56,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 94,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 5398
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 67,
+     "from": 58,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 95,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1798
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 1108,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "relatedEntities": 761,
+     "containsAttachments": 4,
+     "snippet": 5385
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 152,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 3585
+    }
+   ],
+   "starts_with_untrusted_notice": 7,
+   "entityType_each": [
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "entityType",
+    "entityUrl",
+    "id",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "Message"
+     ],
+     "totalResults": "Several emails",
+     "actualResults": null,
+     "searchTerms": 0
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 6.5
+ },
+ {
+  "case": "retrieve_14_week_chinese",
+  "tool": "retrieve",
+  "arguments": {
+   "query": "最近一周我收到了哪些重要邮件？"
+  },
+  "note": "the second question in Chinese",
+  "sent_utc": "2026-11-27T16:44:59.798Z",
+  "http_status": 200,
+  "ms": 5188,
+  "response_bytes": 56741,
+  "retry_after": null,
+  "sent_as_typed": true,
+  "is_error": false,
+  "result": {
+   "resultCount": 7,
+   "results": 7,
+   "stoppedReason": "completed",
+   "markdown_chars_each": [
+    6140,
+    7963,
+    2581,
+    6191,
+    11599,
+    2541,
+    6221
+   ],
+   "markdown_chars_total": 43236,
+   "markdown_fields_each": [
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 34,
+     "from": 56,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 92,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 5385
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 91,
+     "to": 38,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 7186
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 50,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1798
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 108,
+     "from": 56,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 94,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 5398
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 1108,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "relatedEntities": 761,
+     "containsAttachments": 4,
+     "snippet": 8978
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 67,
+     "from": 58,
+     "emailFolder": 3,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 95,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 1798
+    },
+    {
+     "received": 25,
+     "sensitivityLabel": 69,
+     "to": 152,
+     "from": 60,
+     "emailFolder": 6,
+     "isRead": 4,
+     "isExternalSender": 5,
+     "senderOrigin": 96,
+     "emailHasMeetingInvite": 5,
+     "senderMarkedImportance": 6,
+     "flagStatus": 10,
+     "containsAttachments": 5,
+     "snippet": 5360
+    }
+   ],
+   "starts_with_untrusted_notice": 7,
+   "entityType_each": [
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails",
+    "Emails"
+   ],
+   "contentProtection_each": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed"
+   ],
+   "encrypted_each": [
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "result_keys": [
+    "contentProtection",
+    "entityType",
+    "entityUrl",
+    "id",
+    "markdown",
+    "resourceId",
+    "resourceMetadata",
+    "sensitivityLabel",
+    "webUrl"
+   ],
+   "metadata_fields": {
+    "email": [
+     "sentTime",
+     "subject"
+    ]
+   },
+   "months": [
+    "2026-11"
+   ],
+   "searchMetadata": [
+    {
+     "types": [
+      "Message"
+     ],
+     "totalResults": "Several emails",
+     "actualResults": null,
+     "searchTerms": 0
+    }
+   ],
+   "searchMetadata_is": "dict",
+   "other_keys": []
+  },
+  "seconds": 5.2
+ }
+]

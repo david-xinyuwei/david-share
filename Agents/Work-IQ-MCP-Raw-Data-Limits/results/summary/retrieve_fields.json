@@ -1,0 +1,374 @@
+{
+ "Chats": {
+  "results": 2,
+  "markdown_chars_min": 2275,
+  "markdown_chars_max": 2472,
+  "truncationInfo": {
+   "(no truncationInfo field)": 2
+  },
+  "fields": {
+   "dateTimeSent": {
+    "in_results": 2,
+    "chars_min": 25,
+    "chars_max": 25
+   },
+   "isConversation": {
+    "in_results": 2,
+    "chars_min": 4,
+    "chars_max": 4
+   },
+   "snippet": {
+    "in_results": 2,
+    "chars_min": 1763,
+    "chars_max": 2017
+   },
+   "teamsConversationFileId": {
+    "in_results": 2,
+    "chars_min": 188,
+    "chars_max": 188
+   },
+   "to": {
+    "in_results": 2,
+    "chars_min": 25,
+    "chars_max": 35
+   }
+  }
+ },
+ "Emails": {
+  "results": 26,
+  "markdown_chars_min": 1476,
+  "markdown_chars_max": 11599,
+  "truncationInfo": {
+   "Content has been truncated": 6,
+   "(no truncationInfo field)": 20
+  },
+  "fields": {
+   "containsAttachments": {
+    "in_results": 26,
+    "chars_min": 4,
+    "chars_max": 5
+   },
+   "emailFolder": {
+    "in_results": 26,
+    "chars_min": 3,
+    "chars_max": 6
+   },
+   "emailHasMeetingInvite": {
+    "in_results": 26,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "flagStatus": {
+    "in_results": 26,
+    "chars_min": 10,
+    "chars_max": 10
+   },
+   "from": {
+    "in_results": 26,
+    "chars_min": 56,
+    "chars_max": 161
+   },
+   "isExternalSender": {
+    "in_results": 23,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "isRead": {
+    "in_results": 26,
+    "chars_min": 4,
+    "chars_max": 4
+   },
+   "received": {
+    "in_results": 26,
+    "chars_min": 22,
+    "chars_max": 25
+   },
+   "relatedEntities": {
+    "in_results": 3,
+    "chars_min": 193,
+    "chars_max": 761
+   },
+   "senderMarkedImportance": {
+    "in_results": 26,
+    "chars_min": 6,
+    "chars_max": 6
+   },
+   "senderOrigin": {
+    "in_results": 26,
+    "chars_min": 92,
+    "chars_max": 190
+   },
+   "sensitivityLabel": {
+    "in_results": 26,
+    "chars_min": 69,
+    "chars_max": 102
+   },
+   "snippet": {
+    "in_results": 26,
+    "chars_min": 575,
+    "chars_max": 8978
+   },
+   "to": {
+    "in_results": 26,
+    "chars_min": 10,
+    "chars_max": 2749
+   }
+  }
+ },
+ "Files": {
+  "results": 39,
+  "markdown_chars_min": 1876,
+  "markdown_chars_max": 10054,
+  "truncationInfo": {
+   "Content has been truncated": 27,
+   "(no truncationInfo field)": 12
+  },
+  "fields": {
+   "author": {
+    "in_results": 37,
+    "chars_min": 10,
+    "chars_max": 67
+   },
+   "authorEmail": {
+    "in_results": 37,
+    "chars_min": 20,
+    "chars_max": 34
+   },
+   "containerSensitivityLabel": {
+    "in_results": 1,
+    "chars_min": 282,
+    "chars_max": 282
+   },
+   "contentProtection": {
+    "in_results": 2,
+    "chars_min": 7,
+    "chars_max": 7
+   },
+   "contentSource": {
+    "in_results": 2,
+    "chars_min": 10,
+    "chars_max": 10
+   },
+   "context": {
+    "in_results": 2,
+    "chars_min": 33,
+    "chars_max": 34
+   },
+   "dataSource": {
+    "in_results": 2,
+    "chars_min": 10,
+    "chars_max": 10
+   },
+   "defaultEncodingUrl": {
+    "in_results": 2,
+    "chars_min": 130,
+    "chars_max": 137
+   },
+   "fileId": {
+    "in_results": 2,
+    "chars_min": 188,
+    "chars_max": 188
+   },
+   "fileModifiedContext": {
+    "in_results": 2,
+    "chars_min": 33,
+    "chars_max": 34
+   },
+   "fileName": {
+    "in_results": 39,
+    "chars_min": 16,
+    "chars_max": 73
+   },
+   "fileType": {
+    "in_results": 39,
+    "chars_min": 3,
+    "chars_max": 4
+   },
+   "hasAttachments": {
+    "in_results": 2,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "isExcluded": {
+    "in_results": 2,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "isExternal": {
+    "in_results": 2,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "itemId": {
+    "in_results": 2,
+    "chars_min": 95,
+    "chars_max": 95
+   },
+   "lastModifiedBy": {
+    "in_results": 37,
+    "chars_min": 9,
+    "chars_max": 38
+   },
+   "lastModifiedTime": {
+    "in_results": 37,
+    "chars_min": 11,
+    "chars_max": 19
+   },
+   "metadata": {
+    "in_results": 37,
+    "chars_min": 77,
+    "chars_max": 967
+   },
+   "modifiedByEmail": {
+    "in_results": 37,
+    "chars_min": 20,
+    "chars_max": 25
+   },
+   "referenceSubType": {
+    "in_results": 2,
+    "chars_min": 10,
+    "chars_max": 19
+   },
+   "referenceType": {
+    "in_results": 2,
+    "chars_min": 1,
+    "chars_max": 2
+   },
+   "relevanceSignals": {
+    "in_results": 5,
+    "chars_min": 131,
+    "chars_max": 144
+   },
+   "responseRequested": {
+    "in_results": 2,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "resultSearchType": {
+    "in_results": 2,
+    "chars_min": 18,
+    "chars_max": 18
+   },
+   "sensitivityLabel": {
+    "in_results": 33,
+    "chars_min": 68,
+    "chars_max": 339
+   },
+   "snippet": {
+    "in_results": 37,
+    "chars_min": 1733,
+    "chars_max": 9441
+   },
+   "sourceId": {
+    "in_results": 2,
+    "chars_min": 95,
+    "chars_max": 95
+   },
+   "sourceName": {
+    "in_results": 2,
+    "chars_min": 31,
+    "chars_max": 67
+   },
+   "sourceType": {
+    "in_results": 2,
+    "chars_min": 4,
+    "chars_max": 4
+   },
+   "spWebUrl": {
+    "in_results": 2,
+    "chars_min": 53,
+    "chars_max": 73
+   },
+   "suppressCitation": {
+    "in_results": 2,
+    "chars_min": 5,
+    "chars_max": 5
+   },
+   "typeDescription": {
+    "in_results": 2,
+    "chars_min": 10,
+    "chars_max": 10
+   },
+   "uniqueId": {
+    "in_results": 2,
+    "chars_min": 38,
+    "chars_max": 38
+   }
+  }
+ },
+ "ThirdParty": {
+  "results": 1,
+  "markdown_chars_min": 3249,
+  "markdown_chars_max": 3249,
+  "truncationInfo": {
+   "Content has been truncated": 1
+  },
+  "fields": {
+   "relevanceSignals": {
+    "in_results": 1,
+    "chars_min": 179,
+    "chars_max": 179
+   },
+   "sensitivityLabel": {
+    "in_results": 1,
+    "chars_min": 69,
+    "chars_max": 69
+   },
+   "snippet": {
+    "in_results": 1,
+    "chars_min": 1800,
+    "chars_max": 1800
+   },
+   "sourceJson": {
+    "in_results": 1,
+    "chars_min": 865,
+    "chars_max": 865
+   }
+  }
+ },
+ "Transcripts": {
+  "results": 4,
+  "markdown_chars_min": 2371,
+  "markdown_chars_max": 2439,
+  "truncationInfo": {
+   "Content has been truncated": 4
+  },
+  "fields": {
+   "fileName": {
+    "in_results": 4,
+    "chars_min": 81,
+    "chars_max": 93
+   },
+   "fileType": {
+    "in_results": 4,
+    "chars_min": 3,
+    "chars_max": 3
+   },
+   "lastModifiedBy": {
+    "in_results": 4,
+    "chars_min": 14,
+    "chars_max": 14
+   },
+   "lastModifiedTime": {
+    "in_results": 4,
+    "chars_min": 17,
+    "chars_max": 20
+   },
+   "metadata": {
+    "in_results": 4,
+    "chars_min": 77,
+    "chars_max": 104
+   },
+   "sensitivityLabel": {
+    "in_results": 2,
+    "chars_min": 69,
+    "chars_max": 69
+   },
+   "snippet": {
+    "in_results": 4,
+    "chars_min": 1794,
+    "chars_max": 1802
+   }
+  }
+ }
+}
